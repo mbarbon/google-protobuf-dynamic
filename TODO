@@ -1,0 +1,23 @@
+Implement:
+- enum serialization
+- blessing/accessor generation
+- automated type mapping
+- 64-bit mapping on 32-bit Perls
+- constants for enums
+- load from serialized descriptors
+- extensions
+- oneof fields
+- parse from a scalar
+- fix all XXX/TODO
+- decode to blessed object that goes through C++ accessors
+- use AvARRAY directly rather than going through av_fetch (maybe)
+- serializing tied array/hashes
+
+Test:
+- benchmark with Perl implementation/Sereal
+- inner type mapping
+- inner optional messages
+- mapping for all types
+- repeated fields of various types
+- groups
+- import

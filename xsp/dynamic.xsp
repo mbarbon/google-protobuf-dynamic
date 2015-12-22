@@ -1,0 +1,12 @@
+%module{Google::ProtocolBuffers::Dynamic};
+
+#include "dynamic.h"
+
+%name{Google::ProtocolBuffers::Dynamic} class gpd::Dynamic {
+    Dynamic(const std::string &root_directory);
+    ~Dynamic();
+
+    void load_file(const std::string &file);
+    void map_message(const std::string &message, const std::string &package);
+    void resolve_references();
+};
