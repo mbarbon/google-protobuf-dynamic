@@ -4,6 +4,9 @@ use strict;
 use warnings;
 use parent 'Module::Build::WithXSpp';
 
+use Alien::ProtoBuf;
+use Alien::uPB;
+
 sub new {
     my $class = shift;
     my $self = $class->SUPER::new(
@@ -11,9 +14,8 @@ sub new {
         extra_typemap_modules => {
             'ExtUtils::Typemaps::STL::String' => '0',
         },
-        # XXX fix this
-        extra_linker_flags => [qw(-L/home/mattia/dev/upb/lib -lupb.bindings.googlepb -lupb.pb -lupb -lprotobuf)],
-        extra_compiler_flags => [qw(-I/home/mattia/dev/upb -g)],
+        extra_linker_flags => [Alien::uPB->libs, Alien::ProtoBuf->libs],
+        extra_compiler_flags => [Alien::uPB->cflags, Alien::ProtoBuf->cflags],
     );
 
     return $self;
