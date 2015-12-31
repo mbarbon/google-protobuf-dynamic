@@ -6,6 +6,8 @@
 using namespace gpd;
 using namespace std;
 using namespace google::protobuf;
+using namespace upb;
+using namespace upb::googlepb;
 
 void Dynamic::CollectErrors::AddError(const string &filename, int line, int column, const string &message) {
     croak("Error during protobuf parsing: %s:%d:%d: %s", filename.c_str(), line, column, message.c_str());
@@ -47,12 +49,10 @@ void Dynamic::map_message(const string &message, const string &package) {
         croak("Unable to find a descriptor for message '%s'", message.c_str());
     }
 
-    Mapper *mapper = new Mapper();
-    mapper->factory = new DynamicMessageFactory(pool);
-    mapper->prototype = mapper->factory->GetPrototype(descriptor);
-    mapper->reflection = mapper->prototype->GetReflection();
+    reffed_ptr<const MessageDef> message_def = def_builder.GetMessageDef(descriptor);
+    Mapper *mapper = new Mapper(message_def);
 
-    descriptor_map[descriptor] = mapper;
+    descriptor_map[message_def->full_name()] = mapper;
     package_map[package] = mapper;
     pending.push_back(mapper);
 
@@ -62,22 +62,18 @@ void Dynamic::map_message(const string &message, const string &package) {
 
 void Dynamic::resolve_references() {
     for (std::vector<Mapper *>::iterator it = pending.begin(), en = pending.end(); it != en; ++it) {
-        Mapper *mapper = *it;
-        const Descriptor *descriptor = mapper->prototype->GetDescriptor();
-
-        for (int i = 0, max = descriptor->field_count(); i < max; ++i) {
-            const FieldDescriptor *fd = descriptor->field(i);
-            if (fd->type() != FieldDescriptor::TYPE_GROUP &&
-                    fd->type() != FieldDescriptor::TYPE_MESSAGE)
-                continue;
-
-            const Mapper *field_mapper = descriptor_map[fd->message_type()];
-            if (!field_mapper)
-                croak("Unknown type '%s'", fd->message_type()->full_name().c_str());
-
-            mapper->descriptor_map[fd->message_type()] = field_mapper;
-        }
+        (*it)->resolve_mappers(this);
 
         // XXX nested types, extensions
     }
 }
+
+const Mapper *Dynamic::find_mapper(const MessageDef *message_def) const {
+    std::tr1::unordered_map<string, const Mapper *>::const_iterator item = descriptor_map.find(message_def->full_name());
+
+    if (item == descriptor_map.end())
+        croak("Unknown type '%s'", message_def->full_name());
+
+    return item->second;
+}
+

@@ -11,7 +11,9 @@ sub new {
         extra_typemap_modules => {
             'ExtUtils::Typemaps::STL::String' => '0',
         },
-        extra_linker_flags => [qw(-lprotobuf)],
+        # XXX fix this
+        extra_linker_flags => [qw(-L/home/mattia/dev/upb/lib -lupb.bindings.googlepb -lupb.pb -lupb -lprotobuf)],
+        extra_compiler_flags => [qw(-I/home/mattia/dev/upb -g)],
     );
 
     return $self;

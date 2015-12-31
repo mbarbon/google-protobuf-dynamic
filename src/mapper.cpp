@@ -1,326 +1,358 @@
 #include "mapper.h"
+#include "dynamic.h"
 
 #undef New
 
-#include <google/protobuf/repeated_field.h>
+#include <upb/pb/encoder.h>
+#include <upb/pb/decoder.h>
 
 using namespace gpd;
 using namespace std;
-using namespace google::protobuf;
+using namespace upb;
+using namespace upb::pb;
 
-const Mapper *Mapper::mapper_for_descriptor(const google::protobuf::Descriptor *descriptor) const {
-    InnerMessagesMap::const_iterator it = descriptor_map.find(descriptor);
-    if (it == descriptor_map.end())
-        croak("Unable to find mapper for type %s", descriptor->full_name().c_str());
-
-    return it->second;
+Mapper::DecoderHandlers::DecoderHandlers(const Mapper *mapper) {
+    mappers.push_back(mapper);
 }
 
-void Mapper::decode_to_perl(const Message *message, SV *target) const {
-    const Descriptor *descriptor = message->GetDescriptor();
+void Mapper::DecoderHandlers::prepare(HV *target) {
+    mappers.resize(1);
+    seen_fields.resize(1);
+    seen_fields.back().clear();
+    items.resize(1);
+    items[0] = (SV *) target;
+    string = NULL;
+}
+
+SV *Mapper::DecoderHandlers::get_target() {
+    return items[0];
+}
+
+void Mapper::DecoderHandlers::apply_defaults() {
+    const vector<bool> &seen = seen_fields.back();
+    const vector<Mapper::Field> &fields = mappers.back()->fields;
+
+    for (int i = 0, n = fields.size(); i < n; ++i) {
+        const Mapper::Field &field = fields[i];
+
+        if (!seen[i] && field.has_default) {
+            SV *target = get_target(&i);
+
+            switch (field.field_def->type()) {
+            case UPB_TYPE_FLOAT:
+                sv_setnv(target, field.field_def->default_float());
+                break;
+            case UPB_TYPE_DOUBLE:
+                sv_setnv(target, field.field_def->default_double());
+                break;
+            case UPB_TYPE_BOOL:
+                if (field.field_def->default_bool())
+                    sv_setpvn(target, "", 0);
+                else
+                    SvOK_off(target);
+                break;
+            case UPB_TYPE_BYTES:
+            case UPB_TYPE_STRING: {
+                size_t len;
+                const char *val = field.field_def->default_string(&len);
+                if (!val) {
+                    val = "";
+                    len = 0;
+                }
+
+                sv_setpvn(target, val, len);
+                if (field.field_def->type() == UPB_TYPE_STRING)
+                    SvUTF8_on(target);
+            }
+                break;
+            case UPB_TYPE_ENUM:
+                // XXX
+                break;
+            case UPB_TYPE_INT32:
+                sv_setiv(target, field.field_def->default_int32());
+                break;
+            case UPB_TYPE_UINT32:
+                sv_setuv(target, field.field_def->default_uint32());
+                break;
+            case UPB_TYPE_INT64:
+                sv_setiv(target, field.field_def->default_int64());
+                break;
+            case UPB_TYPE_UINT64:
+                sv_setuv(target, field.field_def->default_uint64());
+                break;
+            }
+        }
+    }
+}
+
+bool Mapper::DecoderHandlers::on_end_message(DecoderHandlers *cxt, upb::Status *status) {
+    if (!status || status->ok())
+        cxt->apply_defaults();
+
+    return true;
+}
+
+Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_string(DecoderHandlers *cxt, const int *field_index, size_t size_hint) {
+    cxt->string = cxt->get_target(field_index);
+
+    return cxt;
+}
+
+size_t Mapper::DecoderHandlers::on_string(DecoderHandlers *cxt, const int *field_index, const char *buf, size_t len) {
+    if (!SvOK(cxt->string))
+        sv_setpvn(cxt->string, buf, len);
+    else
+        sv_catpvn(cxt->string, buf, len);
+
+    return len;
+}
+
+bool Mapper::DecoderHandlers::on_end_string(DecoderHandlers *cxt, const int *field_index) {
+    const Mapper *mapper = cxt->mappers.back();
+    if (mapper->fields[*field_index].field_def->type() == UPB_TYPE_STRING)
+        SvUTF8_on(cxt->string);
+    cxt->string = NULL;
+
+    return true;
+}
+
+Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_sequence(DecoderHandlers *cxt, const int *field_index) {
+    SV *target = cxt->get_target(field_index);
+    AV *av = newAV();
+
+    SvUPGRADE(target, SVt_RV);
+    SvROK_on(target);
+    SvRV_set(target, (SV *) av);
+
+    cxt->items.push_back((SV *) av);
+
+    return cxt;
+}
+
+bool Mapper::DecoderHandlers::on_end_sequence(DecoderHandlers *cxt, const int *field_index) {
+    cxt->items.pop_back();
+
+    return true;
+}
+
+Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_sub_message(DecoderHandlers *cxt, const int *field_index) {
+    const Mapper *mapper = cxt->mappers.back();
+    SV *target = cxt->get_target(field_index);
     HV *hv = newHV();
 
-    sv_upgrade(target, SVt_RV);
+    SvUPGRADE(target, SVt_RV);
     SvROK_on(target);
     SvRV_set(target, (SV *) hv);
 
-    for (int i = 0, max = descriptor->field_count(); i < max; ++i) {
-        const FieldDescriptor *fd = descriptor->field(i);
-        const string &name = fd->name();
-        SV **svp = hv_fetch(hv, name.data(), name.size(), 1);
+    cxt->items.push_back((SV *) hv);
+    cxt->mappers.push_back(mapper->fields[*field_index].mapper);
+    cxt->seen_fields.resize(cxt->seen_fields.size() + 1);
 
-        if (fd->is_repeated())
-            decode_to_perl_array(message, fd, *svp);
-        else
-            decode_to_perl(message, fd, *svp);
+    return cxt;
+}
+
+bool Mapper::DecoderHandlers::on_end_sub_message(DecoderHandlers *cxt, const int *field_index) {
+    cxt->items.pop_back();
+    cxt->mappers.pop_back();
+    cxt->seen_fields.pop_back();
+
+    return true;
+}
+
+template<class T>
+bool Mapper::DecoderHandlers::on_nv(DecoderHandlers *cxt, const int *field_index, T val) {
+    sv_setnv(cxt->get_target(field_index), val);
+
+    return true;
+}
+
+template<class T>
+bool Mapper::DecoderHandlers::on_iv(DecoderHandlers *cxt, const int *field_index, T val) {
+    sv_setiv(cxt->get_target(field_index), val);
+
+    return true;
+}
+
+template<class T>
+bool Mapper::DecoderHandlers::on_uv(DecoderHandlers *cxt, const int *field_index, T val) {
+    sv_setuv(cxt->get_target(field_index), val);
+
+    return true;
+}
+
+bool Mapper::DecoderHandlers::on_bool(DecoderHandlers *cxt, const int *field_index, bool val) {
+    SV * target = cxt->get_target(field_index);
+
+    if (val)
+        sv_setpvn(target, "", 0);
+    else
+        SvOK_off(target);
+
+    return true;
+}
+
+SV *Mapper::DecoderHandlers::get_target(const int *field_index) {
+    const Mapper *mapper = mappers.back();
+    const Field &field = mapper->fields[*field_index];
+    SV *curr = items.back();
+
+    if (SvTYPE(curr) == SVt_PVAV) {
+        AV *av = (AV *) curr;
+
+        return *av_fetch(av, av_top_index(av) + 1, 1);
+    } else {
+        HV *hv = (HV *) curr;
+
+        return HeVAL(hv_fetch_ent(hv, field.name, 1, field.name_hash));
     }
 }
 
-void Mapper::decode_to_perl(const Message *message, const FieldDescriptor *fd, SV *target) const {
-    switch (fd->type()) {
-    case FieldDescriptor::TYPE_DOUBLE:
-        sv_setnv(target, reflection->GetDouble(*message, fd));
-        break;
-    case FieldDescriptor::TYPE_FLOAT:
-        sv_setnv(target, reflection->GetFloat(*message, fd));
-        break;
-    case FieldDescriptor::TYPE_SINT64:
-    case FieldDescriptor::TYPE_SFIXED64:
-    case FieldDescriptor::TYPE_INT64:
-        sv_setiv(target, reflection->GetInt64(*message, fd));
-        break;
-    case FieldDescriptor::TYPE_FIXED64:
-    case FieldDescriptor::TYPE_UINT64:
-        sv_setuv(target, reflection->GetUInt64(*message, fd));
-        break;
-    case FieldDescriptor::TYPE_SINT32:
-    case FieldDescriptor::TYPE_SFIXED32:
-    case FieldDescriptor::TYPE_INT32:
-        sv_setiv(target, reflection->GetInt32(*message, fd));
-        break;
-    case FieldDescriptor::TYPE_BOOL: {
-        if (reflection->GetBool(*message, fd)) {
-            sv_setiv(target, 1);
-        } else {
-            sv_upgrade(target, SVt_PV);
-            SvCUR_set(target, 0);
-            SvPOK_on(target);
-        }
-    }
-        break;
-    case FieldDescriptor::TYPE_STRING: {
-        string s;
-        const string &str = reflection->GetStringReference(*message, fd, &s);
-        sv_setpvn(target, str.data(), str.size());
-        SvUTF8_on(target);
-    }
-        break;
-    case FieldDescriptor::TYPE_GROUP:
-    case FieldDescriptor::TYPE_MESSAGE: {
-        const Message &value = reflection->GetMessage(*message, fd);
+Mapper::Mapper(reffed_ptr<const MessageDef> _message_def) :
+        message_def(_message_def),
+        decoder_callbacks(this),
+        string_sink(&output_buffer) {
+    encoder_handlers = Encoder::NewHandlers(message_def.get());
+    decoder_handlers = Handlers::New(message_def.get());
 
-        mapper_for_descriptor(value.GetDescriptor())->decode_to_perl(&value, target);
-    }
-        break;
-    case FieldDescriptor::TYPE_BYTES: {
-        string s;
-        const string &str = reflection->GetStringReference(*message, fd, &s);
-        sv_setpvn(target, str.data(), str.size());
-    }
-        break;
-    case FieldDescriptor::TYPE_FIXED32:
-    case FieldDescriptor::TYPE_UINT32:
-        sv_setuv(target, reflection->GetUInt32(*message, fd));
-        break;
-    case FieldDescriptor::TYPE_ENUM:
-        sv_setiv(target, reflection->GetEnum(*message, fd)->number());
-        break;
-    default:
-        croak("Unhandled FieldDescriptor::Type value %d", fd->type());
+    if (!decoder_handlers->SetEndMessageHandler(UpbMakeHandler(DecoderHandlers::on_end_message)))
+        croak("Unable to set upb end message handler for %s", message_def->full_name());
+
+    // XXX one_of, extensions, ...
+    for (MessageDef::const_field_iterator it = message_def->field_begin(), en = message_def->field_end(); it != en; ++it) {
+        int index = fields.size();
+        fields.push_back(Field());
+
+        Field &field = fields.back();;
+        const FieldDef *field_def = *it;
+
+        field.field_def = field_def;
+        field.name = newSVpv_share(field_def->name(), 0);
+        field.name_hash = SvSHARED_HASH(field.name);
+        field.mapper = NULL;
+
+#define GET_SELECTOR(KIND, TO) \
+    ok = ok && encoder_handlers->GetSelector(field_def, UPB_HANDLER_##KIND, &field.selector.TO)
+
+#define SET_VALUE_HANDLER(TYPE, FUNCTION) \
+    ok = ok && decoder_handlers->SetValueHandler<TYPE>(field_def, UpbBind(DecoderHandlers::FUNCTION, new int(index)))
+
+#define SET_HANDLER(KIND, FUNCTION) \
+    ok = ok && decoder_handlers->Set##KIND##Handler(field_def, UpbBind(DecoderHandlers::FUNCTION, new int(index)))
+
+        bool ok = true;
+        bool has_default = true;
+        switch (field_def->type()) {
+        case UPB_TYPE_FLOAT:
+            GET_SELECTOR(FLOAT, primitive);
+            SET_VALUE_HANDLER(float, on_nv<float>);
+            break;
+        case UPB_TYPE_DOUBLE:
+            GET_SELECTOR(DOUBLE, primitive);
+            SET_VALUE_HANDLER(double, on_nv<double>);
+            break;
+        case UPB_TYPE_BOOL:
+            GET_SELECTOR(BOOL, primitive);
+            SET_VALUE_HANDLER(bool, on_bool);
+            break;
+        case UPB_TYPE_STRING:
+        case UPB_TYPE_BYTES:
+            GET_SELECTOR(STARTSTR, str_start);
+            GET_SELECTOR(STRING, str_cont);
+            GET_SELECTOR(ENDSTR, str_end);
+            SET_HANDLER(StartString, on_start_string);
+            SET_HANDLER(String, on_string);
+            SET_HANDLER(EndString, on_end_string);
+            break;
+        case UPB_TYPE_MESSAGE:
+            GET_SELECTOR(STARTSUBMSG, msg_start);
+            GET_SELECTOR(ENDSUBMSG, msg_end);
+            SET_HANDLER(StartSubMessage, on_start_sub_message);
+            SET_HANDLER(EndSubMessage, on_end_sub_message);
+            has_default = false;
+            break;
+        case UPB_TYPE_ENUM:
+        case UPB_TYPE_INT32:
+            GET_SELECTOR(INT32, primitive);
+            SET_VALUE_HANDLER(int32_t, on_iv<int32_t>);
+            break;
+        case UPB_TYPE_UINT32:
+            GET_SELECTOR(UINT32, primitive);
+            SET_VALUE_HANDLER(uint32_t, on_uv<uint32_t>);
+            break;
+        case UPB_TYPE_INT64:
+            GET_SELECTOR(INT64, primitive);
+            SET_VALUE_HANDLER(int64_t, on_iv<int64_t>);
+            break;
+        case UPB_TYPE_UINT64:
+            GET_SELECTOR(UINT64, primitive);
+            SET_VALUE_HANDLER(uint64_t, on_uv<uint64_t>);
+            break;
+        default:
+            croak("Unhandled field type %d", field_def->type());
+        }
+
+        if (has_default && field_def->label() == UPB_LABEL_OPTIONAL) {
+            field.has_default = true;
+        }
+
+        if (field_def->label() == UPB_LABEL_REPEATED) {
+            GET_SELECTOR(STARTSEQ, seq_start);
+            GET_SELECTOR(ENDSEQ, seq_end);
+            SET_HANDLER(StartSequence, on_start_sequence);
+            SET_HANDLER(EndSequence, on_end_sequence);
+        }
+
+#undef GET_SELECTOR
+#undef SET_VALUE_HANDLER
+#undef SET_HANDLER
+
+        if (!ok)
+            croak("Unable to get upb selector for field %s", field_def->full_name());
     }
 }
 
-namespace {
-    class NVSetter {
-    public:
-        void operator()(SV *target, NV value) const { sv_setnv(target, value); }
-    };
+void Mapper::resolve_mappers(Dynamic *registry) {
+    for (vector<Field>::iterator it = fields.begin(), en = fields.end(); it != en; ++it) {
+        const FieldDef *field = it->field_def;
 
-    class IVSetter {
-    public:
-        void operator()(SV *target, IV value) const { sv_setiv(target, value); }
-    };
-
-    class UVSetter {
-    public:
-        void operator()(SV *target, UV value) const { sv_setuv(target, value); }
-    };
-
-    class StringSetter {
-    public:
-        void operator()(SV *target, const string &value) const {
-            sv_setpvn(target, value.data(), value.size());
-            SvUTF8_on(target);
-        }
-    };
-
-    class BytesSetter {
-    public:
-        void operator()(SV *target, const string &value) const {
-            sv_setpvn(target, value.data(), value.size());
-        }
-    };
-
-    class BoolSetter {
-    public:
-        void operator()(SV *target, bool value) const {
-            if (value) {
-                sv_setiv(target, 1);
-            } else {
-                sv_upgrade(target, SVt_PV);
-                SvCUR_set(target, 0);
-                SvPOK_on(target);
-            }
-        }
-    };
-
-    template<class T, class S>
-    void decode_to_array(const Message *message, const Reflection *reflection, const FieldDescriptor *fd, AV *target) {
-        S setter;
-        const RepeatedField<T> &value = reflection->GetRepeatedField<T>(*message, fd);
-
-        av_fill(target, value.size());
-
-        int index = 0;
-        for (typename RepeatedField<T>::const_iterator it = value.begin(), en = value.end(); it != en; ++it, ++index) {
-            SV **item = av_fetch(target, index, 1);
-
-            setter(*item, *it);
-        }
-    }
-
-    template<class S>
-    void decode_to_string_array(const Message *message, const Reflection *reflection, const FieldDescriptor *fd, AV *target) {
-        S setter;
-        const RepeatedPtrField<string> &value = reflection->GetRepeatedPtrField<string>(*message, fd);
-
-        av_fill(target, value.size());
-
-        int index = 0;
-        for (typename RepeatedPtrField<string>::const_iterator it = value.begin(), en = value.end(); it != en; ++it, ++index) {
-            SV **item = av_fetch(target, index, 1);
-
-            setter(*item, *it);
-        }
-    }
-
-    void decode_to_message_array(const Mapper *mapper, const Message *message, const FieldDescriptor *fd, AV *target) {
-        const RepeatedPtrField<Message> &value = mapper->reflection->GetRepeatedPtrField<Message>(*message, fd);
-        const Mapper *item_mapper = mapper->mapper_for_descriptor(fd->message_type());
-
-        av_fill(target, value.size() - 1);
-
-        int index = 0;
-        for (RepeatedPtrField<Message>::const_iterator it = value.begin(), en = value.end(); it != en; ++it, ++index) {
-            SV **item = av_fetch(target, index, 1);
-
-            item_mapper->decode_to_perl(&*it, *item);
-        }
-    }
-}
-
-void Mapper::decode_to_perl_array(const Message *message, const FieldDescriptor *fd, SV *target) const {
-    AV *array = newAV();
-
-    sv_upgrade(target, SVt_RV);
-    SvROK_on(target);
-    SvRV_set(target, (SV *) array);
-
-    switch (fd->type()) {
-    case FieldDescriptor::TYPE_DOUBLE:
-        decode_to_array<double, NVSetter>(message, reflection, fd, array);
-        break;
-    case FieldDescriptor::TYPE_FLOAT:
-        decode_to_array<float, NVSetter>(message, reflection, fd, array);
-        break;
-    case FieldDescriptor::TYPE_SINT64:
-    case FieldDescriptor::TYPE_SFIXED64:
-    case FieldDescriptor::TYPE_INT64:
-        decode_to_array<int64, IVSetter>(message, reflection, fd, array);
-        break;
-    case FieldDescriptor::TYPE_FIXED64:
-    case FieldDescriptor::TYPE_UINT64:
-        decode_to_array<uint64, UVSetter>(message, reflection, fd, array);
-        break;
-    case FieldDescriptor::TYPE_SINT32:
-    case FieldDescriptor::TYPE_SFIXED32:
-    case FieldDescriptor::TYPE_INT32:
-        decode_to_array<int32, IVSetter>(message, reflection, fd, array);
-        break;
-    case FieldDescriptor::TYPE_BOOL:
-        decode_to_array<bool, BoolSetter>(message, reflection, fd, array);
-        break;
-    case FieldDescriptor::TYPE_STRING:
-        decode_to_string_array<StringSetter>(message, reflection, fd, array);
-        break;
-    case FieldDescriptor::TYPE_GROUP:
-    case FieldDescriptor::TYPE_MESSAGE:
-        decode_to_message_array(this, message, fd, array);
-        break;
-    case FieldDescriptor::TYPE_BYTES:
-        decode_to_string_array<BytesSetter>(message, reflection, fd, array);
-        break;
-    case FieldDescriptor::TYPE_FIXED32:
-    case FieldDescriptor::TYPE_UINT32:
-        decode_to_array<uint32, UVSetter>(message, reflection, fd, array);
-        break;
-    case FieldDescriptor::TYPE_ENUM:
-        decode_to_array<int, IVSetter>(message, reflection, fd, array);
-        break;
-    default:
-        croak("Unhandled FieldDescriptor::Type value %d", fd->type());
-    }
-}
-
-void Mapper::encode_from_perl(Message *message, SV *ref) const {
-    const Descriptor *descriptor = message->GetDescriptor();
-    if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVHV)
-        croak("Not an hash reference when encoding a %s value", message->GetDescriptor()->full_name().c_str());
-    HV *hv = (HV *) SvRV(ref);
-
-    for (int i = 0, max = descriptor->field_count(); i < max; ++i) {
-        const FieldDescriptor *fd = descriptor->field(i);
-        const string &name = fd->name();
-        SV **svp = hv_fetch(hv, name.data(), name.size(), 0);
-
-        // XXX what about required?
-        if (!svp)
+        if (field->type() != UPB_TYPE_MESSAGE)
             continue;
-
-        if (fd->is_repeated())
-            encode_from_perl_array(message, fd, *svp);
-        else
-            encode_from_perl(message, fd, *svp);
+        it->mapper = registry->find_mapper(field->message_subdef());
+        decoder_handlers->SetSubHandlers(it->field_def, it->mapper->decoder_handlers.get());
     }
+
+    decoder_method = DecoderMethod::New(DecoderMethodOptions(decoder_handlers.get()));
+    decoder_sink.Reset(decoder_handlers.get(), &decoder_callbacks);
+    decoder = upb::pb::Decoder::Create(&env, decoder_method.get(), &decoder_sink);
+    encoder = upb::pb::Encoder::Create(&env, encoder_handlers.get(), string_sink.input());
 }
 
-void Mapper::encode_from_perl(Message *message, const FieldDescriptor *fd, SV *sv) const {
-    switch (fd->type()) {
-    case FieldDescriptor::TYPE_DOUBLE:
-        reflection->SetDouble(message, fd, SvNV(sv));
-        break;
-    case FieldDescriptor::TYPE_FLOAT:
-        reflection->SetFloat(message, fd, SvNV(sv));
-        break;
-    case FieldDescriptor::TYPE_SINT64:
-    case FieldDescriptor::TYPE_SFIXED64:
-    case FieldDescriptor::TYPE_INT64:
-        reflection->SetInt64(message, fd, SvIV(sv));
-        break;
-    case FieldDescriptor::TYPE_FIXED64:
-    case FieldDescriptor::TYPE_UINT64:
-        reflection->SetUInt64(message, fd, SvUV(sv));
-        break;
-    case FieldDescriptor::TYPE_SINT32:
-    case FieldDescriptor::TYPE_SFIXED32:
-    case FieldDescriptor::TYPE_INT32:
-        reflection->SetInt32(message, fd, SvIV(sv));
-        break;
-    case FieldDescriptor::TYPE_BOOL:
-        reflection->SetBool(message, fd, SvTRUE(sv));
-        break;
-    case FieldDescriptor::TYPE_STRING: {
-        STRLEN len;
-        const char *buf = SvPVutf8(sv, len);
+bool Mapper::encode_from_perl(SV *ref) {
+    output_buffer.clear();
 
-        reflection->SetString(message, fd, string(buf, len));
-    }
-        break;
-    case FieldDescriptor::TYPE_GROUP:
-    case FieldDescriptor::TYPE_MESSAGE: {
-        mapper_for_descriptor(fd->message_type())->encode_from_perl(reflection->MutableMessage(message, fd), sv);
-    }
-        break;
-    case FieldDescriptor::TYPE_BYTES: {
-        STRLEN len;
-        const char *buf = SvPV(sv, len);
+    return encode_from_perl(encoder, encoder->input(), ref);
+}
 
-        reflection->SetString(message, fd, string(buf, len));
-    }
-        break;
-    case FieldDescriptor::TYPE_FIXED32:
-    case FieldDescriptor::TYPE_UINT32:
-        reflection->SetUInt32(message, fd, SvUV(sv));
-        break;
-    case FieldDescriptor::TYPE_ENUM:
-        croak("XXX Implement me");
-        break;
-    default:
-        croak("Unhandled FieldDescriptor::Type value %d", fd->type());
-    }
+bool Mapper::decode_to_perl(const char *buffer, STRLEN bufsize, SV *target) {
+    HV *hv = newHV();
+
+    SvUPGRADE(target, SVt_RV);
+    SvOK_off(target);
+    SvROK_on(target);
+    SvRV_set(target, (SV *) hv);
+
+    decoder->Reset();
+    decoder_callbacks.prepare(hv);
+
+    return BufferSource::PutBuffer(buffer, bufsize, decoder->input());
 }
 
 namespace {
+    class SVGetter {
+    public:
+        SV *operator()(SV *src) const { return src; }
+    };
+
     class NVGetter {
     public:
         NV operator()(SV *src) const { return SvNV(src); }
@@ -361,106 +393,180 @@ namespace {
         bool operator()(SV *src) const { return SvTRUE(src); }
     };
 
-    template<class T, class G>
-    void encode_from_array(Message *message, const Reflection *reflection, const FieldDescriptor *fd, AV *source) {
-        G getter;
-        RepeatedField<T> *value = reflection->MutableRepeatedField<T>(message, fd);
-        int size = av_top_index(source) + 1;
-
-        value->Reserve(size);
-
-        for (int i = 0; i < size; ++i) {
-            SV **item = av_fetch(source, i, 0);
-            if (!item)
-                croak("Empty value at index %d when serializing field %s", i, fd->full_name().c_str());
-
-            value->AddAlreadyReserved(getter(*item));
-        }
+#define DEF_SIMPLE_SETTER(NAME, METHOD, TYPE)   \
+    struct NAME { \
+        bool operator()(Sink *sink, const Mapper::Field &fd, TYPE value) { \
+            sink->METHOD(fd.selector.primitive, value);    \
+        } \
     }
 
-    template<class G>
-    void encode_from_string_array(Message *message, const Reflection *reflection, const FieldDescriptor *fd, AV *source) {
-        G getter;
-        RepeatedPtrField<string> *value = reflection->MutableRepeatedPtrField<string>(message, fd);
-        int size = av_top_index(source) + 1;
+    DEF_SIMPLE_SETTER(Int32Setter, PutInt32, IV);
+    DEF_SIMPLE_SETTER(Int64Setter, PutInt64, IV);
+    DEF_SIMPLE_SETTER(UInt32Setter, PutUInt32, UV);
+    DEF_SIMPLE_SETTER(UInt64Setter, PutUInt64, UV);
+    DEF_SIMPLE_SETTER(FloatSetter, PutFloat, NV);
+    DEF_SIMPLE_SETTER(DoubleSetter, PutDouble, NV);
+    DEF_SIMPLE_SETTER(BoolSetter, PutBool, bool);
 
-        value->Reserve(size);
+#undef DEF_SIMPLE_SETTER
+
+    struct StringSetter {
+        bool operator()(Sink *sink, const Mapper::Field &fd, SV *value) {
+            STRLEN len;
+            const char *str = fd.field_def->type() == UPB_TYPE_STRING ? SvPVutf8(value, len) : SvPV(value, len);
+            Sink sub;
+            if (!sink->StartString(fd.selector.str_start, len, &sub))
+                return false;
+            sub.PutStringBuffer(fd.selector.str_cont, str, len, NULL);
+            return sink->EndString(fd.selector.str_end);
+        }
+    };
+
+    template<class G, class S>
+    bool encode_from_array(Encoder *encoder, Sink *sink, const Mapper::Field &fd, AV *source) {
+        G getter;
+        S setter;
+        Sink sub, *actual = sink;
+        bool packed = upb_fielddef_isprimitive(fd.field_def) && fd.field_def->packed();
+
+        if (packed) {
+            if (!sink->StartSequence(fd.selector.seq_start, &sub))
+                return false;
+            actual = &sub;
+        }
+        int size = av_top_index(source) + 1;
 
         for (int i = 0; i < size; ++i) {
             SV **item = av_fetch(source, i, 0);
             if (!item)
-                croak("Empty value at index %d when serializing field %s", i, fd->full_name().c_str());
+                return false;
 
-            getter(*item, value->Add());
+            setter(actual, fd, getter(*item));
         }
+
+        return !packed || sink->EndSequence(fd.selector.seq_end);
     }
 
-    void encode_from_message_array(const Mapper *mapper, Message *message, const FieldDescriptor *fd, AV *source) {
-        RepeatedPtrField<Message> *value = mapper->reflection->MutableRepeatedPtrField<Message>(message, fd);
-        const Mapper *item_mapper = mapper->mapper_for_descriptor(fd->message_type());
+    bool encode_from_message_array(const Mapper *mapper, Encoder *encoder, Sink *sink, const Mapper::Field &fd, AV *source) {
         int size = av_top_index(source) + 1;
-
-        value->Reserve(size);
 
         for (int i = 0; i < size; ++i) {
             SV **item = av_fetch(source, i, 0);
             if (!item)
-                croak("Empty value at index %d when serializing field %s", i, fd->full_name().c_str());
-            Message *target = item_mapper->prototype->New();
+                return false;
+            Sink submsg;
 
-            value->AddAllocated(target);
-            item_mapper->encode_from_perl(target, *item);
+            if (!sink->StartSubMessage(fd.selector.msg_start, &submsg))
+                return false;
+            if (!fd.mapper->encode_from_perl(encoder, &submsg, *item))
+                return false;
+            if (!sink->EndSubMessage(fd.selector.msg_end))
+                return false;
         }
+
+        return true;
     }
 }
 
-void Mapper::encode_from_perl_array(Message *message, const FieldDescriptor *fd, SV *ref) const {
+bool Mapper::encode_from_perl(Encoder* encoder, Sink *sink, SV *ref) const {
+    if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVHV)
+        croak("Not an hash reference when encoding a %s value", message_def->full_name());
+    HV *hv = (HV *) SvRV(ref);
+    Status status;
+
+    if (!sink->StartMessage())
+        return false;
+
+    for (vector<Field>::const_iterator it = fields.begin(), en = fields.end(); it != en; ++it) {
+        HE *he = hv_fetch_ent(hv, it->name, 0, it->name_hash);
+
+        // XXX what about required?
+        if (!he)
+            continue;
+
+        if (it->field_def->label() == UPB_LABEL_REPEATED)
+            encode_from_perl_array(encoder, sink, *it, HeVAL(he));
+        else
+            encode_from_perl(encoder, sink, *it, HeVAL(he));
+    }
+
+    if (!sink->EndMessage(&status))
+        return false;
+}
+
+bool Mapper::encode_from_perl(Encoder* encoder, Sink *sink, const Field &fd, SV *ref) const {
+    switch (fd.field_def->type()) {
+    case UPB_TYPE_FLOAT:
+        return sink->PutFloat(fd.selector.primitive, SvNV(ref));
+    case UPB_TYPE_DOUBLE:
+        return sink->PutDouble(fd.selector.primitive, SvNV(ref));
+    case UPB_TYPE_BOOL:
+        return sink->PutBool(fd.selector.primitive, SvTRUE(ref));
+    case UPB_TYPE_STRING:
+    case UPB_TYPE_BYTES: {
+        STRLEN len;
+        const char *str = fd.field_def->type() == UPB_TYPE_STRING ? SvPVutf8(ref, len) : SvPV(ref, len);
+        Sink sub;
+        if (!sink->StartString(fd.selector.str_start, len, &sub))
+            return false;
+        sub.PutStringBuffer(fd.selector.str_cont, str, len, NULL);
+        return sink->EndString(fd.selector.str_end);
+    }
+    case UPB_TYPE_MESSAGE: {
+        Sink sub;
+        if (!sink->StartSubMessage(fd.selector.msg_start, &sub))
+            return false;
+        if (!fd.mapper->encode_from_perl(encoder, &sub, ref))
+            return false;
+        return sink->EndSubMessage(fd.selector.msg_end);
+    }
+    case UPB_TYPE_ENUM:
+        return sink->PutInt32(fd.selector.primitive, SvIV(ref)); // XXX validation
+    case UPB_TYPE_INT32:
+        return sink->PutInt32(fd.selector.primitive, SvIV(ref));
+    case UPB_TYPE_UINT32:
+        return sink->PutUInt32(fd.selector.primitive, SvUV(ref));
+    case UPB_TYPE_INT64:
+        // XXX 32-bit Perl
+        return sink->PutInt64(fd.selector.primitive, SvIV(ref));
+    case UPB_TYPE_UINT64:
+        // XXX 32-bit Perl
+        return sink->PutUInt64(fd.selector.primitive, SvUV(ref));
+    default:
+        return false; // just in case
+    }
+}
+
+bool Mapper::encode_from_perl_array(Encoder* encoder, Sink *sink, const Field &fd, SV *ref) const {
     if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVAV)
-        croak("Not an array reference when encoding field %s", fd->full_name().c_str());
+        croak("Not an array reference when encoding field %s", fd.field_def->full_name());
     AV *array = (AV *) SvRV(ref);
 
-    switch (fd->type()) {
-    case FieldDescriptor::TYPE_DOUBLE:
-        encode_from_array<double, NVGetter>(message, reflection, fd, array);
-        break;
-    case FieldDescriptor::TYPE_FLOAT:
-        encode_from_array<float, NVGetter>(message, reflection, fd, array);
-        break;
-    case FieldDescriptor::TYPE_SINT64:
-    case FieldDescriptor::TYPE_SFIXED64:
-    case FieldDescriptor::TYPE_INT64:
-        encode_from_array<int64, IVGetter>(message, reflection, fd, array);
-        break;
-    case FieldDescriptor::TYPE_FIXED64:
-    case FieldDescriptor::TYPE_UINT64:
-        encode_from_array<uint64, UVGetter>(message, reflection, fd, array);
-        break;
-    case FieldDescriptor::TYPE_SINT32:
-    case FieldDescriptor::TYPE_SFIXED32:
-    case FieldDescriptor::TYPE_INT32:
-        encode_from_array<int32, IVGetter>(message, reflection, fd, array);
-        break;
-    case FieldDescriptor::TYPE_BOOL:
-        encode_from_array<bool, BoolGetter>(message, reflection, fd, array);
-        break;
-    case FieldDescriptor::TYPE_STRING:
-        encode_from_string_array<StringGetter>(message, reflection, fd, array);
-        break;
-    case FieldDescriptor::TYPE_GROUP:
-    case FieldDescriptor::TYPE_MESSAGE:
-        encode_from_message_array(this, message, fd, array);
-        break;
-    case FieldDescriptor::TYPE_BYTES:
-        encode_from_string_array<BytesGetter>(message, reflection, fd, array);
-        break;
-    case FieldDescriptor::TYPE_FIXED32:
-    case FieldDescriptor::TYPE_UINT32:
-        encode_from_array<uint32, UVGetter>(message, reflection, fd, array);
-        break;
-    case FieldDescriptor::TYPE_ENUM:
-        encode_from_array<int, IVGetter>(message, reflection, fd, array);
-        break;
+    switch (fd.field_def->type()) {
+    case UPB_TYPE_FLOAT:
+        return encode_from_array<NVGetter, FloatSetter>(encoder, sink, fd, array);
+    case UPB_TYPE_DOUBLE:
+        return encode_from_array<NVGetter, DoubleSetter>(encoder, sink, fd, array);
+    case UPB_TYPE_BOOL:
+        return encode_from_array<BoolGetter, BoolSetter>(encoder, sink, fd, array);
+    case UPB_TYPE_STRING:
+        return encode_from_array<SVGetter, StringSetter>(encoder, sink, fd, array);
+    case UPB_TYPE_BYTES:
+        return encode_from_array<SVGetter, StringSetter>(encoder, sink, fd, array);
+    case UPB_TYPE_MESSAGE:
+        return encode_from_message_array(fd.mapper, encoder, sink, fd, array);
+    case UPB_TYPE_ENUM:
+        // XXX validation
+        return encode_from_array<IVGetter, Int32Setter>(encoder, sink, fd, array);
+    case UPB_TYPE_INT32:
+        return encode_from_array<IVGetter, Int32Setter>(encoder, sink, fd, array);
+    case UPB_TYPE_UINT32:
+        return encode_from_array<UVGetter, UInt32Setter>(encoder, sink, fd, array);
+    case UPB_TYPE_INT64:
+        return encode_from_array<IVGetter, Int64Setter>(encoder, sink, fd, array);
+    case UPB_TYPE_UINT64:
+        return encode_from_array<UVGetter, UInt64Setter>(encoder, sink, fd, array);
     default:
-        croak("Unhandled FieldDescriptor::Type value %d", fd->type());
+        return false; // just in case
     }
 }
