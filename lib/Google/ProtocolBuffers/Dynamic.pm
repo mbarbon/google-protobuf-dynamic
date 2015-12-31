@@ -1,5 +1,5 @@
 package Google::ProtocolBuffers::Dynamic;
-# ABSTRACT: fill me in...
+# ABSTRACT: fast and complete protocol buffer implementation
 
 use strict;
 use warnings;
