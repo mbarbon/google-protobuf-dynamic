@@ -28,3 +28,27 @@ sub map {
 }
 
 1;
+
+__END__
+
+=head1 SYNOPSIS
+
+    my $dynamic = Google::ProtocolBuffers::Dynamic->new;
+    $dynamic->load_string("person.proto", <<'EOT');
+    package humans;
+
+    message Person {
+      required string name = 1;
+      required int32 id = 2;
+      optional string email = 3;
+    }
+    EOT
+
+    $dynamic->map({ package => 'humans', prefix => 'Humans' });
+
+    # { id => 31, name => 'foo', email => '' }
+    my $person = Humans::Person->decode_to_perl("\x0a\x03foo\x10\x1f");
+
+    my $bytes = Humans::Person->encode_from_perl($person);
+
+=cut
