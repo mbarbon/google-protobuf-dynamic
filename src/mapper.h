@@ -73,6 +73,7 @@ public:
 
         void apply_defaults();
         SV *get_target(const int *field_index);
+        void mark_seen(const int *field_index);
     };
 
 public:

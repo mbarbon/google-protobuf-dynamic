@@ -19,6 +19,7 @@ void Mapper::DecoderHandlers::prepare(HV *target) {
     mappers.resize(1);
     seen_fields.resize(1);
     seen_fields.back().clear();
+    seen_fields.back().resize(mappers.back()->fields.size());
     items.resize(1);
     items[0] = (SV *) target;
     string = NULL;
@@ -47,9 +48,9 @@ void Mapper::DecoderHandlers::apply_defaults() {
                 break;
             case UPB_TYPE_BOOL:
                 if (field.field_def->default_bool())
-                    sv_setpvn(target, "", 0);
+                    sv_setiv(target, 1);
                 else
-                    SvOK_off(target);
+                    sv_setpvn(target, "", 0);
                 break;
             case UPB_TYPE_BYTES:
             case UPB_TYPE_STRING: {
@@ -66,8 +67,6 @@ void Mapper::DecoderHandlers::apply_defaults() {
             }
                 break;
             case UPB_TYPE_ENUM:
-                // XXX
-                break;
             case UPB_TYPE_INT32:
                 sv_setiv(target, field.field_def->default_int32());
                 break;
@@ -93,6 +92,7 @@ bool Mapper::DecoderHandlers::on_end_message(DecoderHandlers *cxt, upb::Status *
 }
 
 Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_string(DecoderHandlers *cxt, const int *field_index, size_t size_hint) {
+    cxt->mark_seen(field_index);
     cxt->string = cxt->get_target(field_index);
 
     return cxt;
@@ -117,6 +117,7 @@ bool Mapper::DecoderHandlers::on_end_string(DecoderHandlers *cxt, const int *fie
 }
 
 Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_sequence(DecoderHandlers *cxt, const int *field_index) {
+    cxt->mark_seen(field_index);
     SV *target = cxt->get_target(field_index);
     AV *av = newAV();
 
@@ -136,6 +137,7 @@ bool Mapper::DecoderHandlers::on_end_sequence(DecoderHandlers *cxt, const int *f
 }
 
 Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_sub_message(DecoderHandlers *cxt, const int *field_index) {
+    cxt->mark_seen(field_index);
     const Mapper *mapper = cxt->mappers.back();
     SV *target = cxt->get_target(field_index);
     HV *hv = newHV();
@@ -147,6 +149,7 @@ Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_sub_message(DecoderHa
     cxt->items.push_back((SV *) hv);
     cxt->mappers.push_back(mapper->fields[*field_index].mapper);
     cxt->seen_fields.resize(cxt->seen_fields.size() + 1);
+    cxt->seen_fields.back().resize(cxt->mappers.back()->fields.size());
 
     return cxt;
 }
@@ -161,6 +164,7 @@ bool Mapper::DecoderHandlers::on_end_sub_message(DecoderHandlers *cxt, const int
 
 template<class T>
 bool Mapper::DecoderHandlers::on_nv(DecoderHandlers *cxt, const int *field_index, T val) {
+    cxt->mark_seen(field_index);
     sv_setnv(cxt->get_target(field_index), val);
 
     return true;
@@ -168,6 +172,7 @@ bool Mapper::DecoderHandlers::on_nv(DecoderHandlers *cxt, const int *field_index
 
 template<class T>
 bool Mapper::DecoderHandlers::on_iv(DecoderHandlers *cxt, const int *field_index, T val) {
+    cxt->mark_seen(field_index);
     sv_setiv(cxt->get_target(field_index), val);
 
     return true;
@@ -175,18 +180,20 @@ bool Mapper::DecoderHandlers::on_iv(DecoderHandlers *cxt, const int *field_index
 
 template<class T>
 bool Mapper::DecoderHandlers::on_uv(DecoderHandlers *cxt, const int *field_index, T val) {
+    cxt->mark_seen(field_index);
     sv_setuv(cxt->get_target(field_index), val);
 
     return true;
 }
 
 bool Mapper::DecoderHandlers::on_bool(DecoderHandlers *cxt, const int *field_index, bool val) {
+    cxt->mark_seen(field_index);
     SV * target = cxt->get_target(field_index);
 
     if (val)
-        sv_setpvn(target, "", 0);
+        sv_setiv(target, 1);
     else
-        SvOK_off(target);
+        sv_setpvn(target, "", 0);
 
     return true;
 }
@@ -205,6 +212,10 @@ SV *Mapper::DecoderHandlers::get_target(const int *field_index) {
 
         return HeVAL(hv_fetch_ent(hv, field.name, 1, field.name_hash));
     }
+}
+
+void Mapper::DecoderHandlers::mark_seen(const int *field_index) {
+    seen_fields.back()[*field_index] = true;
 }
 
 Mapper::Mapper(reffed_ptr<const MessageDef> _message_def) :

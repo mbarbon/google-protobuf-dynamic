@@ -1,0 +1,33 @@
+package test;
+
+enum Enum {
+    FIRST = 1;
+    SECOND = 2;
+    THIRD = 3;
+}
+
+message Basic {
+    optional double double_f = 1;
+    optional float float_f = 2;
+    optional int32 int32_f = 3;
+    optional int64 int64_f = 4;
+    optional uint32 uint32_f = 5;
+    optional uint64 uint64_f = 6;
+    optional bool bool_f = 7;
+    optional string string_f = 8;
+    optional bytes bytes_f = 9;
+    optional Enum enum_f = 10;
+}
+
+message Default {
+    optional double double_f = 1 [default = 1.0];
+    optional float float_f = 2 [default = 2.0];
+    optional int32 int32_f = 3 [default = 3];
+    optional int64 int64_f = 4 [default = 4];
+    optional uint32 uint32_f = 5 [default = 5];
+    optional uint64 uint64_f = 6 [default = 6];
+    optional bool bool_f = 7 [default = true];
+    optional string string_f = 8 [default = "a string"];
+    optional bytes bytes_f = 9 [default = "some bytes"];
+    optional Enum enum_f = 10 [default = THIRD];
+}
