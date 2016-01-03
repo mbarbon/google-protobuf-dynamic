@@ -1,0 +1,12 @@
+package test2;
+
+import "test1.proto";
+
+message Message1 {
+    optional int32 test2_message1 = 1;
+}
+
+message Message3 {
+    optional Message1 test1_message3_message1 = 1;
+    optional test1.Message2 test1_message3_message2 = 2;
+}

@@ -1,7 +1,6 @@
 Implement:
 - enum validation
 - blessing/accessor generation
-- automated type mapping
 - 64-bit mapping on 32-bit Perls
 - constants for enums
 - load from serialized descriptors

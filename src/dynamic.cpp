@@ -22,11 +22,14 @@ Dynamic::~Dynamic() {
 }
 
 void Dynamic::load_file(const string &file) {
-    importer.Import(file);
+    const FileDescriptor *loaded = importer.Import(file);
+
+    if (loaded)
+        files.insert(loaded);
 }
 
 namespace {
-    void copy_and_bind(const char *name, const string &package, Mapper *mapper) {
+    void copy_and_bind(const char *name, const string &perl_package, Mapper *mapper) {
         static const char prefix[] = "Google::ProtocolBuffers::Dynamic::Mapper::";
         char buffer[sizeof(prefix) + 30];
 
@@ -34,14 +37,14 @@ namespace {
         strcpy(buffer + sizeof(prefix) - 1, name);
 
         CV *src = get_cv(buffer, 0);
-        CV *new_xs = newXS((package + "::" + name).c_str(), CvXSUB(src), __FILE__);
+        CV *new_xs = newXS((perl_package + "::" + name).c_str(), CvXSUB(src), __FILE__);
 
         // XXX magic to free
         CvXSUBANY(new_xs).any_ptr = mapper;
     }
 }
 
-void Dynamic::map_message(const string &message, const string &package) {
+void Dynamic::map_message(const string &message, const string &perl_package) {
     const DescriptorPool *pool = importer.pool();
     const Descriptor *descriptor = pool->FindMessageTypeByName(message);
 
@@ -49,15 +52,41 @@ void Dynamic::map_message(const string &message, const string &package) {
         croak("Unable to find a descriptor for message '%s'", message.c_str());
     }
 
+    map_message(descriptor, perl_package);
+}
+
+void Dynamic::map_package(const string &pb_package, const string &perl_package_prefix) {
+    for (std::tr1::unordered_set<const FileDescriptor *>::iterator it = files.begin(), en = files.end(); it != en; ++it) {
+        const FileDescriptor *file = *it;
+
+        if (pb_package != file->package())
+            continue;
+
+        for (int i = 0, max = file->message_type_count(); i < max; ++i) {
+            const Descriptor *descriptor = file->message_type(i);
+            if (descriptor_map.find(descriptor->full_name()) != descriptor_map.end())
+                continue;
+
+            map_message(descriptor, perl_package_prefix + "::" + descriptor->name());
+        }
+    }
+}
+
+void Dynamic::map_message(const Descriptor *descriptor, const string &perl_package) {
+    if (package_map.find(perl_package) != package_map.end())
+        croak("Package '%s' has already been used in a message mapping", perl_package.c_str());
+    if (descriptor_map.find(descriptor->full_name()) != descriptor_map.end())
+        croak("Message '%s' has already been mapped", descriptor->full_name().c_str());
+
     reffed_ptr<const MessageDef> message_def = def_builder.GetMessageDef(descriptor);
     Mapper *mapper = new Mapper(message_def);
 
     descriptor_map[message_def->full_name()] = mapper;
-    package_map[package] = mapper;
+    package_map[perl_package] = mapper;
     pending.push_back(mapper);
 
-    copy_and_bind("decode_to_perl", package, mapper);
-    copy_and_bind("encode_from_perl", package, mapper);
+    copy_and_bind("decode_to_perl", perl_package, mapper);
+    copy_and_bind("encode_from_perl", perl_package, mapper);
 }
 
 void Dynamic::resolve_references() {
