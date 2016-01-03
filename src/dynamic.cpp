@@ -16,7 +16,8 @@ void Dynamic::CollectErrors::AddError(const string &filename, int line, int colu
 Dynamic::Dynamic(const string &root_directory) :
         overlay_source_tree(&memory_source_tree, &disk_source_tree),
         importer(&overlay_source_tree, &die_on_error) {
-    disk_source_tree.MapPath("", root_directory);
+    if (!root_directory.empty())
+        disk_source_tree.MapPath("", root_directory);
 }
 
 Dynamic::~Dynamic() {

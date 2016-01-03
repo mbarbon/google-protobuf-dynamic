@@ -3,7 +3,7 @@
 #include "dynamic.h"
 
 %name{Google::ProtocolBuffers::Dynamic} class gpd::Dynamic {
-    Dynamic(const std::string &root_directory);
+    Dynamic(std::string root_directory = std::string());
     ~Dynamic();
 
     void load_file(const std::string &file);

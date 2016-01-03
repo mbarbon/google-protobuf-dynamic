@@ -3,7 +3,7 @@ use Test::Differences;
 
 use Google::ProtocolBuffers::Dynamic;
 
-my $d = Google::ProtocolBuffers::Dynamic->new('');
+my $d = Google::ProtocolBuffers::Dynamic->new;
 $d->load_string("person.proto", <<'EOT');
 package test;
 
