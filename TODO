@@ -6,7 +6,6 @@ Implement:
 - load from serialized descriptors
 - extensions
 - oneof fields
-- parse from a scalar
 - fix all XXX/TODO
 - decode to blessed object that goes through C++ accessors
 - use AvARRAY directly rather than going through av_fetch (maybe)

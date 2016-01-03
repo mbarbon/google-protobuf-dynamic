@@ -7,6 +7,7 @@
     ~Dynamic();
 
     void load_file(const std::string &file);
+    void load_string(const std::string &file, SV *sv);
     void map_message(const std::string &message, const std::string &perl_package);
     void map_package(const std::string &pb_package, const std::string &perl_package);
     void resolve_references();

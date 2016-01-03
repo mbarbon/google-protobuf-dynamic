@@ -14,8 +14,9 @@ void Dynamic::CollectErrors::AddError(const string &filename, int line, int colu
 }
 
 Dynamic::Dynamic(const string &root_directory) :
-        importer(&source_tree, &die_on_error) {
-    source_tree.MapPath("", root_directory);
+        overlay_source_tree(&memory_source_tree, &disk_source_tree),
+        importer(&overlay_source_tree, &die_on_error) {
+    disk_source_tree.MapPath("", root_directory);
 }
 
 Dynamic::~Dynamic() {
@@ -26,6 +27,15 @@ void Dynamic::load_file(const string &file) {
 
     if (loaded)
         files.insert(loaded);
+}
+
+void Dynamic::load_string(const string &file, SV *sv) {
+    STRLEN len;
+    const char *data = SvPV(sv, len);
+    string actual_file = file.empty() ? "<string>" : file;
+
+    memory_source_tree.AddFile(actual_file, data, len);
+    load_file(actual_file);
 }
 
 namespace {
