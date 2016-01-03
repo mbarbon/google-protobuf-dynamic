@@ -119,11 +119,16 @@ bool Mapper::DecoderHandlers::on_end_string(DecoderHandlers *cxt, const int *fie
 Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_sequence(DecoderHandlers *cxt, const int *field_index) {
     cxt->mark_seen(field_index);
     SV *target = cxt->get_target(field_index);
-    AV *av = newAV();
+    AV *av = NULL;
 
-    SvUPGRADE(target, SVt_RV);
-    SvROK_on(target);
-    SvRV_set(target, (SV *) av);
+    if (!SvROK(target)) {
+        av = newAV();
+
+        SvUPGRADE(target, SVt_RV);
+        SvROK_on(target);
+        SvRV_set(target, (SV *) av);
+    } else
+        av = (AV *) SvRV(target);
 
     cxt->items.push_back((SV *) av);
 

@@ -1,0 +1,31 @@
+package test;
+
+enum Enum {
+    FIRST = 1;
+    SECOND = 2;
+    THIRD = 3;
+}
+
+message Repeated {
+    repeated double double_f = 1;
+    repeated float float_f = 2;
+    repeated int32 int32_f = 3;
+    repeated int64 int64_f = 4;
+    repeated uint32 uint32_f = 5;
+    repeated uint64 uint64_f = 6;
+    repeated bool bool_f = 7;
+    repeated string string_f = 8;
+    repeated bytes bytes_f = 9;
+    repeated Enum enum_f = 10;
+}
+
+message Packed {
+    repeated double double_f = 1 [packed=true];
+    repeated float float_f = 2 [packed=true];
+    repeated int32 int32_f = 3 [packed=true];
+    repeated int64 int64_f = 4 [packed=true];
+    repeated uint32 uint32_f = 5 [packed=true];
+    repeated uint64 uint64_f = 6 [packed=true];
+    repeated bool bool_f = 7 [packed=true];
+    repeated Enum enum_f = 10 [packed=true];
+}

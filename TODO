@@ -16,6 +16,5 @@ Implement:
 Test:
 - inner type mapping
 - inner optional messages
-- repeated fields of various types
 - groups
 - import
