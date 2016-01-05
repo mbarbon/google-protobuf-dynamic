@@ -12,15 +12,14 @@
 SV*
 decode_to_perl(SV *klass, SV *scalar)
   INIT:
-    // XXX leak leak leak
     gpd::Mapper *mapper = (gpd::Mapper *) CvXSUBANY(cv).any_ptr;
     STRLEN bufsize;
     const char *buffer = SvPV(scalar, bufsize);
-    bool ok;
   CODE:
-    RETVAL = newSV(0);
-    ok = mapper->decode_to_perl(buffer, bufsize, RETVAL);
-    if (!ok) {
+    RETVAL = mapper->decode_to_perl(buffer, bufsize);
+
+    if (!RETVAL) {
+        sv_2mortal(RETVAL);
         croak("Deserialization failed");
     }
   OUTPUT: RETVAL
@@ -28,17 +27,14 @@ decode_to_perl(SV *klass, SV *scalar)
 SV*
 encode_from_perl(SV *klass, SV *ref)
   INIT:
-    // XXX leak leak leak
     gpd::Mapper *mapper = (gpd::Mapper *) CvXSUBANY(cv).any_ptr;
-    bool ok;
   CODE:
-    ok = mapper->encode_from_perl(ref);
+    RETVAL = mapper->encode_from_perl(ref);
 
-    if (!ok) {
+    if (!RETVAL) {
+        sv_2mortal(RETVAL);
         croak("Serialization failed");
     }
-
-    RETVAL = newSVpvn(mapper->output_buffer.data(), mapper->output_buffer.size());
   OUTPUT: RETVAL
 
 %}

@@ -29,6 +29,10 @@ SV *Mapper::DecoderHandlers::get_target() {
     return items[0];
 }
 
+void Mapper::DecoderHandlers::clear() {
+    SvREFCNT_dec(items[0]);
+}
+
 void Mapper::DecoderHandlers::apply_defaults() {
     const vector<bool> &seen = seen_fields.back();
     const vector<Mapper::Field> &fields = mappers.back()->fields;
@@ -343,24 +347,26 @@ void Mapper::resolve_mappers(Dynamic *registry) {
     encoder = upb::pb::Encoder::Create(&env, encoder_handlers.get(), string_sink.input());
 }
 
-bool Mapper::encode_from_perl(SV *ref) {
+SV *Mapper::encode_from_perl(SV *ref) {
+    output_buffer.clear();
+    SV *result = NULL;
+    if (encode_from_perl(encoder, encoder->input(), ref))
+        result = newSVpvn(output_buffer.data(), output_buffer.size());
     output_buffer.clear();
 
-    return encode_from_perl(encoder, encoder->input(), ref);
+    return result;
 }
 
-bool Mapper::decode_to_perl(const char *buffer, STRLEN bufsize, SV *target) {
-    HV *hv = newHV();
-
-    SvUPGRADE(target, SVt_RV);
-    SvOK_off(target);
-    SvROK_on(target);
-    SvRV_set(target, (SV *) hv);
-
+SV *Mapper::decode_to_perl(const char *buffer, STRLEN bufsize) {
     decoder->Reset();
-    decoder_callbacks.prepare(hv);
+    decoder_callbacks.prepare(newHV());
 
-    return BufferSource::PutBuffer(buffer, bufsize, decoder->input());
+    SV *result = NULL;
+    if (BufferSource::PutBuffer(buffer, bufsize, decoder->input()))
+        result = newRV_inc(decoder_callbacks.get_target());
+    decoder_callbacks.clear();
+
+    return result;
 }
 
 namespace {
@@ -462,26 +468,26 @@ namespace {
 
         return !packed || sink->EndSequence(fd.selector.seq_end);
     }
+}
 
-    bool encode_from_message_array(const Mapper *mapper, Encoder *encoder, Sink *sink, const Mapper::Field &fd, AV *source) {
-        int size = av_top_index(source) + 1;
+bool Mapper::encode_from_message_array(Encoder *encoder, Sink *sink, const Mapper::Field &fd, AV *source) const {
+    int size = av_top_index(source) + 1;
 
-        for (int i = 0; i < size; ++i) {
-            SV **item = av_fetch(source, i, 0);
-            if (!item)
-                return false;
-            Sink submsg;
+    for (int i = 0; i < size; ++i) {
+        SV **item = av_fetch(source, i, 0);
+        if (!item)
+            return false;
+        Sink submsg;
 
-            if (!sink->StartSubMessage(fd.selector.msg_start, &submsg))
-                return false;
-            if (!fd.mapper->encode_from_perl(encoder, &submsg, *item))
-                return false;
-            if (!sink->EndSubMessage(fd.selector.msg_end))
-                return false;
-        }
-
-        return true;
+        if (!sink->StartSubMessage(fd.selector.msg_start, &submsg))
+            return false;
+        if (!encode_from_perl(encoder, &submsg, *item))
+            return false;
+        if (!sink->EndSubMessage(fd.selector.msg_end))
+            return false;
     }
+
+    return true;
 }
 
 bool Mapper::encode_from_perl(Encoder* encoder, Sink *sink, SV *ref) const {
@@ -570,7 +576,7 @@ bool Mapper::encode_from_perl_array(Encoder* encoder, Sink *sink, const Field &f
     case UPB_TYPE_BYTES:
         return encode_from_array<SVGetter, StringSetter>(encoder, sink, fd, array);
     case UPB_TYPE_MESSAGE:
-        return encode_from_message_array(fd.mapper, encoder, sink, fd, array);
+        return fd.mapper->encode_from_message_array(encoder, sink, fd, array);
     case UPB_TYPE_ENUM:
         // XXX validation
         return encode_from_array<IVGetter, Int32Setter>(encoder, sink, fd, array);

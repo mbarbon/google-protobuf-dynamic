@@ -50,6 +50,7 @@ public:
 
         void prepare(HV *target);
         SV *get_target();
+        void clear();
 
         static bool on_end_message(DecoderHandlers *cxt, upb::Status *status);
         static DecoderHandlers *on_start_string(DecoderHandlers *cxt, const int *field_index, size_t size_hint);
@@ -81,22 +82,20 @@ public:
 
     void resolve_mappers(Dynamic *registry);
 
-    DecoderHandlers *new_decoder_closure() const;
+    SV *encode_from_perl(SV *ref);
+    SV *decode_to_perl(const char *buffer, STRLEN bufsize);
 
-    bool encode_from_perl(SV *ref);
-    bool decode_to_perl(const char *buffer, STRLEN bufsize, SV *target);
-
+private:
     bool encode_from_perl(upb::pb::Encoder* encoder, upb::Sink *sink, SV *ref) const;
     bool encode_from_perl(upb::pb::Encoder* encoder, upb::Sink *sink, const Field &fd, SV *ref) const;
     bool encode_from_perl_array(upb::pb::Encoder* encoder, upb::Sink *sink, const Field &fd, SV *ref) const;
+    bool encode_from_message_array(upb::pb::Encoder *encoder, upb::Sink *sink, const Mapper::Field &fd, AV *source) const;
 
-public:
     upb::reffed_ptr<const upb::MessageDef> message_def;
     upb::reffed_ptr<const upb::Handlers> encoder_handlers;
     upb::reffed_ptr<upb::Handlers> decoder_handlers;
     upb::reffed_ptr<const upb::pb::DecoderMethod> decoder_method;
     std::vector<Field> fields;
-    // XXX this needs to be reset when decoding/encoding (also, reentrancy)
     upb::Environment env;
     DecoderHandlers decoder_callbacks;
     upb::Sink encoder_sink, decoder_sink;
