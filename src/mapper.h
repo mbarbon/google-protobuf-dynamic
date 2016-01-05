@@ -12,6 +12,8 @@
 #include "EXTERN.h"
 #include "perl.h"
 
+#include "thx_member.h"
+
 namespace gpd {
 
 class Dynamic;
@@ -43,12 +45,13 @@ public:
     };
 
     struct DecoderHandlers {
+        DECL_THX_MEMBER;
         std::vector<SV *> items;
         std::vector<const Mapper *> mappers;
         std::vector<std::vector<bool> > seen_fields;
         SV *string;
 
-        DecoderHandlers(const Mapper *mapper);
+        DecoderHandlers(pTHX_ const Mapper *mapper);
 
         void prepare(HV *target);
         SV *get_target();
@@ -80,7 +83,7 @@ public:
     };
 
 public:
-    Mapper(Dynamic *registry, upb::reffed_ptr<const upb::MessageDef> message_def);
+    Mapper(pTHX_ Dynamic *registry, upb::reffed_ptr<const upb::MessageDef> message_def);
     ~Mapper();
 
     void resolve_mappers();
@@ -94,6 +97,10 @@ private:
     bool encode_from_perl_array(upb::pb::Encoder* encoder, upb::Sink *sink, const Field &fd, SV *ref) const;
     bool encode_from_message_array(upb::pb::Encoder *encoder, upb::Sink *sink, const Mapper::Field &fd, AV *source) const;
 
+    template<class G, class S>
+    bool encode_from_array(upb::pb::Encoder *encoder, upb::Sink *sink, const Mapper::Field &fd, AV *source) const;
+
+    DECL_THX_MEMBER;
     Dynamic *registry;
     upb::reffed_ptr<const upb::MessageDef> message_def;
     upb::reffed_ptr<const upb::Handlers> encoder_handlers;

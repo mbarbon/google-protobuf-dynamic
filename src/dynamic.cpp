@@ -23,24 +23,24 @@ Dynamic::Dynamic(const string &root_directory) :
 Dynamic::~Dynamic() {
 }
 
-void Dynamic::load_file(const string &file) {
+void Dynamic::load_file(pTHX_ const string &file) {
     const FileDescriptor *loaded = importer.Import(file);
 
     if (loaded)
         files.insert(loaded);
 }
 
-void Dynamic::load_string(const string &file, SV *sv) {
+void Dynamic::load_string(pTHX_ const string &file, SV *sv) {
     STRLEN len;
     const char *data = SvPV(sv, len);
     string actual_file = file.empty() ? "<string>" : file;
 
     memory_source_tree.AddFile(actual_file, data, len);
-    load_file(actual_file);
+    load_file(aTHX_ actual_file);
 }
 
 namespace {
-    int free_mapper(SV *sv, MAGIC *mg) {
+    int free_mapper(pTHX_ SV *sv, MAGIC *mg) {
         Mapper *mapper = (Mapper *) mg->mg_ptr;
 
         mapper->unref();
@@ -57,7 +57,7 @@ namespace {
         NULL, // local
     };
 
-    void copy_and_bind(const char *name, const string &perl_package, Mapper *mapper) {
+    void copy_and_bind(pTHX_ const char *name, const string &perl_package, Mapper *mapper) {
         static const char prefix[] = "Google::ProtocolBuffers::Dynamic::Mapper::";
         char buffer[sizeof(prefix) + 30];
 
@@ -74,7 +74,7 @@ namespace {
     }
 }
 
-void Dynamic::map_message(const string &message, const string &perl_package) {
+void Dynamic::map_message(pTHX_ const string &message, const string &perl_package) {
     const DescriptorPool *pool = importer.pool();
     const Descriptor *descriptor = pool->FindMessageTypeByName(message);
 
@@ -82,10 +82,10 @@ void Dynamic::map_message(const string &message, const string &perl_package) {
         croak("Unable to find a descriptor for message '%s'", message.c_str());
     }
 
-    map_message(descriptor, perl_package);
+    map_message(aTHX_ descriptor, perl_package);
 }
 
-void Dynamic::map_package(const string &pb_package, const string &perl_package_prefix) {
+void Dynamic::map_package(pTHX_ const string &pb_package, const string &perl_package_prefix) {
     for (std::tr1::unordered_set<const FileDescriptor *>::iterator it = files.begin(), en = files.end(); it != en; ++it) {
         const FileDescriptor *file = *it;
 
@@ -97,26 +97,26 @@ void Dynamic::map_package(const string &pb_package, const string &perl_package_p
             if (descriptor_map.find(descriptor->full_name()) != descriptor_map.end())
                 continue;
 
-            map_message(descriptor, perl_package_prefix + "::" + descriptor->name());
+            map_message(aTHX_ descriptor, perl_package_prefix + "::" + descriptor->name());
         }
     }
 }
 
-void Dynamic::map_message(const Descriptor *descriptor, const string &perl_package) {
+void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl_package) {
     if (package_map.find(perl_package) != package_map.end())
         croak("Package '%s' has already been used in a message mapping", perl_package.c_str());
     if (descriptor_map.find(descriptor->full_name()) != descriptor_map.end())
         croak("Message '%s' has already been mapped", descriptor->full_name().c_str());
 
     reffed_ptr<const MessageDef> message_def = def_builder.GetMessageDef(descriptor);
-    Mapper *mapper = new Mapper(this, message_def);
+    Mapper *mapper = new Mapper(aTHX_ this, message_def);
 
     descriptor_map[message_def->full_name()] = mapper;
     package_map[perl_package] = mapper;
     pending.push_back(mapper);
 
-    copy_and_bind("decode_to_perl", perl_package, mapper);
-    copy_and_bind("encode_from_perl", perl_package, mapper);
+    copy_and_bind(aTHX_ "decode_to_perl", perl_package, mapper);
+    copy_and_bind(aTHX_ "encode_from_perl", perl_package, mapper);
 
     mapper->ref();
 }

@@ -28,17 +28,17 @@ public:
     Dynamic(const std::string &root_directory);
     ~Dynamic();
 
-    void load_file(const std::string &file);
-    void load_string(const std::string &file, SV *string);
+    void load_file(pTHX_ const std::string &file);
+    void load_string(pTHX_ const std::string &file, SV *string);
 
-    void map_message(const std::string &message, const std::string &perl_package);
-    void map_package(const std::string &pb_package, const std::string &perl_package_prefix);
+    void map_message(pTHX_ const std::string &message, const std::string &perl_package);
+    void map_package(pTHX_ const std::string &pb_package, const std::string &perl_package_prefix);
     void resolve_references();
 
     const Mapper *find_mapper(const upb::MessageDef *message_def) const;
 
 private:
-    void map_message(const google::protobuf::Descriptor *descriptor, const std::string &perl_package);
+    void map_message(pTHX_ const google::protobuf::Descriptor *descriptor, const std::string &perl_package);
 
     google::protobuf::compiler::Importer importer;
     google::protobuf::compiler::DiskSourceTree disk_source_tree;

@@ -6,9 +6,17 @@
     Dynamic(std::string root_directory = std::string());
     ~Dynamic() %code{% THIS->unref(); %};
 
-    void load_file(const std::string &file);
-    void load_string(const std::string &file, SV *sv);
-    void map_message(const std::string &message, const std::string &perl_package);
-    void map_package(const std::string &pb_package, const std::string &perl_package);
+    void load_file(const std::string &file)
+        %code{% THIS->load_file(aTHX_ *file); %};
+
+    void load_string(const std::string &file, SV *sv)
+        %code{% THIS->load_string(aTHX_ *file, sv); %};
+
+    void map_message(const std::string &message, const std::string &perl_package)
+        %code{% THIS->map_message(aTHX_ *message, *perl_package); %};
+
+    void map_package(const std::string &pb_package, const std::string &perl_package)
+        %code{% THIS->map_package(aTHX_ *pb_package, *perl_package); %};
+
     void resolve_references();
 };

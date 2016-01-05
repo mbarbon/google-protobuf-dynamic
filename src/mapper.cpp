@@ -11,7 +11,14 @@ using namespace std;
 using namespace upb;
 using namespace upb::pb;
 
-Mapper::DecoderHandlers::DecoderHandlers(const Mapper *mapper) {
+#ifdef MULTIPLICITY
+#    define THX_DECLARE_AND_GET tTHX my_perl = cxt->my_perl
+#else
+#    define THX_DECLARE_AND_GET
+#endif
+
+Mapper::DecoderHandlers::DecoderHandlers(pTHX_ const Mapper *mapper) {
+    SET_THX_MEMBER;
     mappers.push_back(mapper);
 }
 
@@ -103,6 +110,8 @@ Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_string(DecoderHandler
 }
 
 size_t Mapper::DecoderHandlers::on_string(DecoderHandlers *cxt, const int *field_index, const char *buf, size_t len) {
+    THX_DECLARE_AND_GET;
+
     if (!SvOK(cxt->string))
         sv_setpvn(cxt->string, buf, len);
     else
@@ -121,6 +130,8 @@ bool Mapper::DecoderHandlers::on_end_string(DecoderHandlers *cxt, const int *fie
 }
 
 Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_sequence(DecoderHandlers *cxt, const int *field_index) {
+    THX_DECLARE_AND_GET;
+
     cxt->mark_seen(field_index);
     SV *target = cxt->get_target(field_index);
     AV *av = NULL;
@@ -146,6 +157,8 @@ bool Mapper::DecoderHandlers::on_end_sequence(DecoderHandlers *cxt, const int *f
 }
 
 Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_sub_message(DecoderHandlers *cxt, const int *field_index) {
+    THX_DECLARE_AND_GET;
+
     cxt->mark_seen(field_index);
     const Mapper *mapper = cxt->mappers.back();
     SV *target = cxt->get_target(field_index);
@@ -173,6 +186,8 @@ bool Mapper::DecoderHandlers::on_end_sub_message(DecoderHandlers *cxt, const int
 
 template<class T>
 bool Mapper::DecoderHandlers::on_nv(DecoderHandlers *cxt, const int *field_index, T val) {
+    THX_DECLARE_AND_GET;
+
     cxt->mark_seen(field_index);
     sv_setnv(cxt->get_target(field_index), val);
 
@@ -181,6 +196,8 @@ bool Mapper::DecoderHandlers::on_nv(DecoderHandlers *cxt, const int *field_index
 
 template<class T>
 bool Mapper::DecoderHandlers::on_iv(DecoderHandlers *cxt, const int *field_index, T val) {
+    THX_DECLARE_AND_GET;
+
     cxt->mark_seen(field_index);
     sv_setiv(cxt->get_target(field_index), val);
 
@@ -189,6 +206,8 @@ bool Mapper::DecoderHandlers::on_iv(DecoderHandlers *cxt, const int *field_index
 
 template<class T>
 bool Mapper::DecoderHandlers::on_uv(DecoderHandlers *cxt, const int *field_index, T val) {
+    THX_DECLARE_AND_GET;
+
     cxt->mark_seen(field_index);
     sv_setuv(cxt->get_target(field_index), val);
 
@@ -196,6 +215,8 @@ bool Mapper::DecoderHandlers::on_uv(DecoderHandlers *cxt, const int *field_index
 }
 
 bool Mapper::DecoderHandlers::on_bool(DecoderHandlers *cxt, const int *field_index, bool val) {
+    THX_DECLARE_AND_GET;
+
     cxt->mark_seen(field_index);
     SV * target = cxt->get_target(field_index);
 
@@ -227,11 +248,13 @@ void Mapper::DecoderHandlers::mark_seen(const int *field_index) {
     seen_fields.back()[*field_index] = true;
 }
 
-Mapper::Mapper(Dynamic *_registry, reffed_ptr<const MessageDef> _message_def) :
+Mapper::Mapper(pTHX_ Dynamic *_registry, reffed_ptr<const MessageDef> _message_def) :
         registry(_registry),
         message_def(_message_def),
-        decoder_callbacks(this),
+        decoder_callbacks(aTHX_ this),
         string_sink(&output_buffer) {
+    SET_THX_MEMBER;
+
     registry->ref();
     encoder_handlers = Encoder::NewHandlers(message_def.get());
     decoder_handlers = Handlers::New(message_def.get());
@@ -378,27 +401,27 @@ SV *Mapper::decode_to_perl(const char *buffer, STRLEN bufsize) {
 namespace {
     class SVGetter {
     public:
-        SV *operator()(SV *src) const { return src; }
+        SV *operator()(pTHX_ SV *src) const { return src; }
     };
 
     class NVGetter {
     public:
-        NV operator()(SV *src) const { return SvNV(src); }
+        NV operator()(pTHX_ SV *src) const { return SvNV(src); }
     };
 
     class IVGetter {
     public:
-        IV operator()(SV *src) const { return SvIV(src); }
+        IV operator()(pTHX_ SV *src) const { return SvIV(src); }
     };
 
     class UVGetter {
     public:
-        UV operator()(SV *src) const { return SvUV(src); }
+        UV operator()(pTHX_ SV *src) const { return SvUV(src); }
     };
 
     class StringGetter {
     public:
-        void operator()(SV *src, string *dest) const {
+        void operator()(pTHX_ SV *src, string *dest) const {
             STRLEN len;
             const char *buf = SvPVutf8(src, len);
 
@@ -408,7 +431,7 @@ namespace {
 
     class BytesGetter {
     public:
-        void operator()(SV *src, string *dest) const {
+        void operator()(pTHX_ SV *src, string *dest) const {
             STRLEN len;
             const char *buf = SvPV(src, len);
 
@@ -418,12 +441,12 @@ namespace {
 
     class BoolGetter {
     public:
-        bool operator()(SV *src) const { return SvTRUE(src); }
+        bool operator()(pTHX_ SV *src) const { return SvTRUE(src); }
     };
 
 #define DEF_SIMPLE_SETTER(NAME, METHOD, TYPE)   \
     struct NAME { \
-        bool operator()(Sink *sink, const Mapper::Field &fd, TYPE value) { \
+        bool operator()(pTHX_ Sink *sink, const Mapper::Field &fd, TYPE value) { \
             sink->METHOD(fd.selector.primitive, value);    \
         } \
     }
@@ -439,7 +462,7 @@ namespace {
 #undef DEF_SIMPLE_SETTER
 
     struct StringSetter {
-        bool operator()(Sink *sink, const Mapper::Field &fd, SV *value) {
+        bool operator()(pTHX_ Sink *sink, const Mapper::Field &fd, SV *value) {
             STRLEN len;
             const char *str = fd.field_def->type() == UPB_TYPE_STRING ? SvPVutf8(value, len) : SvPV(value, len);
             Sink sub;
@@ -449,31 +472,31 @@ namespace {
             return sink->EndString(fd.selector.str_end);
         }
     };
+}
 
-    template<class G, class S>
-    bool encode_from_array(Encoder *encoder, Sink *sink, const Mapper::Field &fd, AV *source) {
-        G getter;
-        S setter;
-        Sink sub, *actual = sink;
-        bool packed = upb_fielddef_isprimitive(fd.field_def) && fd.field_def->packed();
+template<class G, class S>
+bool Mapper::encode_from_array(Encoder *encoder, Sink *sink, const Mapper::Field &fd, AV *source) const {
+    G getter;
+    S setter;
+    Sink sub, *actual = sink;
+    bool packed = upb_fielddef_isprimitive(fd.field_def) && fd.field_def->packed();
 
-        if (packed) {
-            if (!sink->StartSequence(fd.selector.seq_start, &sub))
-                return false;
-            actual = &sub;
-        }
-        int size = av_top_index(source) + 1;
-
-        for (int i = 0; i < size; ++i) {
-            SV **item = av_fetch(source, i, 0);
-            if (!item)
-                return false;
-
-            setter(actual, fd, getter(*item));
-        }
-
-        return !packed || sink->EndSequence(fd.selector.seq_end);
+    if (packed) {
+        if (!sink->StartSequence(fd.selector.seq_start, &sub))
+            return false;
+        actual = &sub;
     }
+    int size = av_top_index(source) + 1;
+
+    for (int i = 0; i < size; ++i) {
+        SV **item = av_fetch(source, i, 0);
+        if (!item)
+            return false;
+
+        setter(aTHX_ actual, fd, getter(aTHX_ *item));
+    }
+
+    return !packed || sink->EndSequence(fd.selector.seq_end);
 }
 
 bool Mapper::encode_from_message_array(Encoder *encoder, Sink *sink, const Mapper::Field &fd, AV *source) const {
