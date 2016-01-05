@@ -227,10 +227,12 @@ void Mapper::DecoderHandlers::mark_seen(const int *field_index) {
     seen_fields.back()[*field_index] = true;
 }
 
-Mapper::Mapper(reffed_ptr<const MessageDef> _message_def) :
+Mapper::Mapper(Dynamic *_registry, reffed_ptr<const MessageDef> _message_def) :
+        registry(_registry),
         message_def(_message_def),
         decoder_callbacks(this),
         string_sink(&output_buffer) {
+    registry->ref();
     encoder_handlers = Encoder::NewHandlers(message_def.get());
     decoder_handlers = Handlers::New(message_def.get());
 
@@ -331,7 +333,11 @@ Mapper::Mapper(reffed_ptr<const MessageDef> _message_def) :
     }
 }
 
-void Mapper::resolve_mappers(Dynamic *registry) {
+Mapper::~Mapper() {
+    registry->unref();
+}
+
+void Mapper::resolve_mappers() {
     for (vector<Field>::iterator it = fields.begin(), en = fields.end(); it != en; ++it) {
         const FieldDef *field = it->field_def;
 

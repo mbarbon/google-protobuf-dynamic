@@ -3,6 +3,8 @@
 
 #undef New
 
+#include "ref.h"
+
 #include <upb/pb/encoder.h>
 #include <upb/pb/decoder.h>
 #include <upb/bindings/stdc++/string.h>
@@ -14,7 +16,7 @@ namespace gpd {
 
 class Dynamic;
 
-class Mapper {
+class Mapper : public Refcounted {
 public:
     struct Field {
         const upb::FieldDef *field_def;
@@ -78,9 +80,10 @@ public:
     };
 
 public:
-    Mapper(upb::reffed_ptr<const upb::MessageDef> message_def);
+    Mapper(Dynamic *registry, upb::reffed_ptr<const upb::MessageDef> message_def);
+    ~Mapper();
 
-    void resolve_mappers(Dynamic *registry);
+    void resolve_mappers();
 
     SV *encode_from_perl(SV *ref);
     SV *decode_to_perl(const char *buffer, STRLEN bufsize);
@@ -91,6 +94,7 @@ private:
     bool encode_from_perl_array(upb::pb::Encoder* encoder, upb::Sink *sink, const Field &fd, SV *ref) const;
     bool encode_from_message_array(upb::pb::Encoder *encoder, upb::Sink *sink, const Mapper::Field &fd, AV *source) const;
 
+    Dynamic *registry;
     upb::reffed_ptr<const upb::MessageDef> message_def;
     upb::reffed_ptr<const upb::Handlers> encoder_handlers;
     upb::reffed_ptr<upb::Handlers> decoder_handlers;

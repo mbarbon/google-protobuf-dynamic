@@ -40,6 +40,23 @@ void Dynamic::load_string(const string &file, SV *sv) {
 }
 
 namespace {
+    int free_mapper(SV *sv, MAGIC *mg) {
+        Mapper *mapper = (Mapper *) mg->mg_ptr;
+
+        mapper->unref();
+    }
+
+    MGVTBL manage_mapper = {
+        NULL, // get
+        NULL, // set
+        NULL, // len
+        NULL, // clear
+        free_mapper,
+        NULL, // copy
+        NULL, // dup
+        NULL, // local
+    };
+
     void copy_and_bind(const char *name, const string &perl_package, Mapper *mapper) {
         static const char prefix[] = "Google::ProtocolBuffers::Dynamic::Mapper::";
         char buffer[sizeof(prefix) + 30];
@@ -50,8 +67,10 @@ namespace {
         CV *src = get_cv(buffer, 0);
         CV *new_xs = newXS((perl_package + "::" + name).c_str(), CvXSUB(src), __FILE__);
 
-        // XXX magic to free
         CvXSUBANY(new_xs).any_ptr = mapper;
+        sv_magicext((SV *) new_xs, NULL,
+                    PERL_MAGIC_ext, &manage_mapper,
+                    (const char *) mapper, 0);
     }
 }
 
@@ -90,7 +109,7 @@ void Dynamic::map_message(const Descriptor *descriptor, const string &perl_packa
         croak("Message '%s' has already been mapped", descriptor->full_name().c_str());
 
     reffed_ptr<const MessageDef> message_def = def_builder.GetMessageDef(descriptor);
-    Mapper *mapper = new Mapper(message_def);
+    Mapper *mapper = new Mapper(this, message_def);
 
     descriptor_map[message_def->full_name()] = mapper;
     package_map[perl_package] = mapper;
@@ -98,11 +117,13 @@ void Dynamic::map_message(const Descriptor *descriptor, const string &perl_packa
 
     copy_and_bind("decode_to_perl", perl_package, mapper);
     copy_and_bind("encode_from_perl", perl_package, mapper);
+
+    mapper->ref();
 }
 
 void Dynamic::resolve_references() {
     for (std::vector<Mapper *>::iterator it = pending.begin(), en = pending.end(); it != en; ++it) {
-        (*it)->resolve_mappers(this);
+        (*it)->resolve_mappers();
 
         // XXX nested types, extensions
     }

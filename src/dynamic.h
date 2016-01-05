@@ -7,6 +7,7 @@
 #include <upb/bindings/googlepb/bridge.h>
 
 #include "sourcetree.h"
+#include "ref.h"
 
 #include <tr1/unordered_map>
 #include <tr1/unordered_set>
@@ -18,7 +19,7 @@ namespace gpd {
 
 class Mapper;
 
-class Dynamic {
+class Dynamic : public Refcounted {
     class CollectErrors : public google::protobuf::compiler::MultiFileErrorCollector {
         virtual void AddError(const std::string &filename, int line, int column, const std::string &message);
     };
