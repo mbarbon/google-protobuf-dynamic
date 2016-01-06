@@ -17,6 +17,16 @@ using namespace upb::pb;
 #    define THX_DECLARE_AND_GET
 #endif
 
+namespace {
+    void unref_on_scope_leave(void *ref) {
+        ((Refcounted *) ref)->unref();
+    }
+
+    void refcounted_mortalize(pTHX_ const Refcounted *ref) {
+        SAVEDESTRUCTOR(unref_on_scope_leave, ref);
+    }
+}
+
 Mapper::DecoderHandlers::DecoderHandlers(pTHX_ const Mapper *mapper) {
     SET_THX_MEMBER;
     mappers.push_back(mapper);
@@ -360,7 +370,8 @@ Mapper::~Mapper() {
     for (vector<Field>::iterator it = fields.begin(), en = fields.end(); it != en; ++it)
         if (it->mapper)
             it->mapper->unref();
-    registry->unref();
+    // make sure this only goes away after inner destructors have completed
+    refcounted_mortalize(registry);
 }
 
 void Mapper::resolve_mappers() {
