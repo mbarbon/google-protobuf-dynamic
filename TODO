@@ -10,9 +10,3 @@ Implement:
 - decode to blessed object that goes through C++ accessors
 - use AvARRAY directly rather than going through av_fetch (maybe)
 - serializing tied array/hashes
-
-Test:
-- inner type mapping
-- inner optional messages
-- groups
-- import

@@ -60,6 +60,11 @@ void Mapper::DecoderHandlers::apply_defaults() {
         if (!seen[i] && field.has_default) {
             SV *target = get_target(&i);
 
+            // this is the case where we merged multiple message instances,
+            // so defaults have already been applied
+            if (SvOK(target))
+                continue;
+
             switch (field.field_def->type()) {
             case UPB_TYPE_FLOAT:
                 sv_setnv(target, field.field_def->default_float());
@@ -172,11 +177,16 @@ Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_sub_message(DecoderHa
     cxt->mark_seen(field_index);
     const Mapper *mapper = cxt->mappers.back();
     SV *target = cxt->get_target(field_index);
-    HV *hv = newHV();
+    HV *hv = NULL;
 
-    SvUPGRADE(target, SVt_RV);
-    SvROK_on(target);
-    SvRV_set(target, (SV *) hv);
+    if (!SvROK(target)) {
+        hv = newHV();
+
+        SvUPGRADE(target, SVt_RV);
+        SvROK_on(target);
+        SvRV_set(target, (SV *) hv);
+    } else
+        hv = (HV *) SvRV(target);
 
     cxt->items.push_back((SV *) hv);
     cxt->mappers.push_back(mapper->fields[*field_index].mapper);

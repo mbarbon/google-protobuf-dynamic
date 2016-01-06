@@ -1,0 +1,17 @@
+package test;
+
+message Inner {
+    optional int32 value = 1;
+    optional int32 other = 2;
+}
+
+message OuterWithMessage {
+    optional Inner optional_inner = 1;
+    repeated Inner repeated_inner = 2;
+}
+
+message OuterWithGroup {
+    repeated group Inner = 1 {
+        optional int32 value = 1;
+    }
+}
