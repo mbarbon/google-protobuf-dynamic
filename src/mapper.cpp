@@ -258,7 +258,7 @@ void Mapper::DecoderHandlers::mark_seen(const int *field_index) {
     seen_fields.back()[*field_index] = true;
 }
 
-Mapper::Mapper(pTHX_ Dynamic *_registry, reffed_ptr<const MessageDef> _message_def) :
+Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def) :
         registry(_registry),
         message_def(_message_def),
         decoder_callbacks(aTHX_ this),
@@ -266,8 +266,8 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, reffed_ptr<const MessageDef> _message_d
     SET_THX_MEMBER;
 
     registry->ref();
-    encoder_handlers = Encoder::NewHandlers(message_def.get());
-    decoder_handlers = Handlers::New(message_def.get());
+    encoder_handlers = Encoder::NewHandlers(message_def);
+    decoder_handlers = Handlers::New(message_def);
 
     if (!decoder_handlers->SetEndMessageHandler(UpbMakeHandler(DecoderHandlers::on_end_message)))
         croak("Unable to set upb end message handler for %s", message_def->full_name());

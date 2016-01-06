@@ -83,7 +83,7 @@ public:
     };
 
 public:
-    Mapper(pTHX_ Dynamic *registry, upb::reffed_ptr<const upb::MessageDef> message_def);
+    Mapper(pTHX_ Dynamic *registry, const upb::MessageDef *message_def);
     ~Mapper();
 
     void resolve_mappers();
@@ -102,7 +102,7 @@ private:
 
     DECL_THX_MEMBER;
     Dynamic *registry;
-    upb::reffed_ptr<const upb::MessageDef> message_def;
+    const upb::MessageDef *message_def;
     upb::reffed_ptr<const upb::Handlers> encoder_handlers;
     upb::reffed_ptr<upb::Handlers> decoder_handlers;
     upb::reffed_ptr<const upb::pb::DecoderMethod> decoder_method;

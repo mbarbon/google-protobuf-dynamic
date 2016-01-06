@@ -109,7 +109,7 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
     if (descriptor_map.find(descriptor->full_name()) != descriptor_map.end())
         croak("Message '%s' has already been mapped", descriptor->full_name().c_str());
 
-    reffed_ptr<const MessageDef> message_def = def_builder.GetMessageDef(descriptor);
+    const MessageDef *message_def = def_builder.GetMessageDef(descriptor);
     Mapper *mapper = new Mapper(aTHX_ this, message_def);
 
     descriptor_map[message_def->full_name()] = mapper;
