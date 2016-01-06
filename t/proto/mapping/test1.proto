@@ -12,3 +12,11 @@ message Message3 {
     optional Message1 test1_message3_message1 = 1;
     optional Message2 test1_message3_message2 = 2;
 }
+
+message Message4 {
+    message Message5 {
+        optional int32 value = 1;
+    }
+
+    optional Message5 inner = 2;
+}

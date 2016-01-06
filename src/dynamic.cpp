@@ -83,7 +83,7 @@ void Dynamic::map_message(pTHX_ const string &message, const string &perl_packag
         croak("Unable to find a descriptor for message '%s'", message.c_str());
     }
 
-    map_message(aTHX_ descriptor, perl_package);
+    map_message_recursive(aTHX_ descriptor, perl_package);
 }
 
 void Dynamic::map_package(pTHX_ const string &pb_package, const string &perl_package_prefix) {
@@ -98,9 +98,21 @@ void Dynamic::map_package(pTHX_ const string &pb_package, const string &perl_pac
             if (descriptor_map.find(descriptor->full_name()) != descriptor_map.end())
                 continue;
 
-            map_message(aTHX_ descriptor, perl_package_prefix + "::" + descriptor->name());
+            map_message_recursive(aTHX_ descriptor, perl_package_prefix + "::" + descriptor->name());
         }
     }
+}
+
+void Dynamic::map_message_recursive(pTHX_ const Descriptor *descriptor, const string &perl_package) {
+    for (int i = 0, max = descriptor->nested_type_count(); i < max; ++i) {
+        const Descriptor *inner = descriptor->nested_type(i);
+        if (descriptor_map.find(inner->full_name()) != descriptor_map.end())
+            continue;
+
+        map_message_recursive(aTHX_ inner, perl_package + "::" + inner->name());
+    }
+
+    map_message(aTHX_ descriptor, perl_package);
 }
 
 void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl_package) {

@@ -38,6 +38,7 @@ public:
     const Mapper *find_mapper(const upb::MessageDef *message_def) const;
 
 private:
+    void map_message_recursive(pTHX_ const google::protobuf::Descriptor *descriptor, const std::string &perl_package);
     void map_message(pTHX_ const google::protobuf::Descriptor *descriptor, const std::string &perl_package);
 
     google::protobuf::compiler::Importer importer;

@@ -25,6 +25,11 @@ use Google::ProtocolBuffers::Dynamic;
             test1_message2 => 1,
         },
     }, "composite message");
+    eq_or_diff(Test1::Message4->decode_to_perl("\x12\x02\x08\x0f"), {
+        inner => {
+            value => 15,
+        },
+    }, "inner message");
 }
 
 {

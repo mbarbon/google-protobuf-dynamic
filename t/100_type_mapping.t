@@ -11,6 +11,8 @@ use Google::ProtocolBuffers::Dynamic;
     $d->map_message("test1.Message1", "Test1::FirstMessage");
     $d->map_message("test1.Message2", "Test1::AnotherMessage");
     $d->map_message("test1.Message3", "Test1::CompositeMessage");
+    $d->map_message("test1.Message4.Message5", "Test1::InnerMessage");
+    $d->map_message("test1.Message4", "Test1::OuterMessage");
     $d->resolve_references();
 
     eq_or_diff(Test1::FirstMessage->decode_to_perl("\x08\x01"), {
@@ -27,6 +29,11 @@ use Google::ProtocolBuffers::Dynamic;
             test1_message2 => 1,
         },
     }, "composite message");
+    eq_or_diff(Test1::OuterMessage->decode_to_perl("\x12\x02\x08\x0f"), {
+        inner => {
+            value => 15,
+        },
+    }, "inner message");
 }
 
 {
