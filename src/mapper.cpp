@@ -357,6 +357,9 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, reffed_ptr<const MessageDef> _message_d
 }
 
 Mapper::~Mapper() {
+    for (vector<Field>::iterator it = fields.begin(), en = fields.end(); it != en; ++it)
+        if (it->mapper)
+            it->mapper->unref();
     registry->unref();
 }
 
@@ -367,6 +370,7 @@ void Mapper::resolve_mappers() {
         if (field->type() != UPB_TYPE_MESSAGE)
             continue;
         it->mapper = registry->find_mapper(field->message_subdef());
+        it->mapper->ref();
         decoder_handlers->SetSubHandlers(it->field_def, it->mapper->decoder_handlers.get());
     }
 
