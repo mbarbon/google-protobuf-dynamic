@@ -71,6 +71,7 @@ namespace {
         sv_magicext((SV *) new_xs, NULL,
                     PERL_MAGIC_ext, &manage_mapper,
                     (const char *) mapper, 0);
+        mapper->ref();
     }
 }
 
@@ -118,7 +119,7 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
     copy_and_bind(aTHX_ "decode_to_perl", perl_package, mapper);
     copy_and_bind(aTHX_ "encode_from_perl", perl_package, mapper);
 
-    mapper->ref();
+    mapper->unref(); // reference from constructor
 }
 
 void Dynamic::resolve_references() {
