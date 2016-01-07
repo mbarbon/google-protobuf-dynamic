@@ -1,10 +1,14 @@
 Implement:
+- fix all XXX/TODO
 - enum validation
 - blessing/accessor generation
-- constants for enums
-- load from serialized descriptors
 - oneof fields
-- fix all XXX/TODO
-- decode to blessed object that goes through C++ accessors
+- constants for enums
+- make the behaviour of default values configurable
+  (both during encoding and decoding)
+- load from serialized descriptors
 - use AvARRAY directly rather than going through av_fetch (maybe)
 - serializing tied array/hashes
+- implement and test Google::ProtocolBuffer compatibility
+- add an introspection API to get an object describing the protobuf
+  message corresponding to an object
