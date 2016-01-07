@@ -1,0 +1,17 @@
+package test;
+
+message Message1 {
+    optional int32 value = 1;
+    extensions 100 to 150;
+}
+
+extend Message1 {
+    optional int32 extension1 = 100;
+}
+
+message Message2 {
+    extend Message1 {
+        optional Message2 extension2 = 101;
+    }
+    optional int32 value = 1;
+}

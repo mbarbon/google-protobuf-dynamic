@@ -135,11 +135,8 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
 }
 
 void Dynamic::resolve_references() {
-    for (std::vector<Mapper *>::iterator it = pending.begin(), en = pending.end(); it != en; ++it) {
+    for (std::vector<Mapper *>::iterator it = pending.begin(), en = pending.end(); it != en; ++it)
         (*it)->resolve_mappers();
-
-        // XXX nested types, extensions
-    }
 }
 
 const Mapper *Dynamic::find_mapper(const MessageDef *message_def) const {

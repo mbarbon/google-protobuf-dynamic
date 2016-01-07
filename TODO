@@ -4,7 +4,6 @@ Implement:
 - 64-bit mapping on 32-bit Perls
 - constants for enums
 - load from serialized descriptors
-- extensions
 - oneof fields
 - fix all XXX/TODO
 - decode to blessed object that goes through C++ accessors

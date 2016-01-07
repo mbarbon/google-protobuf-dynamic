@@ -282,7 +282,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def) :
     if (!decoder_handlers->SetEndMessageHandler(UpbMakeHandler(DecoderHandlers::on_end_message)))
         croak("Unable to set upb end message handler for %s", message_def->full_name());
 
-    // XXX one_of, extensions, ...
+    // XXX one_of, required, ...
     for (MessageDef::const_field_iterator it = message_def->field_begin(), en = message_def->field_end(); it != en; ++it) {
         int index = fields.size();
         fields.push_back(Field());
@@ -291,7 +291,13 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def) :
         const FieldDef *field_def = *it;
 
         field.field_def = field_def;
-        field.name = newSVpv_share(field_def->name(), 0);
+        if (field_def->is_extension()) {
+            string temp = string() + "[" + field_def->full_name() + "]";
+
+            field.name = newSVpv_share(temp.c_str(), 0);
+        } else {
+            field.name = newSVpv_share(field_def->name(), 0);
+        }
         field.name_hash = SvSHARED_HASH(field.name);
         field.mapper = NULL;
 
