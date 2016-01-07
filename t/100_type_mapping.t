@@ -1,8 +1,5 @@
-use Test::More;
-use Test::Exception;
-use Test::Differences;
-
-use Google::ProtocolBuffers::Dynamic;
+use t::lib::Test;
+no warnings 'redefine';
 
 {
     my $d = Google::ProtocolBuffers::Dynamic->new('t/proto/mapping');
