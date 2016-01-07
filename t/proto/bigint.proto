@@ -1,0 +1,6 @@
+package test;
+
+message BigInts {
+    optional uint64 uint64_f = 1;
+    optional int64 int64_f = 2;
+}

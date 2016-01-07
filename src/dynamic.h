@@ -19,6 +19,12 @@ namespace gpd {
 
 class Mapper;
 
+struct MappingOptions {
+    bool use_bigints;
+
+    MappingOptions(pTHX_ SV *options_ref);
+};
+
 class Dynamic : public Refcounted {
     class CollectErrors : public google::protobuf::compiler::MultiFileErrorCollector {
         virtual void AddError(const std::string &filename, int line, int column, const std::string &message);
@@ -31,15 +37,15 @@ public:
     void load_file(pTHX_ const std::string &file);
     void load_string(pTHX_ const std::string &file, SV *string);
 
-    void map_message(pTHX_ const std::string &message, const std::string &perl_package);
-    void map_package(pTHX_ const std::string &pb_package, const std::string &perl_package_prefix);
+    void map_message(pTHX_ const std::string &message, const std::string &perl_package, const MappingOptions &options);
+    void map_package(pTHX_ const std::string &pb_package, const std::string &perl_package_prefix, const MappingOptions &options);
     void resolve_references();
 
     const Mapper *find_mapper(const upb::MessageDef *message_def) const;
 
 private:
-    void map_message_recursive(pTHX_ const google::protobuf::Descriptor *descriptor, const std::string &perl_package);
-    void map_message(pTHX_ const google::protobuf::Descriptor *descriptor, const std::string &perl_package);
+    void map_message_recursive(pTHX_ const google::protobuf::Descriptor *descriptor, const std::string &perl_package, const MappingOptions &options);
+    void map_message(pTHX_ const google::protobuf::Descriptor *descriptor, const std::string &perl_package, const MappingOptions &options);
 
     google::protobuf::compiler::Importer importer;
     google::protobuf::compiler::DiskSourceTree disk_source_tree;

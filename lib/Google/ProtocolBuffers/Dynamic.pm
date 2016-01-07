@@ -14,9 +14,9 @@ sub map {
 
     for my $mapping (@mappings) {
         if (exists $mapping->{package}) {
-            $self->map_package($mapping->{package}, $mapping->{prefix});
+            $self->map_package($mapping->{package}, $mapping->{prefix}, $mapping->{options});
         } elsif (exists $mapping->{message}) {
-            $self->map_message($mapping->{message}, $mapping->{to});
+            $self->map_message($mapping->{message}, $mapping->{to}, $mapping->{options});
         } else {
             require Data::Dumper;
 

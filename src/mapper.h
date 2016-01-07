@@ -17,6 +17,7 @@
 namespace gpd {
 
 class Dynamic;
+class MappingOptions;
 
 class Mapper : public Refcounted {
 public:
@@ -75,6 +76,9 @@ public:
         template<class T>
         static bool on_uv(DecoderHandlers *cxt, const int *field_index, T val);
 
+        static bool on_bigiv(DecoderHandlers *cxt, const int *field_index, int64_t val);
+        static bool on_biguv(DecoderHandlers *cxt, const int *field_index, uint64_t val);
+
         static bool on_bool(DecoderHandlers *cxt, const int *field_index, bool val);
 
         void apply_defaults();
@@ -83,7 +87,7 @@ public:
     };
 
 public:
-    Mapper(pTHX_ Dynamic *registry, const upb::MessageDef *message_def);
+    Mapper(pTHX_ Dynamic *registry, const upb::MessageDef *message_def, const MappingOptions &options);
     ~Mapper();
 
     void resolve_mappers();

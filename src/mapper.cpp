@@ -234,6 +234,59 @@ bool Mapper::DecoderHandlers::on_uv(DecoderHandlers *cxt, const int *field_index
     return true;
 }
 
+namespace {
+    bool make_bigint(Mapper::DecoderHandlers *cxt, const int *field_index, uint64_t value, bool negative) {
+        THX_DECLARE_AND_GET;
+        dSP;
+
+        // this code is horribly slow; it could be made slightly faster,
+        // but I doubt there is any point
+        char buffer[19] = "-0x"; // -0x8000000000000000
+        for (int i = 15; i >= 0; --i, value >>= 4) {
+            int digit = value & 0xf;
+
+            buffer[3 + i] = digit < 10 ? '0' + digit : 'a' + digit - 10;
+        }
+
+        PUSHMARK(SP);
+        XPUSHs(sv_2mortal(newSVpvs("Math::BigInt")));
+        XPUSHs(sv_2mortal(newSVpvn(negative ? buffer : buffer + 1, negative ? 19 : 18)));
+        PUTBACK;
+
+        int count = call_method("new", G_SCALAR);
+
+        SPAGAIN;
+        SV *res = POPs;
+        PUTBACK;
+
+        sv_setsv(cxt->get_target(field_index), res);
+
+        return true;
+    }
+}
+
+bool Mapper::DecoderHandlers::on_bigiv(DecoderHandlers *cxt, const int *field_index, int64_t val) {
+    cxt->mark_seen(field_index);
+
+    if (val >= I32_MIN && val <= I32_MAX) {
+        sv_setiv(cxt->get_target(field_index), (IV) val);
+
+        return true;
+    } else
+        return make_bigint(cxt, field_index, (uint64_t) val, val < 0);
+}
+
+bool Mapper::DecoderHandlers::on_biguv(DecoderHandlers *cxt, const int *field_index, uint64_t val) {
+    cxt->mark_seen(field_index);
+
+    if (val <= U32_MAX) {
+        sv_setiv(cxt->get_target(field_index), (IV) val);
+
+        return true;
+    } else
+        return make_bigint(cxt, field_index, val, val < 0);
+}
+
 bool Mapper::DecoderHandlers::on_bool(DecoderHandlers *cxt, const int *field_index, bool val) {
     THX_DECLARE_AND_GET;
 
@@ -268,7 +321,7 @@ void Mapper::DecoderHandlers::mark_seen(const int *field_index) {
     seen_fields.back()[*field_index] = true;
 }
 
-Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def) :
+Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const MappingOptions &options) :
         registry(_registry),
         message_def(_message_def),
         decoder_callbacks(aTHX_ this),
@@ -352,11 +405,17 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def) :
             break;
         case UPB_TYPE_INT64:
             GET_SELECTOR(INT64, primitive);
-            SET_VALUE_HANDLER(int64_t, on_iv<int64_t>);
+            if (options.use_bigints)
+                SET_VALUE_HANDLER(int64_t, on_bigiv);
+            else
+                SET_VALUE_HANDLER(int64_t, on_iv<int64_t>);
             break;
         case UPB_TYPE_UINT64:
             GET_SELECTOR(UINT64, primitive);
-            SET_VALUE_HANDLER(uint64_t, on_uv<uint64_t>);
+            if (options.use_bigints)
+                SET_VALUE_HANDLER(uint64_t, on_biguv);
+            else
+                SET_VALUE_HANDLER(uint64_t, on_uv<uint64_t>);
             break;
         default:
             croak("Unhandled field type %d", field_def->type());
@@ -430,6 +489,56 @@ SV *Mapper::decode_to_perl(const char *buffer, STRLEN bufsize) {
 }
 
 namespace {
+    // this code is horribly slow; it could be made slightly faster,
+    // but I doubt there is any point
+    uint64_t extract_bits(pTHX_ SV *src, bool *negative) {
+        dSP;
+
+        PUSHMARK(SP);
+        XPUSHs(src);
+        PUTBACK;
+
+        int count = call_method("as_hex", G_SCALAR);
+
+        SPAGAIN;
+        SV *res = POPs;
+        PUTBACK;
+
+        uint64_t integer = 0;
+        const char *buffer = SvPV_nolen(res);
+        *negative = buffer[0] == '-';
+
+        if (*negative)
+            ++buffer;
+        buffer += 2; // skip 0x
+        while (*buffer) {
+            integer <<= 4;
+            integer |= READ_XDIGIT(buffer);
+        }
+
+        return integer;
+    }
+
+    uint64_t get_uint64(pTHX_ SV *src) {
+        if (SvROK(src) && sv_derived_from(src, "Math::BigInt")) {
+            bool negative = false;
+            uint64_t value = extract_bits(aTHX_ src, &negative);
+
+            return negative ? ~value + 1 : value;
+        } else
+            return SvUV(src);
+    }
+
+    int64_t get_int64(pTHX_ SV *src) {
+        if (SvROK(src) && sv_derived_from(src, "Math::BigInt")) {
+            bool negative = false;
+            uint64_t value = extract_bits(aTHX_ src, &negative);
+
+            return negative ? -value : value;
+        } else
+            return SvIV(src);
+    }
+
     class SVGetter {
     public:
         SV *operator()(pTHX_ SV *src) const { return src; }
@@ -448,6 +557,16 @@ namespace {
     class UVGetter {
     public:
         UV operator()(pTHX_ SV *src) const { return SvUV(src); }
+    };
+
+    class I64Getter {
+    public:
+        int64_t operator()(pTHX_ SV *src) const { return get_int64(aTHX_ src); }
+    };
+
+    class U64Getter {
+    public:
+        uint64_t operator()(pTHX_ SV *src) const { return get_uint64(aTHX_ src); }
     };
 
     class StringGetter {
@@ -482,12 +601,12 @@ namespace {
         } \
     }
 
-    DEF_SIMPLE_SETTER(Int32Setter, PutInt32, IV);
-    DEF_SIMPLE_SETTER(Int64Setter, PutInt64, IV);
-    DEF_SIMPLE_SETTER(UInt32Setter, PutUInt32, UV);
-    DEF_SIMPLE_SETTER(UInt64Setter, PutUInt64, UV);
-    DEF_SIMPLE_SETTER(FloatSetter, PutFloat, NV);
-    DEF_SIMPLE_SETTER(DoubleSetter, PutDouble, NV);
+    DEF_SIMPLE_SETTER(Int32Setter, PutInt32, int32_t);
+    DEF_SIMPLE_SETTER(Int64Setter, PutInt64, int64_t);
+    DEF_SIMPLE_SETTER(UInt32Setter, PutUInt32, uint32_t);
+    DEF_SIMPLE_SETTER(UInt64Setter, PutUInt64, uint64_t);
+    DEF_SIMPLE_SETTER(FloatSetter, PutFloat, float);
+    DEF_SIMPLE_SETTER(DoubleSetter, PutDouble, double);
     DEF_SIMPLE_SETTER(BoolSetter, PutBool, bool);
 
 #undef DEF_SIMPLE_SETTER
@@ -609,11 +728,15 @@ bool Mapper::encode_from_perl(Encoder* encoder, Sink *sink, const Field &fd, SV 
     case UPB_TYPE_UINT32:
         return sink->PutUInt32(fd.selector.primitive, SvUV(ref));
     case UPB_TYPE_INT64:
-        // XXX 32-bit Perl
-        return sink->PutInt64(fd.selector.primitive, SvIV(ref));
+        if (sizeof(IV) >= sizeof(int64_t))
+            return sink->PutInt64(fd.selector.primitive, SvIV(ref));
+        else
+            return sink->PutInt64(fd.selector.primitive, get_int64(aTHX_ ref));
     case UPB_TYPE_UINT64:
-        // XXX 32-bit Perl
-        return sink->PutUInt64(fd.selector.primitive, SvUV(ref));
+        if (sizeof(UV) >= sizeof(int64_t))
+            return sink->PutInt64(fd.selector.primitive, SvUV(ref));
+        else
+            return sink->PutUInt64(fd.selector.primitive, get_uint64(aTHX_ ref));
     default:
         return false; // just in case
     }
@@ -645,9 +768,15 @@ bool Mapper::encode_from_perl_array(Encoder* encoder, Sink *sink, const Field &f
     case UPB_TYPE_UINT32:
         return encode_from_array<UVGetter, UInt32Setter>(encoder, sink, fd, array);
     case UPB_TYPE_INT64:
-        return encode_from_array<IVGetter, Int64Setter>(encoder, sink, fd, array);
+        if (sizeof(IV) >= sizeof(int64_t))
+            return encode_from_array<IVGetter, Int64Setter>(encoder, sink, fd, array);
+        else
+            return encode_from_array<I64Getter, Int64Setter>(encoder, sink, fd, array);
     case UPB_TYPE_UINT64:
-        return encode_from_array<UVGetter, UInt64Setter>(encoder, sink, fd, array);
+        if (sizeof(IV) >= sizeof(int64_t))
+            return encode_from_array<UVGetter, UInt64Setter>(encoder, sink, fd, array);
+        else
+            return encode_from_array<U64Getter, UInt64Setter>(encoder, sink, fd, array);
     default:
         return false; // just in case
     }
