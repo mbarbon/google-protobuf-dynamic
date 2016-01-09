@@ -616,7 +616,7 @@ namespace {
 #define DEF_SIMPLE_SETTER(NAME, METHOD, TYPE)   \
     struct NAME { \
         bool operator()(pTHX_ Sink *sink, const Mapper::Field &fd, TYPE value) { \
-            sink->METHOD(fd.selector.primitive, value);    \
+            return sink->METHOD(fd.selector.primitive, value);    \
         } \
     }
 
