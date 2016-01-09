@@ -244,6 +244,24 @@ bool Mapper::DecoderHandlers::on_uv(DecoderHandlers *cxt, const int *field_index
     return true;
 }
 
+bool Mapper::DecoderHandlers::on_enum(DecoderHandlers *cxt, const int *field_index, int32_t val) {
+    THX_DECLARE_AND_GET;
+
+    const Field &field = cxt->mappers.back()->fields[*field_index];
+    if (field.enum_values.find(val) == field.enum_values.end()) {
+        // this will use the default value later, it's intentional
+        // mark_seen is not called
+        if (SvTYPE(cxt->items.back()) == SVt_PVAV)
+            sv_setiv(cxt->get_target(field_index), field.field_def->default_int32());
+        return true;
+    }
+
+    cxt->mark_seen(field_index);
+    sv_setiv(cxt->get_target(field_index), val);
+
+    return true;
+}
+
 namespace {
     bool make_bigint(Mapper::DecoderHandlers *cxt, const int *field_index, uint64_t value, bool negative) {
         THX_DECLARE_AND_GET;
@@ -405,7 +423,16 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const M
             SET_HANDLER(EndSubMessage, on_end_sub_message);
             has_default = false;
             break;
-        case UPB_TYPE_ENUM:
+        case UPB_TYPE_ENUM: {
+            GET_SELECTOR(INT32, primitive);
+            SET_VALUE_HANDLER(int32_t, on_enum);
+
+            const EnumDef *enumdef = field_def->enum_subdef();
+            upb_enum_iter i;
+            for (upb_enum_begin(&i, enumdef); !upb_enum_done(&i); upb_enum_next(&i))
+                field.enum_values.insert(upb_enum_iter_number(&i));
+        }
+            break;
         case UPB_TYPE_INT32:
             GET_SELECTOR(INT32, primitive);
             SET_VALUE_HANDLER(int32_t, on_iv<int32_t>);
@@ -615,6 +642,7 @@ namespace {
 
 #define DEF_SIMPLE_SETTER(NAME, METHOD, TYPE)   \
     struct NAME { \
+        NAME(Status *status) { } \
         bool operator()(pTHX_ Sink *sink, const Mapper::Field &fd, TYPE value) { \
             return sink->METHOD(fd.selector.primitive, value);    \
         } \
@@ -630,7 +658,29 @@ namespace {
 
 #undef DEF_SIMPLE_SETTER
 
+    struct EnumSetter {
+        Status *status;
+
+        EnumSetter(Status *_status) { status = _status; }
+
+        bool operator()(pTHX_ Sink *sink, const Mapper::Field &fd, int32_t value) {
+            if (fd.enum_values.find(value) == fd.enum_values.end()) {
+                status->SetFormattedErrorMessage(
+                    "Invalid enumeration value %d for field %s.%s",
+                    value,
+                    fd.field_def->containing_type()->full_name(),
+                    fd.field_def->full_name()
+                );
+                return false;
+            }
+
+            return sink->PutInt32(fd.selector.primitive, value);
+        }
+    };
+
     struct StringSetter {
+        StringSetter(Status *status) { }
+
         bool operator()(pTHX_ Sink *sink, const Mapper::Field &fd, SV *value) {
             STRLEN len;
             const char *str = fd.field_def->type() == UPB_TYPE_STRING ? SvPVutf8(value, len) : SvPV(value, len);
@@ -644,9 +694,9 @@ namespace {
 }
 
 template<class G, class S>
-bool Mapper::encode_from_array(Encoder *encoder, Sink *sink, const Mapper::Field &fd, AV *source) const {
+bool Mapper::encode_from_array(Encoder *encoder, Sink *sink, Status *status, const Mapper::Field &fd, AV *source) const {
     G getter;
-    S setter;
+    S setter(status);
     Sink sub, *actual = sink;
     bool packed = upb_fielddef_isprimitive(fd.field_def) && fd.field_def->packed();
 
@@ -750,8 +800,20 @@ bool Mapper::encode_from_perl(Encoder* encoder, Sink *sink, Status *status, cons
             return false;
         return sink->EndSubMessage(fd.selector.msg_end);
     }
-    case UPB_TYPE_ENUM:
-        return sink->PutInt32(fd.selector.primitive, SvIV(ref)); // XXX validation
+    case UPB_TYPE_ENUM: {
+        IV value = SvIV(ref);
+        if (fd.enum_values.find(value) == fd.enum_values.end()) {
+            status->SetFormattedErrorMessage(
+                "Invalid enumeration value %d for field %s.%s",
+                value,
+                fd.field_def->containing_type()->full_name(),
+                fd.field_def->full_name()
+            );
+            return false;
+        }
+
+        return sink->PutInt32(fd.selector.primitive, value);
+    }
     case UPB_TYPE_INT32:
         return sink->PutInt32(fd.selector.primitive, SvIV(ref));
     case UPB_TYPE_UINT32:
@@ -790,8 +852,7 @@ bool Mapper::encode_from_perl_array(Encoder* encoder, Sink *sink, Status *status
     case UPB_TYPE_MESSAGE:
         return fd.mapper->encode_from_message_array(encoder, sink, status, fd, array);
     case UPB_TYPE_ENUM:
-        // XXX validation
-        return encode_from_array<IVGetter, Int32Setter>(encoder, sink, fd, array);
+        return encode_from_array<IVGetter, EnumSetter>(encoder, sink, status, fd, array);
     case UPB_TYPE_INT32:
         return encode_from_array<IVGetter, Int32Setter>(encoder, sink, fd, array);
     case UPB_TYPE_UINT32:

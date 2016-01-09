@@ -9,6 +9,8 @@
 #include <upb/pb/decoder.h>
 #include <upb/bindings/stdc++/string.h>
 
+#include <tr1/unordered_set>
+
 #include "EXTERN.h"
 #include "perl.h"
 
@@ -43,6 +45,7 @@ public:
         U32 name_hash;
         bool has_default;
         const Mapper *mapper; // for Message/Group fields
+        std::tr1::unordered_set<int32_t> enum_values;
     };
 
     struct DecoderHandlers {
@@ -77,6 +80,7 @@ public:
         template<class T>
         static bool on_uv(DecoderHandlers *cxt, const int *field_index, T val);
 
+        static bool on_enum(DecoderHandlers *cxt, const int *field_index, int32_t val);
         static bool on_bigiv(DecoderHandlers *cxt, const int *field_index, int64_t val);
         static bool on_biguv(DecoderHandlers *cxt, const int *field_index, uint64_t val);
 
@@ -105,7 +109,12 @@ private:
     bool encode_from_message_array(upb::pb::Encoder *encoder, upb::Sink *sink, upb::Status *status, const Mapper::Field &fd, AV *source) const;
 
     template<class G, class S>
-    bool encode_from_array(upb::pb::Encoder *encoder, upb::Sink *sink, const Mapper::Field &fd, AV *source) const;
+    bool encode_from_array(upb::pb::Encoder *encoder, upb::Sink *sink, upb::Status *status, const Mapper::Field &fd, AV *source) const;
+
+    template<class G, class S>
+    bool encode_from_array(upb::pb::Encoder *encoder, upb::Sink *sink, const Mapper::Field &fd, AV *source) const {
+        return encode_from_array<G, S>(encoder, sink, NULL, fd, source);
+    }
 
     DECL_THX_MEMBER;
     Dynamic *registry;

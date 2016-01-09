@@ -1,6 +1,5 @@
 Implement:
 - fix all XXX/TODO
-- enum validation
 - blessing/accessor generation
 - oneof fields
 - constants for enums
@@ -12,3 +11,7 @@ Implement:
 - implement and test Google::ProtocolBuffer compatibility
 - add an introspection API to get an object describing the protobuf
   message corresponding to an object
+- make enum value checks optional (just pass through the invalid value
+  in both encoding and decoding)
+- prepare for the different sematics of proto3
+  - enums
