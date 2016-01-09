@@ -20,7 +20,7 @@ decode_to_perl(SV *klass, SV *scalar)
 
     if (!RETVAL) {
         sv_2mortal(RETVAL);
-        croak("Deserialization failed");
+        croak("Deserialization failed: %s", mapper->last_error_message());
     }
   OUTPUT: RETVAL
 
@@ -33,7 +33,7 @@ encode_from_perl(SV *klass, SV *ref)
 
     if (!RETVAL) {
         sv_2mortal(RETVAL);
-        croak("Serialization failed");
+        croak("Serialization failed: %s", mapper->last_error_message());
     }
   OUTPUT: RETVAL
 

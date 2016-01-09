@@ -24,4 +24,9 @@ eq_or_diff(Person->encode_from_perl($p), "\x0a\x03foo\x10\x1f\x1a\x00");
 eq_or_diff(PersonArray->encode_from_perl($pa), "\x0a\x09\x0a\x03foo\x10\x1f\x1a\x00" .
                                                "\x0a\x08\x0a\x02ba\x10\x20\x1a\x00");
 
+throws_ok(
+    sub { Person->decode_to_perl("\x0a\x02") },
+    qr/Deserialization failed: Unexpected EOF inside delimited string/,
+);
+
 done_testing();

@@ -328,6 +328,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const M
         string_sink(&output_buffer) {
     SET_THX_MEMBER;
 
+    env.ReportErrorsTo(&status);
     registry->ref();
     encoder_handlers = Encoder::NewHandlers(message_def);
     decoder_handlers = Handlers::New(message_def);
@@ -467,6 +468,7 @@ void Mapper::resolve_mappers() {
 }
 
 SV *Mapper::encode_from_perl(SV *ref) {
+    status.Clear();
     output_buffer.clear();
     SV *result = NULL;
     if (encode_from_perl(encoder, encoder->input(), ref))
@@ -477,6 +479,7 @@ SV *Mapper::encode_from_perl(SV *ref) {
 }
 
 SV *Mapper::decode_to_perl(const char *buffer, STRLEN bufsize) {
+    status.Clear();
     decoder->Reset();
     decoder_callbacks.prepare(newHV());
 
@@ -486,6 +489,10 @@ SV *Mapper::decode_to_perl(const char *buffer, STRLEN bufsize) {
     decoder_callbacks.clear();
 
     return result;
+}
+
+const char *Mapper::last_error_message() const {
+    return status.ok() ? "Unknown error" : status.error_message();
 }
 
 namespace {

@@ -95,6 +95,8 @@ public:
     SV *encode_from_perl(SV *ref);
     SV *decode_to_perl(const char *buffer, STRLEN bufsize);
 
+    const char *last_error_message() const;
+
 private:
     bool encode_from_perl(upb::pb::Encoder* encoder, upb::Sink *sink, SV *ref) const;
     bool encode_from_perl(upb::pb::Encoder* encoder, upb::Sink *sink, const Field &fd, SV *ref) const;
@@ -112,6 +114,7 @@ private:
     upb::reffed_ptr<const upb::pb::DecoderMethod> decoder_method;
     std::vector<Field> fields;
     upb::Environment env;
+    upb::Status status;
     DecoderHandlers decoder_callbacks;
     upb::Sink encoder_sink, decoder_sink;
     upb::pb::Decoder *decoder;
