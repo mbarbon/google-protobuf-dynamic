@@ -662,7 +662,8 @@ bool Mapper::encode_from_array(Encoder *encoder, Sink *sink, const Mapper::Field
         if (!item)
             return false;
 
-        setter(aTHX_ actual, fd, getter(aTHX_ *item));
+        if (!setter(aTHX_ actual, fd, getter(aTHX_ *item)))
+            return false;
     }
 
     return !packed || sink->EndSequence(fd.selector.seq_end);
@@ -696,6 +697,7 @@ bool Mapper::encode_from_perl(Encoder* encoder, Sink *sink, Status *status, SV *
     if (!sink->StartMessage())
         return false;
 
+    bool ok = true;
     for (vector<Field>::const_iterator it = fields.begin(), en = fields.end(); it != en; ++it) {
         HE *he = hv_fetch_ent(hv, it->name, 0, it->name_hash);
 
@@ -711,13 +713,15 @@ bool Mapper::encode_from_perl(Encoder* encoder, Sink *sink, Status *status, SV *
         }
 
         if (it->field_def->label() == UPB_LABEL_REPEATED)
-            encode_from_perl_array(encoder, sink, status, *it, HeVAL(he));
+            ok = ok && encode_from_perl_array(encoder, sink, status, *it, HeVAL(he));
         else
-            encode_from_perl(encoder, sink, status, *it, HeVAL(he));
+            ok = ok && encode_from_perl(encoder, sink, status, *it, HeVAL(he));
     }
 
     if (!sink->EndMessage(status))
         return false;
+
+    return ok;
 }
 
 bool Mapper::encode_from_perl(Encoder* encoder, Sink *sink, Status *status, const Field &fd, SV *ref) const {
