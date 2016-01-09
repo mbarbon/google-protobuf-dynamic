@@ -38,6 +38,7 @@ void Mapper::DecoderHandlers::prepare(HV *target) {
     seen_fields.back().clear();
     seen_fields.back().resize(mappers.back()->fields.size());
     items.resize(1);
+    error.clear();
     items[0] = (SV *) target;
     string = NULL;
 }
@@ -50,7 +51,7 @@ void Mapper::DecoderHandlers::clear() {
     SvREFCNT_dec(items[0]);
 }
 
-void Mapper::DecoderHandlers::apply_defaults() {
+bool Mapper::DecoderHandlers::apply_defaults_and_check() {
     const vector<bool> &seen = seen_fields.back();
     const vector<Mapper::Field> &fields = mappers.back()->fields;
 
@@ -106,15 +107,24 @@ void Mapper::DecoderHandlers::apply_defaults() {
                 sv_setuv(target, field.field_def->default_uint64());
                 break;
             }
+        } else if (!seen[i] && field.field_def->label() == UPB_LABEL_REQUIRED) {
+            error = std::string("Missing required field ")
+                + field.field_def->containing_type()->full_name()
+                + "."
+                + field.field_def->name();
+
+            return false;
         }
     }
+
+    return true;
 }
 
 bool Mapper::DecoderHandlers::on_end_message(DecoderHandlers *cxt, upb::Status *status) {
-    if (!status || status->ok())
-        cxt->apply_defaults();
-
-    return true;
+    if (!status || status->ok()) {
+        return cxt->apply_defaults_and_check();
+    } else
+        return false;
 }
 
 Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_string(DecoderHandlers *cxt, const int *field_index, size_t size_hint) {
@@ -336,7 +346,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const M
     if (!decoder_handlers->SetEndMessageHandler(UpbMakeHandler(DecoderHandlers::on_end_message)))
         croak("Unable to set upb end message handler for %s", message_def->full_name());
 
-    // XXX one_of, required, ...
+    // XXX one_of, ...
     for (MessageDef::const_field_iterator it = message_def->field_begin(), en = message_def->field_end(); it != en; ++it) {
         int index = fields.size();
         fields.push_back(Field());
@@ -471,7 +481,7 @@ SV *Mapper::encode_from_perl(SV *ref) {
     status.Clear();
     output_buffer.clear();
     SV *result = NULL;
-    if (encode_from_perl(encoder, encoder->input(), ref))
+    if (encode_from_perl(encoder, encoder->input(), &status, ref))
         result = newSVpvn(output_buffer.data(), output_buffer.size());
     output_buffer.clear();
 
@@ -492,7 +502,9 @@ SV *Mapper::decode_to_perl(const char *buffer, STRLEN bufsize) {
 }
 
 const char *Mapper::last_error_message() const {
-    return status.ok() ? "Unknown error" : status.error_message();
+    return !decoder_callbacks.error.empty() ? decoder_callbacks.error.c_str() :
+           !status.ok()                     ? status.error_message() :
+                                              "Unknown error";
 }
 
 namespace {
@@ -656,7 +668,7 @@ bool Mapper::encode_from_array(Encoder *encoder, Sink *sink, const Mapper::Field
     return !packed || sink->EndSequence(fd.selector.seq_end);
 }
 
-bool Mapper::encode_from_message_array(Encoder *encoder, Sink *sink, const Mapper::Field &fd, AV *source) const {
+bool Mapper::encode_from_message_array(Encoder *encoder, Sink *sink, Status *status, const Mapper::Field &fd, AV *source) const {
     int size = av_top_index(source) + 1;
 
     for (int i = 0; i < size; ++i) {
@@ -667,7 +679,7 @@ bool Mapper::encode_from_message_array(Encoder *encoder, Sink *sink, const Mappe
 
         if (!sink->StartSubMessage(fd.selector.msg_start, &submsg))
             return false;
-        if (!encode_from_perl(encoder, &submsg, *item))
+        if (!encode_from_perl(encoder, &submsg, status, *item))
             return false;
         if (!sink->EndSubMessage(fd.selector.msg_end))
             return false;
@@ -676,11 +688,10 @@ bool Mapper::encode_from_message_array(Encoder *encoder, Sink *sink, const Mappe
     return true;
 }
 
-bool Mapper::encode_from_perl(Encoder* encoder, Sink *sink, SV *ref) const {
+bool Mapper::encode_from_perl(Encoder* encoder, Sink *sink, Status *status, SV *ref) const {
     if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVHV)
         croak("Not an hash reference when encoding a %s value", message_def->full_name());
     HV *hv = (HV *) SvRV(ref);
-    Status status;
 
     if (!sink->StartMessage())
         return false;
@@ -688,21 +699,28 @@ bool Mapper::encode_from_perl(Encoder* encoder, Sink *sink, SV *ref) const {
     for (vector<Field>::const_iterator it = fields.begin(), en = fields.end(); it != en; ++it) {
         HE *he = hv_fetch_ent(hv, it->name, 0, it->name_hash);
 
-        // XXX what about required?
-        if (!he)
-            continue;
+        if (!he) {
+            if (it->field_def->label() == UPB_LABEL_REQUIRED) {
+                status->SetFormattedErrorMessage(
+                    "Missing required field %s.%s",
+                    it->field_def->containing_type()->full_name(),
+                    it->field_def->name());
+                return false;
+            } else
+                continue;
+        }
 
         if (it->field_def->label() == UPB_LABEL_REPEATED)
-            encode_from_perl_array(encoder, sink, *it, HeVAL(he));
+            encode_from_perl_array(encoder, sink, status, *it, HeVAL(he));
         else
-            encode_from_perl(encoder, sink, *it, HeVAL(he));
+            encode_from_perl(encoder, sink, status, *it, HeVAL(he));
     }
 
-    if (!sink->EndMessage(&status))
+    if (!sink->EndMessage(status))
         return false;
 }
 
-bool Mapper::encode_from_perl(Encoder* encoder, Sink *sink, const Field &fd, SV *ref) const {
+bool Mapper::encode_from_perl(Encoder* encoder, Sink *sink, Status *status, const Field &fd, SV *ref) const {
     switch (fd.field_def->type()) {
     case UPB_TYPE_FLOAT:
         return sink->PutFloat(fd.selector.primitive, SvNV(ref));
@@ -724,7 +742,7 @@ bool Mapper::encode_from_perl(Encoder* encoder, Sink *sink, const Field &fd, SV 
         Sink sub;
         if (!sink->StartSubMessage(fd.selector.msg_start, &sub))
             return false;
-        if (!fd.mapper->encode_from_perl(encoder, &sub, ref))
+        if (!fd.mapper->encode_from_perl(encoder, &sub, status, ref))
             return false;
         return sink->EndSubMessage(fd.selector.msg_end);
     }
@@ -749,7 +767,7 @@ bool Mapper::encode_from_perl(Encoder* encoder, Sink *sink, const Field &fd, SV 
     }
 }
 
-bool Mapper::encode_from_perl_array(Encoder* encoder, Sink *sink, const Field &fd, SV *ref) const {
+bool Mapper::encode_from_perl_array(Encoder* encoder, Sink *sink, Status *status, const Field &fd, SV *ref) const {
     if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVAV)
         croak("Not an array reference when encoding field %s", fd.field_def->full_name());
     AV *array = (AV *) SvRV(ref);
@@ -766,7 +784,7 @@ bool Mapper::encode_from_perl_array(Encoder* encoder, Sink *sink, const Field &f
     case UPB_TYPE_BYTES:
         return encode_from_array<SVGetter, StringSetter>(encoder, sink, fd, array);
     case UPB_TYPE_MESSAGE:
-        return fd.mapper->encode_from_message_array(encoder, sink, fd, array);
+        return fd.mapper->encode_from_message_array(encoder, sink, status, fd, array);
     case UPB_TYPE_ENUM:
         // XXX validation
         return encode_from_array<IVGetter, Int32Setter>(encoder, sink, fd, array);

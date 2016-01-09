@@ -50,6 +50,7 @@ public:
         std::vector<SV *> items;
         std::vector<const Mapper *> mappers;
         std::vector<std::vector<bool> > seen_fields;
+        std::string error;
         SV *string;
 
         DecoderHandlers(pTHX_ const Mapper *mapper);
@@ -81,7 +82,7 @@ public:
 
         static bool on_bool(DecoderHandlers *cxt, const int *field_index, bool val);
 
-        void apply_defaults();
+        bool apply_defaults_and_check();
         SV *get_target(const int *field_index);
         void mark_seen(const int *field_index);
     };
@@ -98,10 +99,10 @@ public:
     const char *last_error_message() const;
 
 private:
-    bool encode_from_perl(upb::pb::Encoder* encoder, upb::Sink *sink, SV *ref) const;
-    bool encode_from_perl(upb::pb::Encoder* encoder, upb::Sink *sink, const Field &fd, SV *ref) const;
-    bool encode_from_perl_array(upb::pb::Encoder* encoder, upb::Sink *sink, const Field &fd, SV *ref) const;
-    bool encode_from_message_array(upb::pb::Encoder *encoder, upb::Sink *sink, const Mapper::Field &fd, AV *source) const;
+    bool encode_from_perl(upb::pb::Encoder* encoder, upb::Sink *sink, upb::Status *status, SV *ref) const;
+    bool encode_from_perl(upb::pb::Encoder* encoder, upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;
+    bool encode_from_perl_array(upb::pb::Encoder* encoder, upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;
+    bool encode_from_message_array(upb::pb::Encoder *encoder, upb::Sink *sink, upb::Status *status, const Mapper::Field &fd, AV *source) const;
 
     template<class G, class S>
     bool encode_from_array(upb::pb::Encoder *encoder, upb::Sink *sink, const Mapper::Field &fd, AV *source) const;
