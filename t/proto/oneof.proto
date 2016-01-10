@@ -1,0 +1,9 @@
+package test;
+
+message OneOf1 {
+    optional int32 value1 = 1;
+    oneof oneof1 {
+        string value2 = 2;
+        int32 value3 = 3;
+    }
+}

@@ -46,6 +46,7 @@ public:
         bool has_default;
         const Mapper *mapper; // for Message/Group fields
         std::tr1::unordered_set<int32_t> enum_values;
+        int oneof_index;
     };
 
     struct DecoderHandlers {
@@ -53,6 +54,7 @@ public:
         std::vector<SV *> items;
         std::vector<const Mapper *> mappers;
         std::vector<std::vector<bool> > seen_fields;
+        std::vector<std::vector<int32_t> > seen_oneof;
         std::string error;
         SV *string;
 

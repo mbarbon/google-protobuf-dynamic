@@ -1,8 +1,8 @@
 Implement:
-- fix all XXX/TODO
 - blessing/accessor generation
-- oneof fields
 - constants for enums
+- check what to do for an oneof field with an enum member
+  with an invalid value (probably leave unset)
 - make the behaviour of default values configurable
   (both during encoding and decoding)
 - load from serialized descriptors
@@ -15,3 +15,8 @@ Implement:
   in both encoding and decoding)
 - prepare for the different sematics of proto3
   - enums
+- remove from fast path
+  - enum validation
+  - oneof handling
+  - required handling
+  - default value handling

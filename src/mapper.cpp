@@ -37,6 +37,11 @@ void Mapper::DecoderHandlers::prepare(HV *target) {
     seen_fields.resize(1);
     seen_fields.back().clear();
     seen_fields.back().resize(mappers.back()->fields.size());
+    if (int oneof_count = mappers.back()->message_def->oneof_count()) {
+        seen_oneof.resize(1);
+        seen_oneof.back().clear();
+        seen_oneof.back().resize(oneof_count, -1);
+    }
     items.resize(1);
     error.clear();
     items[0] = (SV *) target;
@@ -202,6 +207,10 @@ Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_sub_message(DecoderHa
     cxt->mappers.push_back(mapper->fields[*field_index].mapper);
     cxt->seen_fields.resize(cxt->seen_fields.size() + 1);
     cxt->seen_fields.back().resize(cxt->mappers.back()->fields.size());
+    if (int oneof_count = cxt->mappers.back()->message_def->oneof_count()) {
+        cxt->seen_oneof.resize(cxt->seen_oneof.size() + 1);
+        cxt->seen_oneof.back().resize(oneof_count, -1);
+    }
 
     return cxt;
 }
@@ -210,6 +219,8 @@ bool Mapper::DecoderHandlers::on_end_sub_message(DecoderHandlers *cxt, const int
     cxt->items.pop_back();
     cxt->mappers.pop_back();
     cxt->seen_fields.pop_back();
+    if (cxt->mappers.back()->message_def->oneof_count())
+        cxt->seen_oneof.pop_back();
 
     return true;
 }
@@ -341,6 +352,17 @@ SV *Mapper::DecoderHandlers::get_target(const int *field_index) {
     } else {
         HV *hv = (HV *) curr;
 
+        if (field.oneof_index != -1) {
+            int32_t seen = seen_oneof.back()[field.oneof_index];
+
+            if (seen != -1 && seen != *field_index) {
+                const Field &field = mapper->fields[seen];
+
+                hv_delete_ent(hv, field.name, G_DISCARD, field.name_hash);
+            }
+            seen_oneof.back()[field.oneof_index] = *field_index;
+        }
+
         return HeVAL(hv_fetch_ent(hv, field.name, 1, field.name_hash));
     }
 }
@@ -364,13 +386,13 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const M
     if (!decoder_handlers->SetEndMessageHandler(UpbMakeHandler(DecoderHandlers::on_end_message)))
         croak("Unable to set upb end message handler for %s", message_def->full_name());
 
-    // XXX one_of, ...
     for (MessageDef::const_field_iterator it = message_def->field_begin(), en = message_def->field_end(); it != en; ++it) {
         int index = fields.size();
         fields.push_back(Field());
 
         Field &field = fields.back();;
         const FieldDef *field_def = *it;
+        const OneofDef *oneof_def = field_def->containing_oneof();
 
         field.field_def = field_def;
         if (field_def->is_extension()) {
@@ -382,6 +404,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const M
         }
         field.name_hash = SvSHARED_HASH(field.name);
         field.mapper = NULL;
+        field.oneof_index = -1;
 
 #define GET_SELECTOR(KIND, TO) \
     ok = ok && encoder_handlers->GetSelector(field_def, UPB_HANDLER_##KIND, &field.selector.TO)
@@ -459,7 +482,9 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const M
             croak("Unhandled field type %d", field_def->type());
         }
 
-        if (has_default && field_def->label() == UPB_LABEL_OPTIONAL) {
+        if (has_default &&
+                field_def->label() == UPB_LABEL_OPTIONAL &&
+                !oneof_def) {
             field.has_default = true;
         }
 
@@ -476,6 +501,18 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const M
 
         if (!ok)
             croak("Unable to get upb selector for field %s", field_def->full_name());
+    }
+
+    int oneof_index = 0;
+    for (MessageDef::const_oneof_iterator it = message_def->oneof_begin(), en = message_def->oneof_end(); it != en; ++it, ++oneof_index) {
+        const OneofDef *oneof_def = *it;
+
+        for (OneofDef::const_iterator it = oneof_def->begin(), en = oneof_def->end(); it != en; ++it) {
+            const FieldDef *field_def = *it;
+            Field &field = fields[field_def->index()];
+
+            field.oneof_index = oneof_index;
+        }
     }
 }
 
@@ -748,6 +785,7 @@ bool Mapper::encode_from_perl(Encoder* encoder, Sink *sink, Status *status, SV *
         return false;
 
     bool ok = true;
+    int last_oneof = -1;
     for (vector<Field>::const_iterator it = fields.begin(), en = fields.end(); it != en; ++it) {
         HE *he = hv_fetch_ent(hv, it->name, 0, it->name_hash);
 
@@ -760,6 +798,11 @@ bool Mapper::encode_from_perl(Encoder* encoder, Sink *sink, Status *status, SV *
                 return false;
             } else
                 continue;
+        } else if (it->oneof_index != -1) {
+            if (it->oneof_index == last_oneof)
+                continue;
+            else
+                last_oneof = it->oneof_index;
         }
 
         if (it->field_def->label() == UPB_LABEL_REPEATED)
