@@ -1,6 +1,7 @@
 Implement:
 - blessing/accessor generation
 - constants for enums
+- serialize fields sorted by field number
 - check what to do for an oneof field with an enum member
   with an invalid value (probably leave unset)
 - make the behaviour of default values configurable
@@ -13,10 +14,19 @@ Implement:
   message corresponding to an object
 - make enum value checks optional (just pass through the invalid value
   in both encoding and decoding)
+- implement unknown fields (needs uPB support)
 - prepare for the different sematics of proto3
   - enums
+  - unknown fields
+  - maps (maybe add a compatibility layer for protobuf 2.x)
+  - any
+  - JSON mapping/parsing
 - remove from fast path
   - enum validation
   - oneof handling
   - required handling
   - default value handling
+- lazy fields
+- services
+- custom options?
+- protoc plugin
