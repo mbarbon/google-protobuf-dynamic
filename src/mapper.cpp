@@ -211,6 +211,7 @@ Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_sub_message(DecoderHa
         cxt->seen_oneof.resize(cxt->seen_oneof.size() + 1);
         cxt->seen_oneof.back().resize(oneof_count, -1);
     }
+    sv_bless(target, cxt->mappers.back()->stash);
 
     return cxt;
 }
@@ -371,12 +372,15 @@ void Mapper::DecoderHandlers::mark_seen(const int *field_index) {
     seen_fields.back()[*field_index] = true;
 }
 
-Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const MappingOptions &options) :
+Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_stash, const MappingOptions &options) :
         registry(_registry),
         message_def(_message_def),
+        stash(_stash),
         decoder_callbacks(aTHX_ this),
         string_sink(&output_buffer) {
     SET_THX_MEMBER;
+
+    SvREFCNT_inc(stash);
 
     env.ReportErrorsTo(&status);
     registry->ref();
@@ -522,6 +526,7 @@ Mapper::~Mapper() {
             it->mapper->unref();
     // make sure this only goes away after inner destructors have completed
     refcounted_mortalize(registry);
+    SvREFCNT_dec(stash);
 }
 
 void Mapper::resolve_mappers() {
@@ -559,7 +564,7 @@ SV *Mapper::decode_to_perl(const char *buffer, STRLEN bufsize) {
 
     SV *result = NULL;
     if (BufferSource::PutBuffer(buffer, bufsize, decoder->input()))
-        result = newRV_inc(decoder_callbacks.get_target());
+        result = sv_bless(newRV_inc(decoder_callbacks.get_target()), stash);
     decoder_callbacks.clear();
 
     return result;

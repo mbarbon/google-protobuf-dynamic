@@ -1,14 +1,23 @@
 Implement:
-- blessing/accessor generation
-- constants for enums
+- message API (with value validation)
+  - scalar/oneof accessors (get_foo/set_foo, foo, foo/set_foo)
+  - list accessors (scalar ones with index, whole list accessors,
+    add_foo, foo_size)
+  - has_foo, clear_foo
+  - set_extension/get_extension
+  - constants for field numbers
+  - constants for enums
+  - validate data passed to the constructor
+- document mapping between protobuf and Perl
 - serialize fields sorted by field number
 - check what to do for an oneof field with an enum member
   with an invalid value (probably leave unset)
 - make the behaviour of default values configurable
   (both during encoding and decoding)
+- add an option to disable blessing
+- simple extension option (Google::ProtocolBuffers compatibility)
 - load from serialized descriptors
-- use AvARRAY directly rather than going through av_fetch (maybe)
-- serializing tied array/hashes
+- test serializing tied array/hashes
 - implement and test Google::ProtocolBuffer compatibility
 - add an introspection API to get an object describing the protobuf
   message corresponding to an object

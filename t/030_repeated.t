@@ -37,7 +37,7 @@ for my $field (sort keys %values) {
 
     eq_or_diff($bytes, $encoded,
                "$field - encoded value");
-    eq_or_diff($decoded, { $field => $values },
+    eq_or_diff($decoded, Repeated->new({ $field => $values }),
                "$field - round trip");
 }
 
@@ -48,17 +48,17 @@ for my $field (sort keys %packed_values) {
 
     eq_or_diff($bytes, $encoded,
                "$field - packed value");
-    eq_or_diff($decoded, { $field => $values },
+    eq_or_diff($decoded, Packed->new({ $field => $values }),
                "$field - round trip");
 }
 
 # unusual, but the spec excplicitly mentions them
-eq_or_diff(Repeated->decode_to_perl("\x18\x01\x38\x01\x18\x02\x38\x00"), {
+eq_or_diff(Repeated->decode_to_perl("\x18\x01\x38\x01\x18\x02\x38\x00"), Repeated->new({
     int32_f => [1, 2],
     bool_f  => [1, ''],
-}, "non-contiguous repeated fields");
-eq_or_diff(Packed->decode_to_perl("\x1a\x02\x01\x02\x1a\x02\x03\x04"), {
+}), "non-contiguous repeated fields");
+eq_or_diff(Packed->decode_to_perl("\x1a\x02\x01\x02\x1a\x02\x03\x04"), Packed->new({
     int32_f => [1, 2, 3, 4],
-}, "packed repeated field in multiple chunks");
+}), "packed repeated field in multiple chunks");
 
 done_testing();

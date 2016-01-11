@@ -30,7 +30,7 @@ sub import {
 }
 
 sub maybe_bigint {
-    return $_[0] if $Config{ivsize} >= 8;
+    return $_[0] + 0 if $Config{ivsize} >= 8;
 
     require Math::BigInt;
     my $bi = Math::BigInt->new($_[0]);

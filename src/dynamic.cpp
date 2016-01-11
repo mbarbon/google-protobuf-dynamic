@@ -136,8 +136,9 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
     if (options.use_bigints)
         eval_pv("require Math::BigInt", 1);
 
+    HV *stash = gv_stashpvn(perl_package.data(), perl_package.size(), GV_ADD);
     const MessageDef *message_def = def_builder.GetMessageDef(descriptor);
-    Mapper *mapper = new Mapper(aTHX_ this, message_def, options);
+    Mapper *mapper = new Mapper(aTHX_ this, message_def, stash, options);
 
     descriptor_map[message_def->full_name()] = mapper;
     package_map[perl_package] = mapper;
@@ -145,6 +146,7 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
 
     copy_and_bind(aTHX_ "decode_to_perl", perl_package, mapper);
     copy_and_bind(aTHX_ "encode_from_perl", perl_package, mapper);
+    copy_and_bind(aTHX_ "new", perl_package, mapper);
 
     mapper->unref(); // reference from constructor
 }

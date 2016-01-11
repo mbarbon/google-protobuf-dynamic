@@ -8,17 +8,17 @@ $d->resolve_references();
 
 my $p = Person->decode_to_perl("\x0a\x03foo\x10\x1f");
 
-eq_or_diff($p, { id => 31, name => 'foo', email => '' });
+eq_or_diff($p, Person->new({ id => 31, name => 'foo', email => '' }));
 
 my $pa = PersonArray->decode_to_perl("\x0a\x07\x0a\x03foo\x10\x1f" .
                                      "\x0a\x06\x0a\x02ba\x10\x20");
 
-eq_or_diff($pa, {
+eq_or_diff($pa, PersonArray->new({
     persons => [
-        { id => 31, name => 'foo', email => '' },
-        { id => 32, name => 'ba', email => '' },
+        Person->new({ id => 31, name => 'foo', email => '' }),
+        Person->new({ id => 32, name => 'ba', email => '' }),
     ],
-});
+}));
 
 eq_or_diff(Person->encode_from_perl($p), "\x0a\x03foo\x10\x1f\x1a\x00");
 eq_or_diff(PersonArray->encode_from_perl($pa), "\x0a\x09\x0a\x03foo\x10\x1f\x1a\x00" .

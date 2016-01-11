@@ -8,13 +8,13 @@ $d->resolve_references();
 
 eq_or_diff(
     MessageAfter->decode_to_perl(MessageBefore->encode_from_perl({ value => 2, array => [1, 2] })),
-    { value => 2, array => [1, 2] },
+    MessageAfter->new({ value => 2, array => [1, 2] }),
     "sanity check for the tests below",
 );
 
 eq_or_diff(
     MessageBefore->decode_to_perl(MessageAfter->encode_from_perl({ value => 3, array => [3, 2, 1] })),
-    { value => 1, array => [1, 2, 1] },
+    MessageBefore->new({ value => 1, array => [1, 2, 1] }),
     "unknown enum value uses default in deserialization",
 );
 

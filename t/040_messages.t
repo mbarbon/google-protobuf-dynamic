@@ -9,17 +9,17 @@ $d->resolve_references();
 
 {
     my $encoded = "\x0a\x02\x08\x02\x12\x02\x08\x03\x12\x02\x08\x04";
-    my $decoded = {
-        optional_inner => {
+    my $decoded = OuterWithMessage->new({
+        optional_inner => Inner->new({
             value => 2,
             other => 0,
-        },
+        }),
         repeated_inner => [
-            { value => 3, other => 0 },
-            { value => 4, other => 0 },
+            Inner->new({ value => 3, other => 0 }),
+            Inner->new({ value => 4, other => 0 }),
         ],
-    };
-    my $for_encode = {
+    });
+    my $for_encode = OuterWithMessage->new({
         optional_inner => {
             value => 2,
         },
@@ -27,7 +27,7 @@ $d->resolve_references();
             { value => 3 },
             { value => 4 },
         ],
-    };
+    });
 
     eq_or_diff(OuterWithMessage->decode_to_perl($encoded), $decoded);
     eq_or_diff(OuterWithMessage->encode_from_perl($for_encode), $encoded);
@@ -35,12 +35,12 @@ $d->resolve_references();
 
 {
     my $encoded = "\x0b\x08\x02\x0c\x0b\x08\x03\x0c";
-    my $decoded = {
+    my $decoded = OuterWithGroup->new({
         inner => [
-            { value => 2 },
-            { value => 3 },
+            OuterWithGroup::Inner->new({ value => 2 }),
+            OuterWithGroup::Inner->new({ value => 3 }),
         ],
-    };
+    });
 
     eq_or_diff(OuterWithGroup->decode_to_perl($encoded), $decoded);
     eq_or_diff(OuterWithGroup->encode_from_perl($decoded), $encoded);
@@ -50,12 +50,12 @@ $d->resolve_references();
 {
     my $encoded = "\x0a\x02\x08\x02\x0a\x02\x10\x07";
     my $reencoded = "\x0a\x04\x08\x02\x10\x07";
-    my $decoded = {
-        optional_inner => {
+    my $decoded = OuterWithMessage->new({
+        optional_inner => Inner->new({
             value => 2,
             other => 7,
-        },
-    };
+        }),
+    });
 
     eq_or_diff(OuterWithMessage->decode_to_perl($encoded), $decoded);
     eq_or_diff(OuterWithMessage->encode_from_perl($decoded), $reencoded);

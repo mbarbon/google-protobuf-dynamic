@@ -8,10 +8,10 @@ $d->resolve_references();
 
 {
     my $encoded = "\x08\x02\xa0\x06\x03";
-    my $decoded = {
+    my $decoded = BaseMessage->new({
         value               => 2,
         '[test.extension1]' => 3,
-    };
+    });
 
     eq_or_diff(BaseMessage->decode_to_perl($encoded), $decoded);
     eq_or_diff(BaseMessage->encode_from_perl($decoded), $encoded);
@@ -19,13 +19,13 @@ $d->resolve_references();
 
 {
     my $encoded = "\x08\x02\xa0\x06\x04\xaa\x06\x02\x08\x05";
-    my $decoded = {
+    my $decoded = BaseMessage->new({
         value                        => 2,
         '[test.extension1]'          => 4,
-        '[test.Message2.extension2]' => {
+        '[test.Message2.extension2]' => ExtensionMessage->new({
             value   => 5,
-        },
-    };
+        }),
+    });
 
     eq_or_diff(BaseMessage->decode_to_perl($encoded), $decoded);
     eq_or_diff(BaseMessage->encode_from_perl($decoded), $encoded);

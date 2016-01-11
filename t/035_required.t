@@ -7,11 +7,11 @@ $d->resolve_references();
 
 {
     my $encoded = "\x0a\x03foo\x10\x1f\x1a\x0cfoo\@test.com";
-    my $decoded = {
+    my $decoded = Person->new({
         id => 31,
         name => 'foo',
         email => 'foo@test.com',
-    };
+    });
 
     eq_or_diff(Person->decode_to_perl($encoded), $decoded);
     eq_or_diff(Person->encode_from_perl($decoded), $encoded);
@@ -19,9 +19,9 @@ $d->resolve_references();
 
 {
     my $encoded = "\x0a\x03foo";
-    my $decoded = {
+    my $decoded = Person->new({
         name => 'foo',
-    };
+    });
 
     throws_ok(
         sub { Person->decode_to_perl($encoded) },

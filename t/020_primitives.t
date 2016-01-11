@@ -20,8 +20,8 @@ my %values = (
 );
 
 my %default_defaults = (
-    double_f    => 0,
-    float_f     => 0,
+    double_f    => '0',
+    float_f     => '0',
     int32_f     => 0,
     int64_f     => 0,
     uint32_f    => 0,
@@ -31,6 +31,7 @@ my %default_defaults = (
     bytes_f     => '',
     enum_f      => 1,
 );
+bless \%default_defaults, 'Basic';
 
 my %test_defaults = (
     double_f    => 1.0,
@@ -44,6 +45,7 @@ my %test_defaults = (
     bytes_f     => "some bytes",
     enum_f      => 3,
 );
+bless \%test_defaults, 'Default';
 
 for my $field (sort keys %values) {
     my ($value, $encoded) = @{$values{$field}};
@@ -52,7 +54,7 @@ for my $field (sort keys %values) {
 
     eq_or_diff($bytes, $encoded,
                "$field - encoded value");
-    eq_or_diff($decoded, { %default_defaults, $field => $value },
+    eq_or_diff($decoded, Basic->new({ %default_defaults, $field => $value }),
                "$field - round trip");
 }
 
