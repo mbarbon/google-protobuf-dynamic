@@ -8,21 +8,21 @@ $d->resolve_references();
 
 my $p = Person->decode_to_perl("\x0a\x03foo\x10\x1f");
 
-eq_or_diff($p, Person->new({ id => 31, name => 'foo', email => '' }));
+eq_or_diff($p, Person->new({ id => 31, name => 'foo' }));
 
 my $pa = PersonArray->decode_to_perl("\x0a\x07\x0a\x03foo\x10\x1f" .
                                      "\x0a\x06\x0a\x02ba\x10\x20");
 
 eq_or_diff($pa, PersonArray->new({
     persons => [
-        Person->new({ id => 31, name => 'foo', email => '' }),
-        Person->new({ id => 32, name => 'ba', email => '' }),
+        Person->new({ id => 31, name => 'foo' }),
+        Person->new({ id => 32, name => 'ba' }),
     ],
 }));
 
-eq_or_diff(Person->encode_from_perl($p), "\x0a\x03foo\x10\x1f\x1a\x00");
-eq_or_diff(PersonArray->encode_from_perl($pa), "\x0a\x09\x0a\x03foo\x10\x1f\x1a\x00" .
-                                               "\x0a\x08\x0a\x02ba\x10\x20\x1a\x00");
+eq_or_diff(Person->encode_from_perl($p), "\x0a\x03foo\x10\x1f");
+eq_or_diff(PersonArray->encode_from_perl($pa), "\x0a\x07\x0a\x03foo\x10\x1f" .
+                                               "\x0a\x06\x0a\x02ba\x10\x20");
 
 throws_ok(
     sub { Person->decode_to_perl("\x0a\x02") },

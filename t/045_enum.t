@@ -2,8 +2,8 @@ use t::lib::Test;
 
 my $d = Google::ProtocolBuffers::Dynamic->new('t/proto');
 $d->load_file("enum.proto");
-$d->map_message("test.MessageBefore", "MessageBefore");
-$d->map_message("test.MessageAfter", "MessageAfter");
+$d->map_message("test.MessageBefore", "MessageBefore", { explicit_defaults => 1});
+$d->map_message("test.MessageAfter", "MessageAfter", { explicit_defaults => 1});
 $d->resolve_references();
 
 eq_or_diff(

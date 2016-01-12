@@ -2,9 +2,9 @@ use t::lib::Test;
 
 my $d = Google::ProtocolBuffers::Dynamic->new('t/proto');
 $d->load_file("message.proto");
-$d->map_message("test.Inner", "Inner");
-$d->map_message("test.OuterWithMessage", "OuterWithMessage");
-$d->map_message("test.OuterWithGroup", "OuterWithGroup");
+$d->map_message("test.Inner", "Inner", { explicit_defaults => 1 });
+$d->map_message("test.OuterWithMessage", "OuterWithMessage", { explicit_defaults => 1 });
+$d->map_message("test.OuterWithGroup", "OuterWithGroup", { explicit_defaults => 1 });
 $d->resolve_references();
 
 {

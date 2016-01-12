@@ -10,11 +10,9 @@ Implement:
   - validate data passed to the constructor
 - document mapping between protobuf and Perl
 - serialize fields sorted by field number
+  (will break current oneof serialization check)
 - check what to do for an oneof field with an enum member
   with an invalid value (probably leave unset)
-- make the behaviour of default values configurable
-  (both during encoding and decoding)
-- add an option to disable blessing
 - simple extension option (Google::ProtocolBuffers compatibility)
 - load from serialized descriptors
 - test serializing tied array/hashes

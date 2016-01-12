@@ -14,16 +14,28 @@ void Dynamic::CollectErrors::AddError(const string &filename, int line, int colu
 }
 
 MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
-        use_bigints(sizeof(IV) < sizeof(int64_t)) {
+        use_bigints(sizeof(IV) < sizeof(int64_t)),
+        check_required_fields(true),
+        explicit_defaults(false),
+        encode_defaults(true) {
     if (options_ref == NULL || !SvOK(options_ref))
         return;
     if (!SvROK(options_ref) || SvTYPE(SvRV(options_ref)) != SVt_PVHV)
         croak("options must be an hash reference");
     HV *options = (HV *) SvRV(options_ref);
-    SV **bigints = hv_fetchs(options, "use_bigints", 0);
 
-    if (*bigints)
-        use_bigints = SvTRUE(*bigints);
+#define BOOLEAN_OPTION(field, name) { \
+        SV **value = hv_fetchs(options, #name, 0); \
+        if (value) \
+            field = SvTRUE(*value); \
+    }
+
+    BOOLEAN_OPTION(use_bigints, use_bigints);
+    BOOLEAN_OPTION(check_required_fields, check_required_fields);
+    BOOLEAN_OPTION(explicit_defaults, explicit_defaults);
+    BOOLEAN_OPTION(encode_defaults, encode_defaults);
+
+#undef BOOLEAN_OPTION
 }
 
 Dynamic::Dynamic(const string &root_directory) :

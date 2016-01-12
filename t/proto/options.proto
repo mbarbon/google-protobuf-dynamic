@@ -1,0 +1,9 @@
+package test;
+
+message Defaults {
+    optional int32 value = 1 [default = 7];
+}
+
+message Required {
+    required int32 value = 1;
+}

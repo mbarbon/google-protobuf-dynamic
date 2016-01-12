@@ -134,6 +134,7 @@ private:
     std::string output_buffer;
     upb::StringSink string_sink;
     upb::pb::Encoder *encoder;
+    bool check_required_fields, decode_explicit_defaults, encode_defaults;
 };
 
 };

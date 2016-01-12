@@ -58,12 +58,16 @@ void Mapper::DecoderHandlers::clear() {
 
 bool Mapper::DecoderHandlers::apply_defaults_and_check() {
     const vector<bool> &seen = seen_fields.back();
-    const vector<Mapper::Field> &fields = mappers.back()->fields;
+    const Mapper *mapper = mappers.back();
+    const vector<Mapper::Field> &fields = mapper->fields;
+    bool decode_explict_defaults = mapper->decode_explicit_defaults;
+    bool check_required_fields = mapper->check_required_fields;
 
     for (int i = 0, n = fields.size(); i < n; ++i) {
         const Mapper::Field &field = fields[i];
+        bool field_seen = seen[i];
 
-        if (!seen[i] && field.has_default) {
+        if (!field_seen && decode_explict_defaults && field.has_default) {
             SV *target = get_target(&i);
 
             // this is the case where we merged multiple message instances,
@@ -112,7 +116,7 @@ bool Mapper::DecoderHandlers::apply_defaults_and_check() {
                 sv_setuv(target, field.field_def->default_uint64());
                 break;
             }
-        } else if (!seen[i] && field.field_def->label() == UPB_LABEL_REQUIRED) {
+        } else if (!field_seen && check_required_fields && field.field_def->label() == UPB_LABEL_REQUIRED) {
             error = std::string("Missing required field ")
                 + field.field_def->containing_type()->full_name()
                 + "."
@@ -386,10 +390,13 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
     registry->ref();
     encoder_handlers = Encoder::NewHandlers(message_def);
     decoder_handlers = Handlers::New(message_def);
+    decode_explicit_defaults = options.explicit_defaults;
+    encode_defaults = options.encode_defaults;
 
     if (!decoder_handlers->SetEndMessageHandler(UpbMakeHandler(DecoderHandlers::on_end_message)))
         croak("Unable to set upb end message handler for %s", message_def->full_name());
 
+    bool has_required = false;
     for (MessageDef::const_field_iterator it = message_def->field_begin(), en = message_def->field_end(); it != en; ++it) {
         int index = fields.size();
         fields.push_back(Field());
@@ -398,6 +405,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
         const FieldDef *field_def = *it;
         const OneofDef *oneof_def = field_def->containing_oneof();
 
+        has_required = has_required || field_def->label() == UPB_LABEL_REQUIRED;
         field.field_def = field_def;
         if (field_def->is_extension()) {
             string temp = string() + "[" + field_def->full_name() + "]";
@@ -518,6 +526,8 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
             field.oneof_index = oneof_index;
         }
     }
+
+    check_required_fields = has_required && options.check_required_fields;
 }
 
 Mapper::~Mapper() {

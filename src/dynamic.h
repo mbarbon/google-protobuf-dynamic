@@ -21,6 +21,9 @@ class Mapper;
 
 struct MappingOptions {
     bool use_bigints;
+    bool check_required_fields;
+    bool explicit_defaults;
+    bool encode_defaults;
 
     MappingOptions(pTHX_ SV *options_ref);
 };

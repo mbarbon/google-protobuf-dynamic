@@ -2,8 +2,8 @@ use t::lib::Test;
 
 my $d = Google::ProtocolBuffers::Dynamic->new('t/proto');
 $d->load_file("scalar.proto");
-$d->map_message("test.Basic", "Basic");
-$d->map_message("test.Default", "Default");
+$d->map_message("test.Basic", "Basic", { explicit_defaults => 1 });
+$d->map_message("test.Default", "Default", { explicit_defaults => 1 });
 $d->resolve_references();
 
 my %values = (
