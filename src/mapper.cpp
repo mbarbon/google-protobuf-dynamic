@@ -700,20 +700,20 @@ namespace {
         } \
     }
 
-    DEF_SIMPLE_SETTER(Int32Setter, PutInt32, int32_t);
-    DEF_SIMPLE_SETTER(Int64Setter, PutInt64, int64_t);
-    DEF_SIMPLE_SETTER(UInt32Setter, PutUInt32, uint32_t);
-    DEF_SIMPLE_SETTER(UInt64Setter, PutUInt64, uint64_t);
-    DEF_SIMPLE_SETTER(FloatSetter, PutFloat, float);
-    DEF_SIMPLE_SETTER(DoubleSetter, PutDouble, double);
-    DEF_SIMPLE_SETTER(BoolSetter, PutBool, bool);
+    DEF_SIMPLE_SETTER(Int32Emitter, PutInt32, int32_t);
+    DEF_SIMPLE_SETTER(Int64Emitter, PutInt64, int64_t);
+    DEF_SIMPLE_SETTER(UInt32Emitter, PutUInt32, uint32_t);
+    DEF_SIMPLE_SETTER(UInt64Emitter, PutUInt64, uint64_t);
+    DEF_SIMPLE_SETTER(FloatEmitter, PutFloat, float);
+    DEF_SIMPLE_SETTER(DoubleEmitter, PutDouble, double);
+    DEF_SIMPLE_SETTER(BoolEmitter, PutBool, bool);
 
 #undef DEF_SIMPLE_SETTER
 
-    struct EnumSetter {
+    struct EnumEmitter {
         Status *status;
 
-        EnumSetter(Status *_status) { status = _status; }
+        EnumEmitter(Status *_status) { status = _status; }
 
         bool operator()(pTHX_ Sink *sink, const Mapper::Field &fd, int32_t value) {
             if (fd.enum_values.find(value) == fd.enum_values.end()) {
@@ -730,8 +730,8 @@ namespace {
         }
     };
 
-    struct StringSetter {
-        StringSetter(Status *status) { }
+    struct StringEmitter {
+        StringEmitter(Status *status) { }
 
         bool operator()(pTHX_ Sink *sink, const Mapper::Field &fd, SV *value) {
             STRLEN len;
@@ -898,33 +898,33 @@ bool Mapper::encode_from_perl_array(Encoder* encoder, Sink *sink, Status *status
 
     switch (fd.field_def->type()) {
     case UPB_TYPE_FLOAT:
-        return encode_from_array<NVGetter, FloatSetter>(encoder, sink, fd, array);
+        return encode_from_array<NVGetter, FloatEmitter>(encoder, sink, fd, array);
     case UPB_TYPE_DOUBLE:
-        return encode_from_array<NVGetter, DoubleSetter>(encoder, sink, fd, array);
+        return encode_from_array<NVGetter, DoubleEmitter>(encoder, sink, fd, array);
     case UPB_TYPE_BOOL:
-        return encode_from_array<BoolGetter, BoolSetter>(encoder, sink, fd, array);
+        return encode_from_array<BoolGetter, BoolEmitter>(encoder, sink, fd, array);
     case UPB_TYPE_STRING:
-        return encode_from_array<SVGetter, StringSetter>(encoder, sink, fd, array);
+        return encode_from_array<SVGetter, StringEmitter>(encoder, sink, fd, array);
     case UPB_TYPE_BYTES:
-        return encode_from_array<SVGetter, StringSetter>(encoder, sink, fd, array);
+        return encode_from_array<SVGetter, StringEmitter>(encoder, sink, fd, array);
     case UPB_TYPE_MESSAGE:
         return fd.mapper->encode_from_message_array(encoder, sink, status, fd, array);
     case UPB_TYPE_ENUM:
-        return encode_from_array<IVGetter, EnumSetter>(encoder, sink, status, fd, array);
+        return encode_from_array<IVGetter, EnumEmitter>(encoder, sink, status, fd, array);
     case UPB_TYPE_INT32:
-        return encode_from_array<IVGetter, Int32Setter>(encoder, sink, fd, array);
+        return encode_from_array<IVGetter, Int32Emitter>(encoder, sink, fd, array);
     case UPB_TYPE_UINT32:
-        return encode_from_array<UVGetter, UInt32Setter>(encoder, sink, fd, array);
+        return encode_from_array<UVGetter, UInt32Emitter>(encoder, sink, fd, array);
     case UPB_TYPE_INT64:
         if (sizeof(IV) >= sizeof(int64_t))
-            return encode_from_array<IVGetter, Int64Setter>(encoder, sink, fd, array);
+            return encode_from_array<IVGetter, Int64Emitter>(encoder, sink, fd, array);
         else
-            return encode_from_array<I64Getter, Int64Setter>(encoder, sink, fd, array);
+            return encode_from_array<I64Getter, Int64Emitter>(encoder, sink, fd, array);
     case UPB_TYPE_UINT64:
         if (sizeof(IV) >= sizeof(int64_t))
-            return encode_from_array<UVGetter, UInt64Setter>(encoder, sink, fd, array);
+            return encode_from_array<UVGetter, UInt64Emitter>(encoder, sink, fd, array);
         else
-            return encode_from_array<U64Getter, UInt64Setter>(encoder, sink, fd, array);
+            return encode_from_array<U64Getter, UInt64Emitter>(encoder, sink, fd, array);
     default:
         return false; // just in case
     }
