@@ -65,38 +65,43 @@ void Dynamic::load_string(pTHX_ const string &file, SV *sv) {
 }
 
 namespace {
-    int free_mapper(pTHX_ SV *sv, MAGIC *mg) {
-        Mapper *mapper = (Mapper *) mg->mg_ptr;
+    int free_refcounted(pTHX_ SV *sv, MAGIC *mg) {
+        Refcounted *refcounted = (Refcounted *) mg->mg_ptr;
 
-        mapper->unref();
+        refcounted->unref();
     }
 
-    MGVTBL manage_mapper = {
+    MGVTBL manage_refcounted = {
         NULL, // get
         NULL, // set
         NULL, // len
         NULL, // clear
-        free_mapper,
+        free_refcounted,
         NULL, // copy
         NULL, // dup
         NULL, // local
     };
 
-    void copy_and_bind(pTHX_ const char *name, const string &perl_package, Mapper *mapper) {
+    void copy_and_bind(pTHX_ const char *name, const char *target, const string &perl_package, Refcounted *refcounted) {
         static const char prefix[] = "Google::ProtocolBuffers::Dynamic::Mapper::";
-        char buffer[sizeof(prefix) + 30];
+        size_t length = strlen(name);
+        char buffer[sizeof(prefix) + length + 1];
 
         memcpy(buffer, prefix, sizeof(prefix));
         strcpy(buffer + sizeof(prefix) - 1, name);
 
         CV *src = get_cv(buffer, 0);
-        CV *new_xs = newXS((perl_package + "::" + name).c_str(), CvXSUB(src), __FILE__);
+        CV *new_xs = newXS((perl_package + "::" + target).c_str(), CvXSUB(src), __FILE__);
 
-        CvXSUBANY(new_xs).any_ptr = mapper;
+        CvXSUBANY(new_xs).any_ptr = refcounted;
         sv_magicext((SV *) new_xs, NULL,
-                    PERL_MAGIC_ext, &manage_mapper,
-                    (const char *) mapper, 0);
-        mapper->ref();
+                    PERL_MAGIC_ext, &manage_refcounted,
+                    (const char *) refcounted, 0);
+        refcounted->ref();
+    }
+
+    void copy_and_bind(pTHX_ const char *name, const string &perl_package, Mapper *mapper) {
+        copy_and_bind(aTHX_ name, name, perl_package, mapper);
     }
 }
 

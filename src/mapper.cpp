@@ -56,6 +56,15 @@ void Mapper::DecoderHandlers::clear() {
     SvREFCNT_dec(items[0]);
 }
 
+namespace {
+    inline void set_bool(pTHX_ SV *target, bool value) {
+        if (value)
+            sv_setiv(target, 1);
+        else
+            sv_setpvn(target, "", 0);
+    }
+}
+
 bool Mapper::DecoderHandlers::apply_defaults_and_check() {
     const vector<bool> &seen = seen_fields.back();
     const Mapper *mapper = mappers.back();
@@ -83,10 +92,7 @@ bool Mapper::DecoderHandlers::apply_defaults_and_check() {
                 sv_setnv(target, field.field_def->default_double());
                 break;
             case UPB_TYPE_BOOL:
-                if (field.field_def->default_bool())
-                    sv_setiv(target, 1);
-                else
-                    sv_setpvn(target, "", 0);
+                set_bool(target, field.field_def->default_bool());
                 break;
             case UPB_TYPE_BYTES:
             case UPB_TYPE_STRING: {
@@ -279,8 +285,7 @@ bool Mapper::DecoderHandlers::on_enum(DecoderHandlers *cxt, const int *field_ind
 }
 
 namespace {
-    bool make_bigint(Mapper::DecoderHandlers *cxt, const int *field_index, uint64_t value, bool negative) {
-        THX_DECLARE_AND_GET;
+    bool set_bigint(pTHX_ SV *target, uint64_t value, bool negative) {
         dSP;
 
         // this code is horribly slow; it could be made slightly faster,
@@ -303,7 +308,7 @@ namespace {
         SV *res = POPs;
         PUTBACK;
 
-        sv_setsv(cxt->get_target(field_index), res);
+        sv_setsv(target, res);
 
         return true;
     }
@@ -316,8 +321,11 @@ bool Mapper::DecoderHandlers::on_bigiv(DecoderHandlers *cxt, const int *field_in
         sv_setiv(cxt->get_target(field_index), (IV) val);
 
         return true;
-    } else
-        return make_bigint(cxt, field_index, (uint64_t) val, val < 0);
+    } else {
+        THX_DECLARE_AND_GET;
+
+        return set_bigint(aTHX_ cxt->get_target(field_index), (uint64_t) val, val < 0);
+    }
 }
 
 bool Mapper::DecoderHandlers::on_biguv(DecoderHandlers *cxt, const int *field_index, uint64_t val) {
@@ -327,20 +335,18 @@ bool Mapper::DecoderHandlers::on_biguv(DecoderHandlers *cxt, const int *field_in
         sv_setiv(cxt->get_target(field_index), (IV) val);
 
         return true;
-    } else
-        return make_bigint(cxt, field_index, val, val < 0);
+    } else {
+        THX_DECLARE_AND_GET;
+
+        return set_bigint(aTHX_ cxt->get_target(field_index), val, false);
+    }
 }
 
 bool Mapper::DecoderHandlers::on_bool(DecoderHandlers *cxt, const int *field_index, bool val) {
     THX_DECLARE_AND_GET;
 
     cxt->mark_seen(field_index);
-    SV * target = cxt->get_target(field_index);
-
-    if (val)
-        sv_setiv(target, 1);
-    else
-        sv_setpvn(target, "", 0);
+    set_bool(cxt->get_target(field_index), val);
 
     return true;
 }
