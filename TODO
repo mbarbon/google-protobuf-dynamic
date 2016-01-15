@@ -1,9 +1,9 @@
 Implement:
 - message API (with value validation)
-  - scalar/oneof accessors (get_foo/set_foo, foo, foo/set_foo)
+  - accessor styles (get_foo/set_foo, foo, foo/set_foo)
+  - oneof accessors
   - list accessors (scalar ones with index, whole list accessors,
     add_foo, foo_size)
-  - has_foo, clear_foo
   - set_extension/get_extension
   - constants for field numbers
   - constants for enums

@@ -104,6 +104,9 @@ public:
 
     const char *last_error_message() const;
 
+    int field_count() const;
+    const Field *get_field(int index) const;
+
 private:
     bool encode_from_perl(upb::pb::Encoder* encoder, upb::Sink *sink, upb::Status *status, SV *ref) const;
     bool encode_from_perl(upb::pb::Encoder* encoder, upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;
@@ -135,6 +138,29 @@ private:
     upb::StringSink string_sink;
     upb::pb::Encoder *encoder;
     bool check_required_fields, decode_explicit_defaults, encode_defaults;
+};
+
+class MapperField : public Refcounted {
+public:
+    MapperField(const Mapper *mapper, const Mapper::Field *field);
+    ~MapperField();
+
+    const char *name();
+
+    // presence
+    bool has_field(HV *self);
+    void clear_field(HV *self);
+
+    // optional/oneof/required
+    void get_scalar(HV *self, SV *target);
+    void set_scalar(HV *self, SV *value);
+
+private:
+    SV *get_read_field(HV *self);
+    SV *get_write_field(HV *self);
+
+    const Mapper::Field *field;
+    const Mapper *mapper;
 };
 
 };

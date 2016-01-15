@@ -103,6 +103,10 @@ namespace {
     void copy_and_bind(pTHX_ const char *name, const string &perl_package, Mapper *mapper) {
         copy_and_bind(aTHX_ name, name, perl_package, mapper);
     }
+
+    void copy_and_bind_field(pTHX_ const char *name, const string &name_prefix, const string &perl_package, MapperField *mapperfield) {
+        copy_and_bind(aTHX_ name, (name_prefix + mapperfield->name()).c_str(), perl_package, mapperfield);
+    }
 }
 
 void Dynamic::map_message(pTHX_ const string &message, const string &perl_package, const MappingOptions &options) {
@@ -164,6 +168,16 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
     copy_and_bind(aTHX_ "decode_to_perl", perl_package, mapper);
     copy_and_bind(aTHX_ "encode_from_perl", perl_package, mapper);
     copy_and_bind(aTHX_ "new", perl_package, mapper);
+
+    for (int i = 0, max = mapper->field_count(); i < max; ++i) {
+        MapperField *mapperfield = new MapperField(mapper, mapper->get_field(i));
+
+        copy_and_bind_field(aTHX_ "has_field", "has_", perl_package, mapperfield);
+        copy_and_bind_field(aTHX_ "clear_field", "clear_", perl_package, mapperfield);
+        copy_and_bind_field(aTHX_ "get_scalar", "get_", perl_package, mapperfield);
+        copy_and_bind_field(aTHX_ "set_scalar", "set_", perl_package, mapperfield);
+        mapperfield->unref();
+    }
 
     mapper->unref(); // reference from constructor
 }

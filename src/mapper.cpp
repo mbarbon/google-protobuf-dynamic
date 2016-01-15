@@ -545,6 +545,14 @@ Mapper::~Mapper() {
     SvREFCNT_dec(stash);
 }
 
+int Mapper::field_count() const {
+    return fields.size();
+}
+
+const Mapper::Field *Mapper::get_field(int index) const {
+    return &fields[index];
+}
+
 void Mapper::resolve_mappers() {
     for (vector<Field>::iterator it = fields.begin(), en = fields.end(); it != en; ++it) {
         const FieldDef *field = it->field_def;
@@ -933,5 +941,181 @@ bool Mapper::encode_from_perl_array(Encoder* encoder, Sink *sink, Status *status
             return encode_from_array<U64Getter, UInt64Emitter>(encoder, sink, fd, array);
     default:
         return false; // just in case
+    }
+}
+
+MapperField::MapperField(const Mapper *_mapper, const Mapper::Field *_field) :
+        mapper(_mapper),
+        field(_field) {
+    mapper->ref();
+}
+
+MapperField::~MapperField() {
+    mapper->unref();
+}
+
+SV *MapperField::get_read_field(HV *self) {
+    HE *ent = hv_fetch_ent(self, field->name, 0, field->name_hash);
+
+    return ent ? HeVAL(ent) : NULL;
+}
+
+SV *MapperField::get_write_field(HV *self) {
+    HE *ent = hv_fetch_ent(self, field->name, 1, field->name_hash);
+
+    return HeVAL(ent);
+}
+
+const char *MapperField::name() {
+    return field->field_def->name();
+}
+
+bool MapperField::has_field(HV *self) {
+    return hv_fetch_ent(self, field->name, 0, field->name_hash);
+}
+
+void MapperField::clear_field(HV *self) {
+    hv_delete_ent(self, field->name, G_DISCARD, field->name_hash);
+}
+
+void MapperField::get_scalar(HV *self, SV *target) {
+    const FieldDef *field_def = field->field_def;
+    SV *value = get_read_field(self);
+
+    switch (field_def->type()) {
+    case UPB_TYPE_FLOAT:
+        sv_setnv(target, value ? SvNV(value) : field_def->default_float());
+        break;
+    case UPB_TYPE_DOUBLE:
+        sv_setnv(target, value ? SvNV(value) : field_def->default_double());
+        break;
+    case UPB_TYPE_BOOL:
+        set_bool(target, value ? SvTRUE(value) : field_def->default_bool());
+        break;
+    case UPB_TYPE_STRING: {
+        if (value) {
+            STRLEN len;
+            const char *str = SvPVutf8(value, len);
+
+            sv_setpvn(target, str, len);
+        } else {
+            size_t len;
+            const char *str = field_def->default_string(&len);
+
+            sv_setpvn(target, str, len);
+        }
+        SvUTF8_on(target);
+    }
+        break;
+    case UPB_TYPE_BYTES: {
+        if (value) {
+            STRLEN len;
+            const char *str = SvPV(value, len);
+
+            sv_setpvn(target, str, len);
+        } else {
+            size_t len;
+            const char *str = field_def->default_string(&len);
+
+            sv_setpvn(target, str, len);
+        }
+    }
+        break;
+    case UPB_TYPE_MESSAGE:
+        sv_setsv(target, value ? value : &PL_sv_undef);
+        break;
+    case UPB_TYPE_ENUM:
+    case UPB_TYPE_INT32:
+        sv_setiv(target, value ? SvIV(value) : field_def->default_int32());
+        break;
+    case UPB_TYPE_UINT32:
+        sv_setuv(target, value ? SvUV(value) : field_def->default_uint32());
+        break;
+    case UPB_TYPE_INT64: {
+        if (sizeof(IV) >= sizeof(int64_t))
+            sv_setiv(target, value ? SvIV(value) : field_def->default_int64());
+        else {
+            int64_t i64 = value ? get_int64(value) : field_def->default_int64();
+
+            set_bigint(aTHX_ target, (uint64_t) i64, i64 < 0);
+        }
+    }
+        break;
+    case UPB_TYPE_UINT64: {
+        if (sizeof(IV) >= sizeof(uint64_t))
+            sv_setuv(target, value ? SvUV(value) : field_def->default_uint64());
+        else {
+            int64_t u64 = value ? get_uint64(value) : field_def->default_uint64();
+
+            set_bigint(aTHX_ target, u64, false);
+        }
+    }
+        break;
+    default:
+        croak("Unhandled field type %d", field->field_def->type());
+    }
+}
+
+void MapperField::set_scalar(HV *self, SV *value) {
+    const FieldDef *field_def = field->field_def;
+    SV *target = get_write_field(self);
+
+    switch (field_def->type()) {
+    case UPB_TYPE_FLOAT:
+        sv_setnv(target, SvNV(value));
+        break;
+    case UPB_TYPE_DOUBLE:
+        sv_setnv(target, SvNV(value));
+        break;
+    case UPB_TYPE_BOOL:
+        set_bool(target, SvTRUE(value));
+        break;
+    case UPB_TYPE_STRING: {
+        STRLEN len;
+        const char *str = SvPVutf8(value, len);
+
+        sv_setpvn(target, str, len);
+        SvUTF8_on(target);
+    }
+        break;
+    case UPB_TYPE_BYTES: {
+        STRLEN len;
+        const char *str = SvPV(value, len);
+
+        sv_setpvn(target, str, len);
+    }
+        break;
+    case UPB_TYPE_MESSAGE:
+        sv_setsv(target, value);
+        break;
+    case UPB_TYPE_ENUM:
+    case UPB_TYPE_INT32:
+        sv_setiv(target, SvIV(value));
+        break;
+    case UPB_TYPE_UINT32:
+        sv_setuv(target, SvUV(value));
+        break;
+    case UPB_TYPE_INT64: {
+        if (sizeof(IV) >= sizeof(int64_t))
+            sv_setiv(target, SvIV(value));
+        else {
+            int64_t i64 = get_int64(value);
+
+            set_bigint(aTHX_ target, (uint64_t) i64, i64 < 0);
+        }
+    }
+        break;
+    case UPB_TYPE_UINT64: {
+        if (sizeof(IV) >= sizeof(uint64_t))
+            sv_setuv(target, SvUV(value));
+        else {
+            int64_t u64 = get_uint64(value);
+
+            set_bigint(aTHX_ target, u64, false);
+        }
+    }
+        break;
+    default:
+        croak("Unhandled field type %d", field->field_def->type());
     }
 }
