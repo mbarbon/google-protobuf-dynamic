@@ -171,6 +171,7 @@ private:
     AV *get_write_array(HV *self);
     void copy_value_or_default(SV *target, SV *value);
     void copy_value(SV *target, SV *value);
+    void clear_oneof(HV *self);
 
     const Mapper::Field *field;
     const Mapper *mapper;

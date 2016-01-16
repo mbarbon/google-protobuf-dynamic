@@ -1,7 +1,6 @@
 Implement:
 - message API (with value validation)
   - accessor styles (get_foo/set_foo, foo, foo/set_foo)
-  - oneof accessors
   - set_extension/get_extension
   - constants for field numbers
   - constants for enums

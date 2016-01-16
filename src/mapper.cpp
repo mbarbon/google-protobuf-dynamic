@@ -1099,7 +1099,20 @@ void MapperField::copy_value_or_default(SV *target, SV *value) {
     }
 }
 
+void MapperField::clear_oneof(HV *self) {
+    for (int i = 0, max = mapper->field_count(); i < max; ++i) {
+        const Mapper::Field *other = mapper->get_field(i);
+
+        if (other == field)
+            continue;
+        hv_delete_ent(self, other->name, G_DISCARD, other->name_hash);
+    }
+}
+
 void MapperField::set_scalar(HV *self, SV *value) {
+    if (field->oneof_index != -1)
+        clear_oneof(self);
+
     SV *target = get_write_field(self);
 
     copy_value(target, value);
