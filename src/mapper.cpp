@@ -1008,6 +1008,10 @@ bool MapperField::is_repeated() {
     return field->field_def->label() == UPB_LABEL_REPEATED;
 }
 
+bool MapperField::is_extension() {
+    return field->field_def->is_extension();
+}
+
 bool MapperField::has_field(HV *self) {
     return hv_fetch_ent(self, field->name, 0, field->name_hash);
 }

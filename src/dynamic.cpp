@@ -105,7 +105,14 @@ namespace {
     }
 
     void copy_and_bind_field(pTHX_ const char *name, const string &name_prefix, const string &name_suffix, const string &perl_package, MapperField *mapperfield) {
-        copy_and_bind(aTHX_ name, (name_prefix + mapperfield->name() + name_suffix).c_str(), perl_package, mapperfield);
+        string temp_name = name_prefix + mapperfield->name() + name_suffix;
+
+        if (mapperfield->is_extension()) {
+            for (int i = 0, max = temp_name.size(); i < max; ++i)
+                temp_name[i] = temp_name[i] == '.' ? '_' : tolower(temp_name[i]);
+        }
+
+        copy_and_bind(aTHX_ name, temp_name.c_str(), perl_package, mapperfield);
     }
 }
 

@@ -147,6 +147,7 @@ public:
 
     const char *name();
     bool is_repeated();
+    bool is_extension();
 
     // presence
     bool has_field(HV *self);
