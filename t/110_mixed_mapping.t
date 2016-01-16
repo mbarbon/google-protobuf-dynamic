@@ -6,6 +6,7 @@ no warnings 'redefine';
 
     $d->load_file("test1.proto");
     $d->map_message('test1.Message1', 'Test1::FirstMessage');
+    $d->map_enum('test1.Enum', 'Test1::Enumeration');
     $d->map_package('test1', 'Test1');
     $d->resolve_references();
 
@@ -20,6 +21,10 @@ no warnings 'redefine';
             test1_message2 => 1,
         }),
     }), "composite message");
+
+    is(Test1::Enumeration::VALUE1(), 2, 'enum value');
+    is(Test1::Enumeration::VALUE2(), 7, 'enum value');
+    is(Test1::Enumeration::VALUE3(), 12, 'enum value');
 }
 
 {

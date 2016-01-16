@@ -15,6 +15,9 @@
     void map_message(const std::string &message, const std::string &perl_package, SV *options = NULL)
         %code{% THIS->map_message(aTHX_ *message, *perl_package, gpd::MappingOptions(aTHX_ options)); %};
 
+    void map_enum(const std::string &enum_name, const std::string &perl_package, SV *options = NULL)
+        %code{% THIS->map_enum(aTHX_ *enum_name, *perl_package, gpd::MappingOptions(aTHX_ options)); %};
+
     void map_package(const std::string &pb_package, const std::string &perl_package, SV *options = NULL)
         %code{% THIS->map_package(aTHX_ *pb_package, *perl_package, gpd::MappingOptions(aTHX_ options)); %};
 

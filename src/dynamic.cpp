@@ -134,7 +134,26 @@ void Dynamic::map_package(pTHX_ const string &pb_package, const string &perl_pac
 
             map_message_recursive(aTHX_ descriptor, perl_package_prefix + "::" + descriptor->name(), options);
         }
+
+        for (int i = 0, max = file->enum_type_count(); i < max; ++i) {
+            const EnumDescriptor *descriptor = file->enum_type(i);
+            if (mapped_enums.find(descriptor->full_name()) != mapped_enums.end())
+                continue;
+
+            map_enum(aTHX_ descriptor, perl_package_prefix + "::" + descriptor->name(), options);
+        }
     }
+}
+
+void Dynamic::map_enum(pTHX_ const string &enum_name, const string &perl_package, const MappingOptions &options) {
+    const DescriptorPool *pool = importer.pool();
+    const EnumDescriptor *descriptor = pool->FindEnumTypeByName(enum_name);
+
+    if (descriptor == NULL) {
+        croak("Unable to find a descriptor for enum '%s'", enum_name.c_str());
+    }
+
+    map_enum(aTHX_ descriptor, perl_package, options);
 }
 
 void Dynamic::map_message_recursive(pTHX_ const Descriptor *descriptor, const string &perl_package, const MappingOptions &options) {
@@ -146,12 +165,26 @@ void Dynamic::map_message_recursive(pTHX_ const Descriptor *descriptor, const st
         map_message_recursive(aTHX_ inner, perl_package + "::" + inner->name(), options);
     }
 
+    for (int i = 0, max = descriptor->enum_type_count(); i < max; ++i) {
+        const EnumDescriptor *inner = descriptor->enum_type(i);
+        if (mapped_enums.find(inner->full_name()) != mapped_enums.end())
+            continue;
+
+        map_enum(aTHX_ inner, perl_package + "::" + inner->name(), options);
+    }
+
     map_message(aTHX_ descriptor, perl_package, options);
 }
 
+void Dynamic::check_package(pTHX_ const string &perl_package, const string &pb_name) {
+    if (used_packages.find(perl_package) == used_packages.end())
+        return;
+
+    croak("Package '%s' has already been used in a mapping", perl_package.c_str());
+}
+
 void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl_package, const MappingOptions &options) {
-    if (package_map.find(perl_package) != package_map.end())
-        croak("Package '%s' has already been used in a message mapping", perl_package.c_str());
+    check_package(perl_package, descriptor->full_name());
     if (descriptor_map.find(descriptor->full_name()) != descriptor_map.end())
         croak("Message '%s' has already been mapped", descriptor->full_name().c_str());
     if (options.use_bigints)
@@ -162,7 +195,7 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
     Mapper *mapper = new Mapper(aTHX_ this, message_def, stash, options);
 
     descriptor_map[message_def->full_name()] = mapper;
-    package_map[perl_package] = mapper;
+    used_packages.insert(perl_package);
     pending.push_back(mapper);
 
     copy_and_bind(aTHX_ "decode_to_perl", perl_package, mapper);
@@ -201,6 +234,24 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
     }
 
     mapper->unref(); // reference from constructor
+}
+
+void Dynamic::map_enum(pTHX_ const EnumDescriptor *descriptor, const string &perl_package, const MappingOptions &options) {
+    check_package(perl_package, descriptor->full_name());
+    if (mapped_enums.find(descriptor->full_name()) != mapped_enums.end())
+        croak("Message '%s' has already been mapped", descriptor->full_name().c_str());
+
+    mapped_enums.insert(descriptor->full_name());
+    used_packages.insert(perl_package);
+
+    HV *stash = gv_stashpvn(perl_package.data(), perl_package.size(), GV_ADD);
+
+    for (int i = 0, max = descriptor->value_count(); i < max; ++i) {
+        const EnumValueDescriptor *value = descriptor->value(i);
+
+        newCONSTSUB(stash, value->name().c_str(),
+                    newSVuv(value->number()));
+    }
 }
 
 void Dynamic::resolve_references() {

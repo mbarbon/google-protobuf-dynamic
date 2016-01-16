@@ -1,5 +1,11 @@
 package test1;
 
+enum Enum {
+    VALUE1 = 2;
+    VALUE2 = 7;
+    VALUE3 = 12;
+}
+
 message Message1 {
     optional int32 test1_message1 = 1;
 }
@@ -16,6 +22,12 @@ message Message3 {
 message Message4 {
     message Message5 {
         optional int32 value = 1;
+    }
+
+    enum Enum {
+        VALUE1 = 3;
+        VALUE2 = 2;
+        VALUE3 = 1;
     }
 
     optional Message5 inner = 2;

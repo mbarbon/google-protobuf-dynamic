@@ -42,6 +42,7 @@ public:
 
     void map_message(pTHX_ const std::string &message, const std::string &perl_package, const MappingOptions &options);
     void map_package(pTHX_ const std::string &pb_package, const std::string &perl_package_prefix, const MappingOptions &options);
+    void map_enum(pTHX_ const std::string &enum_name, const std::string &perl_package, const MappingOptions &options);
     void resolve_references();
 
     const Mapper *find_mapper(const upb::MessageDef *message_def) const;
@@ -49,6 +50,8 @@ public:
 private:
     void map_message_recursive(pTHX_ const google::protobuf::Descriptor *descriptor, const std::string &perl_package, const MappingOptions &options);
     void map_message(pTHX_ const google::protobuf::Descriptor *descriptor, const std::string &perl_package, const MappingOptions &options);
+    void map_enum(pTHX_ const google::protobuf::EnumDescriptor *descriptor, const std::string &perl_package, const MappingOptions &options);
+    void check_package(pTHX_ const std::string &perl_package, const std::string &pb_name);
 
     google::protobuf::compiler::Importer importer;
     google::protobuf::compiler::DiskSourceTree disk_source_tree;
@@ -57,7 +60,8 @@ private:
     upb::googlepb::DefBuilder def_builder;
     CollectErrors die_on_error;
     std::tr1::unordered_map<std::string, const Mapper *> descriptor_map;
-    std::tr1::unordered_map<std::string, const Mapper *> package_map;
+    std::tr1::unordered_set<std::string> used_packages;
+    std::tr1::unordered_set<std::string> mapped_enums;
     std::tr1::unordered_set<const google::protobuf::FileDescriptor *> files;
     std::vector<Mapper *> pending;
 };

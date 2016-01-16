@@ -10,6 +10,7 @@ no warnings 'redefine';
     $d->map_message("test1.Message3", "Test1::CompositeMessage");
     $d->map_message("test1.Message4.Message5", "Test1::InnerMessage");
     $d->map_message("test1.Message4", "Test1::OuterMessage");
+    $d->map_enum('test1.Enum', 'Test1::Enumeration');
     $d->resolve_references();
 
     eq_or_diff(Test1::FirstMessage->decode_to_perl("\x08\x01"), Test1::FirstMessage->new({
@@ -31,6 +32,14 @@ no warnings 'redefine';
             value => 15,
         }),
     }), "inner message");
+
+    is(Test1::Enumeration::VALUE1(), 2, 'enum value');
+    is(Test1::Enumeration::VALUE2(), 7, 'enum value');
+    is(Test1::Enumeration::VALUE3(), 12, 'enum value');
+
+    is(Test1::OuterMessage::Enum::VALUE1(), 3, 'inner enum value');
+    is(Test1::OuterMessage::Enum::VALUE2(), 2, 'inner enum value');
+    is(Test1::OuterMessage::Enum::VALUE3(), 1, 'inner enum value');
 }
 
 {
@@ -47,8 +56,22 @@ no warnings 'redefine';
 
     throws_ok(
         sub { $d->map_message("test1.Message2", "Test1::FirstMessage") },
-        qr/Package 'Test1::FirstMessage' has already been used in a message mapping/,
+        qr/Package 'Test1::FirstMessage' has already been used in a mapping/,
         "duplicate package mapping",
+    );
+
+    throws_ok(
+        sub { $d->map_enum('test1.Enum', 'Test1::FirstMessage') },
+        qr/Package 'Test1::FirstMessage' has already been used in a mapping/,
+        "enum/message clash",
+    );
+
+    $d->map_enum('test1.Enum', 'Test1::Enumeration');
+
+    throws_ok(
+        sub { $d->map_enum('test1.Enum', 'Test1::OtherEnum') },
+        qr/test1.Enum' has already been mapped/,
+        "duplicate enum mapping",
     );
 }
 

@@ -6,6 +6,7 @@ use t::lib::Test;
     $d->load_file("test1.proto");
     $d->load_file("test2.proto");
     $d->map(
+        { enum    => 'test1.Enum', to => 'Test1::Enumeration' },
         { message => 'test2.Message3', to => 'Test2::Composite' },
         { package => 'test1', prefix => 'Test1' },
         { package => 'test2', prefix => 'Test2' },
@@ -28,6 +29,10 @@ use t::lib::Test;
             test1_message2 => 1,
         }),
     }), "composite message - multiple packages");
+
+    is(Test1::Enumeration::VALUE1(), 2, 'enum value');
+    is(Test1::Enumeration::VALUE2(), 7, 'enum value');
+    is(Test1::Enumeration::VALUE3(), 12, 'enum value');
 }
 
 done_testing();

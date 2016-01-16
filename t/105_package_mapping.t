@@ -27,6 +27,14 @@ no warnings 'redefine';
             value => 15,
         }),
     }), "inner message");
+
+    is(Test1::Enum::VALUE1(), 2, 'enum value');
+    is(Test1::Enum::VALUE2(), 7, 'enum value');
+    is(Test1::Enum::VALUE3(), 12, 'enum value');
+
+    is(Test1::Message4::Enum::VALUE1(), 3, 'inner enum value');
+    is(Test1::Message4::Enum::VALUE2(), 2, 'inner enum value');
+    is(Test1::Message4::Enum::VALUE3(), 1, 'inner enum value');
 }
 
 {
@@ -57,7 +65,7 @@ no warnings 'redefine';
 
     throws_ok(
         sub { $d->map_package('test2', 'Test1') },
-        qr/Package 'Test1::Message1' has already been used in a message mapping/,
+        qr/Package 'Test1::Message1' has already been used in a mapping/,
         "duplicated message",
     );
 

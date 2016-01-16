@@ -2,7 +2,6 @@ Implement:
 - message API (with value validation)
   - accessor styles (get_foo/set_foo, foo, foo/set_foo)
   - set_extension/get_extension
-  - constants for enums
   - validate data passed to the constructor
   - validate data passed to accessor
     - recursively for repeated/messages
