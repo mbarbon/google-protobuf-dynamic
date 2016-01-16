@@ -7,9 +7,10 @@ $d->map_message("test.Message2", "ExtensionMessage");
 $d->resolve_references();
 
 {
-    my $encoded = "\x08\x02\xa0\x06\x03";
+    my $encoded = "\x08\x02\xa0\x06\x03\xb0\x06\x04";
     my $decoded = BaseMessage->new({
         value               => 2,
+        '[test.value]'      => 4,
         '[test.extension1]' => 3,
     });
 
@@ -21,6 +22,10 @@ $d->resolve_references();
     is(BaseMessage::TEST_EXTENSION1_FIELD_NUMBER(), 100);
     is(BaseMessage::TEST_VALUE_FIELD_NUMBER(), 102);
     is(BaseMessage::TEST_MESSAGE2_EXTENSION2_FIELD_NUMBER(), 101);
+
+    is(BaseMessage::TEST_EXTENSION1_KEY(), '[test.extension1]');
+    is(BaseMessage::TEST_VALUE_KEY(), '[test.value]');
+    is(BaseMessage::TEST_MESSAGE2_EXTENSION2_KEY(), '[test.Message2.extension2]');
 }
 
 {

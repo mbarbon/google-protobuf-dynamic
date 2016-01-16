@@ -214,6 +214,13 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
 
             newCONSTSUB(stash, (upper_field + "_FIELD_NUMBER").c_str(),
                         newSVuv(field->field_def->number()));
+
+            if (field->field_def->is_extension()) {
+                string temp = string() + "[" + field->field_def->full_name() + "]";
+
+                newCONSTSUB(stash, (upper_field + "_KEY").c_str(),
+                            newSVpv_share(temp.c_str(), 0));
+            }
         }
 
         copy_and_bind_field(aTHX_ "clear_field", "clear_", "", perl_package, mapperfield);
