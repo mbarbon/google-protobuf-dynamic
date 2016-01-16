@@ -966,8 +966,46 @@ SV *MapperField::get_write_field(HV *self) {
     return HeVAL(ent);
 }
 
+AV *MapperField::get_read_array(HV *self) {
+    HE *ent = hv_fetch_ent(self, field->name, 0, field->name_hash);
+
+    if (!ent)
+        return NULL;
+
+    SV *ref = HeVAL(ent);
+    if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVAV)
+        croak("Value is not an array reference");
+
+    return (AV *) SvRV(ref);
+}
+
+AV *MapperField::get_write_array(HV *self) {
+    HE *ent = hv_fetch_ent(self, field->name, 1, field->name_hash);
+    SV *ref = HeVAL(ent);
+
+    if (!SvOK(ref)) {
+        AV *av = newAV();
+
+        SvUPGRADE(ref, SVt_RV);
+        SvROK_on(ref);
+        SvRV_set(ref, (SV *) av);
+
+        return av;
+    } else {
+        SV *ref = HeVAL(ent);
+        if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVAV)
+            croak("Value is not an array reference");
+
+        return (AV *) SvRV(ref);
+    }
+}
+
 const char *MapperField::name() {
     return field->field_def->name();
+}
+
+bool MapperField::is_repeated() {
+    return field->field_def->label() == UPB_LABEL_REPEATED;
 }
 
 bool MapperField::has_field(HV *self) {
@@ -979,8 +1017,13 @@ void MapperField::clear_field(HV *self) {
 }
 
 void MapperField::get_scalar(HV *self, SV *target) {
-    const FieldDef *field_def = field->field_def;
     SV *value = get_read_field(self);
+
+    copy_value_or_default(target, value);
+}
+
+void MapperField::copy_value_or_default(SV *target, SV *value) {
+    const FieldDef *field_def = field->field_def;
 
     switch (field_def->type()) {
     case UPB_TYPE_FLOAT:
@@ -1057,8 +1100,13 @@ void MapperField::get_scalar(HV *self, SV *target) {
 }
 
 void MapperField::set_scalar(HV *self, SV *value) {
-    const FieldDef *field_def = field->field_def;
     SV *target = get_write_field(self);
+
+    copy_value(target, value);
+}
+
+void MapperField::copy_value(SV *target, SV *value) {
+    const FieldDef *field_def = field->field_def;
 
     switch (field_def->type()) {
     case UPB_TYPE_FLOAT:
@@ -1118,4 +1166,65 @@ void MapperField::set_scalar(HV *self, SV *value) {
     default:
         croak("Unhandled field type %d", field->field_def->type());
     }
+}
+
+void MapperField::get_item(HV *self, int index, SV *target) {
+    AV *array = get_read_array(self);
+
+    if (!array)
+        croak("No array set");
+    SV **value = av_fetch(array, index, 0);
+
+    copy_value_or_default(target, value ? *value : NULL);
+}
+
+void MapperField::set_item(HV *self, int index, SV *value) {
+    AV *array = get_write_array(self);
+    SV **target = av_fetch(array, index, 1);
+
+    copy_value(*target, value ? value : NULL);
+}
+
+void MapperField::add_item(HV *self, SV *value) {
+    AV *array = get_write_array(self);
+    SV **target = av_fetch(array, av_top_index(array) + 1, 1);
+
+    copy_value(*target, value ? value : NULL);
+}
+
+int MapperField::list_size(HV *self) {
+    AV *target = get_read_array(self);
+
+    if (!target)
+        return 0;
+
+    return av_top_index(target) + 1;
+}
+
+void MapperField::get_list(HV *self, SV *target) {
+    AV *array = get_read_array(self);
+
+    if (!target) {
+        sv_setsv(target, &PL_sv_undef);
+    } else {
+        SvUPGRADE(target, SVt_RV);
+        SvROK_on(target);
+        SvRV_set(target, (SV *) array);
+        SvREFCNT_inc(array);
+    }
+}
+
+void MapperField::set_list(HV *self, AV *value) {
+    SV *ref = get_write_field(self);
+
+    if (!SvOK(ref)) {
+        SvUPGRADE(ref, SVt_RV);
+        SvROK_on(ref);
+    } else {
+        if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVAV)
+            croak("Value is not an array reference");
+        SvREFCNT_dec(SvRV(ref));
+    }
+    SvRV_set(ref, (SV *) value);
+    SvREFCNT_inc(value);
 }

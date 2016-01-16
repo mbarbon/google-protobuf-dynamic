@@ -99,4 +99,51 @@ set_scalar(HV *self, SV *value)
   CODE:
     field->set_scalar(self, value);
 
+void
+get_item(HV *self, IV index)
+  INIT:
+    dXSTARG;
+    gpd::MapperField *field = (gpd::MapperField *) CvXSUBANY(cv).any_ptr;
+  PPCODE:
+    field->get_item(self, index, TARG);
+    XSprePUSH; PUSHs(TARG);
+
+void
+set_item(HV *self, IV index, SV *value)
+  INIT:
+    gpd::MapperField *field = (gpd::MapperField *) CvXSUBANY(cv).any_ptr;
+  CODE:
+    field->set_item(self, index, value);
+
+void
+add_item(HV *self, SV *value)
+  INIT:
+    gpd::MapperField *field = (gpd::MapperField *) CvXSUBANY(cv).any_ptr;
+  CODE:
+    field->add_item(self, value);
+
+IV
+list_size(HV *self)
+  INIT:
+    gpd::MapperField *field = (gpd::MapperField *) CvXSUBANY(cv).any_ptr;
+  CODE:
+    RETVAL = field->list_size(self);
+  OUTPUT: RETVAL
+
+void
+get_list(HV *self)
+  INIT:
+    dXSTARG;
+    gpd::MapperField *field = (gpd::MapperField *) CvXSUBANY(cv).any_ptr;
+  PPCODE:
+    field->get_list(self, TARG);
+    XSprePUSH; PUSHs(TARG);
+
+void
+set_list(HV *self, AV *value)
+  INIT:
+    gpd::MapperField *field = (gpd::MapperField *) CvXSUBANY(cv).any_ptr;
+  PPCODE:
+    field->set_list(self, value);
+
 %}

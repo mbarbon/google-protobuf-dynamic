@@ -104,8 +104,8 @@ namespace {
         copy_and_bind(aTHX_ name, name, perl_package, mapper);
     }
 
-    void copy_and_bind_field(pTHX_ const char *name, const string &name_prefix, const string &perl_package, MapperField *mapperfield) {
-        copy_and_bind(aTHX_ name, (name_prefix + mapperfield->name()).c_str(), perl_package, mapperfield);
+    void copy_and_bind_field(pTHX_ const char *name, const string &name_prefix, const string &name_suffix, const string &perl_package, MapperField *mapperfield) {
+        copy_and_bind(aTHX_ name, (name_prefix + mapperfield->name() + name_suffix).c_str(), perl_package, mapperfield);
     }
 }
 
@@ -172,10 +172,20 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
     for (int i = 0, max = mapper->field_count(); i < max; ++i) {
         MapperField *mapperfield = new MapperField(mapper, mapper->get_field(i));
 
-        copy_and_bind_field(aTHX_ "has_field", "has_", perl_package, mapperfield);
-        copy_and_bind_field(aTHX_ "clear_field", "clear_", perl_package, mapperfield);
-        copy_and_bind_field(aTHX_ "get_scalar", "get_", perl_package, mapperfield);
-        copy_and_bind_field(aTHX_ "set_scalar", "set_", perl_package, mapperfield);
+        copy_and_bind_field(aTHX_ "clear_field", "clear_", "", perl_package, mapperfield);
+        if (mapperfield->is_repeated()) {
+            copy_and_bind_field(aTHX_ "get_item", "get_", "", perl_package, mapperfield);
+            copy_and_bind_field(aTHX_ "set_item", "set_", "", perl_package, mapperfield);
+            copy_and_bind_field(aTHX_ "add_item", "add_", "", perl_package, mapperfield);
+            copy_and_bind_field(aTHX_ "list_size", "", "_size", perl_package, mapperfield);
+            copy_and_bind_field(aTHX_ "get_list", "get_", "_list", perl_package, mapperfield);
+            copy_and_bind_field(aTHX_ "set_list", "set_", "_list", perl_package, mapperfield);
+        } else {
+            copy_and_bind_field(aTHX_ "has_field", "has_", "", perl_package, mapperfield);
+            copy_and_bind_field(aTHX_ "get_scalar", "get_", "", perl_package, mapperfield);
+            copy_and_bind_field(aTHX_ "set_scalar", "set_", "", perl_package, mapperfield);
+        }
+
         mapperfield->unref();
     }
 
