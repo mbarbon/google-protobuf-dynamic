@@ -170,7 +170,18 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
     copy_and_bind(aTHX_ "new", perl_package, mapper);
 
     for (int i = 0, max = mapper->field_count(); i < max; ++i) {
-        MapperField *mapperfield = new MapperField(mapper, mapper->get_field(i));
+        const Mapper::Field *field = mapper->get_field(i);
+        MapperField *mapperfield = new MapperField(mapper, field);
+
+        {
+            string upper_field;
+
+            for (const char *field_name = field->field_def->name(); *field_name; ++field_name)
+                upper_field.push_back(*field_name == '.' ? '_' : toupper(*field_name));
+
+            newCONSTSUB(stash, (upper_field + "_FIELD_NUMBER").c_str(),
+                        newSVuv(field->field_def->number()));
+        }
 
         copy_and_bind_field(aTHX_ "clear_field", "clear_", "", perl_package, mapperfield);
         if (mapperfield->is_repeated()) {

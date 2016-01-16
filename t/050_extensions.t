@@ -15,6 +15,12 @@ $d->resolve_references();
 
     eq_or_diff(BaseMessage->decode_to_perl($encoded), $decoded);
     eq_or_diff(BaseMessage->encode_from_perl($decoded), $encoded);
+
+    is(BaseMessage::VALUE_FIELD_NUMBER(), 1);
+    is(ExtensionMessage::VALUE_FIELD_NUMBER(), 1);
+    is(BaseMessage::TEST_EXTENSION1_FIELD_NUMBER(), 100);
+    is(BaseMessage::TEST_VALUE_FIELD_NUMBER(), 102);
+    is(BaseMessage::TEST_MESSAGE2_EXTENSION2_FIELD_NUMBER(), 101);
 }
 
 {

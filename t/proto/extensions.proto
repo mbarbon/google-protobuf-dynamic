@@ -9,6 +9,10 @@ extend Message1 {
     optional int32 extension1 = 100;
 }
 
+extend Message1 {
+    optional int32 value = 102;
+}
+
 message Message2 {
     extend Message1 {
         optional Message2 extension2 = 101;

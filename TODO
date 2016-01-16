@@ -2,9 +2,10 @@ Implement:
 - message API (with value validation)
   - accessor styles (get_foo/set_foo, foo, foo/set_foo)
   - set_extension/get_extension
-  - constants for field numbers
   - constants for enums
   - validate data passed to the constructor
+  - validate data passed to accessor
+    - recursively for repeated/messages
 - document mapping between protobuf and Perl
 - serialize fields sorted by field number
   (will break current oneof serialization check)
