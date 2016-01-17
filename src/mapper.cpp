@@ -1071,7 +1071,16 @@ void MapperField::copy_value_or_default(SV *target, SV *value) {
     case UPB_TYPE_MESSAGE:
         sv_setsv(target, value ? value : &PL_sv_undef);
         break;
-    case UPB_TYPE_ENUM:
+    case UPB_TYPE_ENUM: {
+        if (value) {
+            IV i32 = SvIV(value);
+            if (field->enum_values.find(i32) == field->enum_values.end())
+                croak("Invalid value %d for enumeration", i32);
+            sv_setiv(target, i32);
+        } else
+            sv_setiv(target, field_def->default_int32());
+    }
+        break;
     case UPB_TYPE_INT32:
         sv_setiv(target, value ? SvIV(value) : field_def->default_int32());
         break;
@@ -1153,7 +1162,13 @@ void MapperField::copy_value(SV *target, SV *value) {
     case UPB_TYPE_MESSAGE:
         sv_setsv(target, value);
         break;
-    case UPB_TYPE_ENUM:
+    case UPB_TYPE_ENUM: {
+        I32 i32 = SvIV(value);
+        if (field->enum_values.find(i32) == field->enum_values.end())
+            croak("Invalid value %d for enumeration", i32);
+        sv_setiv(target, i32);
+    }
+        break;
     case UPB_TYPE_INT32:
         sv_setiv(target, SvIV(value));
         break;

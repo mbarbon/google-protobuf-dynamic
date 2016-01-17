@@ -80,4 +80,10 @@ for my $field (sort keys %default_defaults) {
     ok(!$cleared->$has, "cleared '$field'");
 }
 
+throws_ok(
+    sub { Test::Basic->new->set_enum_f(77) },
+    qr/Invalid value 77 for enumeration/,
+    'invalid enum value'
+);
+
 done_testing();

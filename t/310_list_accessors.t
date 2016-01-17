@@ -64,4 +64,10 @@ for my $field (keys %initial_values) {
     is($cleared->$size, 0, 'list cleared');
 }
 
+throws_ok(
+    sub { Test::Repeated->new->add_enum_f(77) },
+    qr/Invalid value 77 for enumeration/,
+    'invalid enum value'
+);
+
 done_testing();
