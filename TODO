@@ -6,11 +6,8 @@ Implement:
   - validate data passed to the constructor
   - validate data passed to accessor
     - recursively for repeated/messages
-- document mapping between protobuf and Perl
 - serialize fields sorted by field number
   (will break current oneof serialization check)
-- check what to do for an oneof field with an enum member
-  with an invalid value (probably leave unset)
 - simple extension option (Google::ProtocolBuffers compatibility)
 - load from serialized descriptors
 - test serializing tied array/hashes
@@ -18,7 +15,7 @@ Implement:
 - add an introspection API to get an object describing the protobuf
   message corresponding to an object
 - make enum value checks optional (just pass through the invalid value
-  in both encoding and decoding)
+  in both encoding and decoding), same as proto3
 - implement unknown fields (needs uPB support)
 - prepare for the different sematics of proto3
   - enums
@@ -35,3 +32,4 @@ Implement:
 - services
 - custom options?
 - protoc plugin
+- encode_defaults option
