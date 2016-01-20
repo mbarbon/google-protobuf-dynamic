@@ -40,7 +40,7 @@ MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
 
 Dynamic::Dynamic(const string &root_directory) :
         overlay_source_tree(&memory_source_tree, &disk_source_tree),
-        importer(&overlay_source_tree, &die_on_error) {
+        descriptor_loader(&overlay_source_tree, &die_on_error) {
     if (!root_directory.empty())
         disk_source_tree.MapPath("", root_directory);
 }
@@ -49,7 +49,7 @@ Dynamic::~Dynamic() {
 }
 
 void Dynamic::load_file(pTHX_ const string &file) {
-    const FileDescriptor *loaded = importer.Import(file);
+    const FileDescriptor *loaded = descriptor_loader.load_proto(file);
 
     if (loaded)
         files.insert(loaded);
@@ -62,6 +62,14 @@ void Dynamic::load_string(pTHX_ const string &file, SV *sv) {
 
     memory_source_tree.AddFile(actual_file, data, len);
     load_file(aTHX_ actual_file);
+}
+
+void Dynamic::load_serialized_string(pTHX_ SV *sv) {
+    STRLEN len;
+    const char *data = SvPV(sv, len);
+    const vector<const FileDescriptor *> loaded = descriptor_loader.load_serialized(data, len);
+
+    files.insert(loaded.begin(), loaded.end());
 }
 
 namespace {
@@ -119,7 +127,7 @@ namespace {
 }
 
 void Dynamic::map_message(pTHX_ const string &message, const string &perl_package, const MappingOptions &options) {
-    const DescriptorPool *pool = importer.pool();
+    const DescriptorPool *pool = descriptor_loader.pool();
     const Descriptor *descriptor = pool->FindMessageTypeByName(message);
 
     if (descriptor == NULL) {
@@ -155,7 +163,7 @@ void Dynamic::map_package(pTHX_ const string &pb_package, const string &perl_pac
 }
 
 void Dynamic::map_enum(pTHX_ const string &enum_name, const string &perl_package, const MappingOptions &options) {
-    const DescriptorPool *pool = importer.pool();
+    const DescriptorPool *pool = descriptor_loader.pool();
     const EnumDescriptor *descriptor = pool->FindEnumTypeByName(enum_name);
 
     if (descriptor == NULL) {

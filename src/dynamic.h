@@ -6,6 +6,7 @@
 #include <google/protobuf/compiler/importer.h>
 #include <upb/bindings/googlepb/bridge.h>
 
+#include "descriptorloader.h"
 #include "sourcetree.h"
 #include "ref.h"
 
@@ -39,6 +40,7 @@ public:
 
     void load_file(pTHX_ const std::string &file);
     void load_string(pTHX_ const std::string &file, SV *string);
+    void load_serialized_string(pTHX_ SV *sv);
 
     void map_message(pTHX_ const std::string &message, const std::string &perl_package, const MappingOptions &options);
     void map_package(pTHX_ const std::string &pb_package, const std::string &perl_package_prefix, const MappingOptions &options);
@@ -53,8 +55,8 @@ private:
     void map_enum(pTHX_ const google::protobuf::EnumDescriptor *descriptor, const std::string &perl_package, const MappingOptions &options);
     void check_package(pTHX_ const std::string &perl_package, const std::string &pb_name);
 
-    google::protobuf::compiler::Importer importer;
     OverlaySourceTree overlay_source_tree;
+    DescriptorLoader descriptor_loader;
     google::protobuf::compiler::DiskSourceTree disk_source_tree;
     MemorySourceTree memory_source_tree;
     upb::googlepb::DefBuilder def_builder;

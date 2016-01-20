@@ -12,6 +12,9 @@
     void load_string(const std::string &file, SV *sv)
         %code{% THIS->load_string(aTHX_ *file, sv); %};
 
+    void load_serialized_string(SV *sv)
+        %code{% THIS->load_serialized_string(aTHX_ sv); %};
+
     void map_message(const std::string &message, const std::string &perl_package, SV *options = NULL)
         %code{% THIS->map_message(aTHX_ *message, *perl_package, gpd::MappingOptions(aTHX_ options)); %};
 
