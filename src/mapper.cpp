@@ -945,8 +945,8 @@ bool Mapper::encode_from_perl_array(Encoder* encoder, Sink *sink, Status *status
 }
 
 MapperField::MapperField(const Mapper *_mapper, const Mapper::Field *_field) :
-        mapper(_mapper),
-        field(_field) {
+        field(_field),
+        mapper(_mapper) {
     mapper->ref();
 }
 

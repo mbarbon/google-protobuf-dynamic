@@ -123,8 +123,8 @@ private:
 
     DECL_THX_MEMBER;
     Dynamic *registry;
-    HV *stash;
     const upb::MessageDef *message_def;
+    HV *stash;
     upb::reffed_ptr<const upb::Handlers> encoder_handlers;
     upb::reffed_ptr<upb::Handlers> decoder_handlers;
     upb::reffed_ptr<const upb::pb::DecoderMethod> decoder_method;

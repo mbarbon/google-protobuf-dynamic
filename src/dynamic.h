@@ -54,9 +54,9 @@ private:
     void check_package(pTHX_ const std::string &perl_package, const std::string &pb_name);
 
     google::protobuf::compiler::Importer importer;
+    OverlaySourceTree overlay_source_tree;
     google::protobuf::compiler::DiskSourceTree disk_source_tree;
     MemorySourceTree memory_source_tree;
-    OverlaySourceTree overlay_source_tree;
     upb::googlepb::DefBuilder def_builder;
     CollectErrors die_on_error;
     std::tr1::unordered_map<std::string, const Mapper *> descriptor_map;

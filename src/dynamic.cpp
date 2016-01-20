@@ -69,6 +69,8 @@ namespace {
         Refcounted *refcounted = (Refcounted *) mg->mg_ptr;
 
         refcounted->unref();
+
+        return 0;
     }
 
     MGVTBL manage_refcounted = {
