@@ -25,6 +25,7 @@ struct MappingOptions {
     bool check_required_fields;
     bool explicit_defaults;
     bool encode_defaults;
+    bool check_enum_values;
 
     MappingOptions(pTHX_ SV *options_ref);
 };

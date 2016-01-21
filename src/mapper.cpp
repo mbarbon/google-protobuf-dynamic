@@ -398,6 +398,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
     decoder_handlers = Handlers::New(message_def);
     decode_explicit_defaults = options.explicit_defaults;
     encode_defaults = options.encode_defaults;
+    check_enum_values = options.check_enum_values;
 
     if (!decoder_handlers->SetEndMessageHandler(UpbMakeHandler(DecoderHandlers::on_end_message)))
         croak("Unable to set upb end message handler for %s", message_def->full_name());
@@ -466,12 +467,17 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
             break;
         case UPB_TYPE_ENUM: {
             GET_SELECTOR(INT32, primitive);
-            SET_VALUE_HANDLER(int32_t, on_enum);
+            if (check_enum_values)
+                SET_VALUE_HANDLER(int32_t, on_enum);
+            else
+                SET_VALUE_HANDLER(int32_t, on_iv<int32_t>);
 
-            const EnumDef *enumdef = field_def->enum_subdef();
-            upb_enum_iter i;
-            for (upb_enum_begin(&i, enumdef); !upb_enum_done(&i); upb_enum_next(&i))
-                field.enum_values.insert(upb_enum_iter_number(&i));
+            if (check_enum_values) {
+                const EnumDef *enumdef = field_def->enum_subdef();
+                upb_enum_iter i;
+                for (upb_enum_begin(&i, enumdef); !upb_enum_done(&i); upb_enum_next(&i))
+                    field.enum_values.insert(upb_enum_iter_number(&i));
+            }
         }
             break;
         case UPB_TYPE_INT32:
@@ -874,7 +880,8 @@ bool Mapper::encode_from_perl(Encoder* encoder, Sink *sink, Status *status, cons
     }
     case UPB_TYPE_ENUM: {
         IV value = SvIV(ref);
-        if (fd.enum_values.find(value) == fd.enum_values.end()) {
+        if (check_enum_values &&
+                fd.enum_values.find(value) == fd.enum_values.end()) {
             status->SetFormattedErrorMessage(
                 "Invalid enumeration value %d for field %s.%s",
                 value,
@@ -924,7 +931,10 @@ bool Mapper::encode_from_perl_array(Encoder* encoder, Sink *sink, Status *status
     case UPB_TYPE_MESSAGE:
         return fd.mapper->encode_from_message_array(encoder, sink, status, fd, array);
     case UPB_TYPE_ENUM:
-        return encode_from_array<IVGetter, EnumEmitter>(encoder, sink, status, fd, array);
+        if (check_enum_values)
+            return encode_from_array<IVGetter, EnumEmitter>(encoder, sink, status, fd, array);
+        else
+            return encode_from_array<IVGetter, Int32Emitter>(encoder, sink, fd, array);
     case UPB_TYPE_INT32:
         return encode_from_array<IVGetter, Int32Emitter>(encoder, sink, fd, array);
     case UPB_TYPE_UINT32:
@@ -1074,7 +1084,8 @@ void MapperField::copy_value_or_default(SV *target, SV *value) {
     case UPB_TYPE_ENUM: {
         if (value) {
             IV i32 = SvIV(value);
-            if (field->enum_values.find(i32) == field->enum_values.end())
+            if (field->enum_values.size() &&
+                    field->enum_values.find(i32) == field->enum_values.end())
                 croak("Invalid value %d for enumeration", i32);
             sv_setiv(target, i32);
         } else
@@ -1164,7 +1175,8 @@ void MapperField::copy_value(SV *target, SV *value) {
         break;
     case UPB_TYPE_ENUM: {
         I32 i32 = SvIV(value);
-        if (field->enum_values.find(i32) == field->enum_values.end())
+        if (field->enum_values.size() &&
+                field->enum_values.find(i32) == field->enum_values.end())
             croak("Invalid value %d for enumeration", i32);
         sv_setiv(target, i32);
     }

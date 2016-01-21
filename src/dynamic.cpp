@@ -17,7 +17,8 @@ MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
         use_bigints(sizeof(IV) < sizeof(int64_t)),
         check_required_fields(true),
         explicit_defaults(false),
-        encode_defaults(true) {
+        encode_defaults(true),
+        check_enum_values(true) {
     if (options_ref == NULL || !SvOK(options_ref))
         return;
     if (!SvROK(options_ref) || SvTYPE(SvRV(options_ref)) != SVt_PVHV)
@@ -34,6 +35,7 @@ MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
     BOOLEAN_OPTION(check_required_fields, check_required_fields);
     BOOLEAN_OPTION(explicit_defaults, explicit_defaults);
     BOOLEAN_OPTION(encode_defaults, encode_defaults);
+    BOOLEAN_OPTION(check_enum_values, check_enum_values);
 
 #undef BOOLEAN_OPTION
 }
