@@ -12,7 +12,6 @@
 SV*
 new(SV *klass, SV *ref = NULL)
   INIT:
-    HV *hv = newHV();
   CODE:
     if (ref) {
         if (SvTEMP(ref) && SvREFCNT(ref) == 1) {
@@ -33,7 +32,7 @@ new(SV *klass, SV *ref = NULL)
             RETVAL = newRV_inc((SV *) hv);
         }
     } else {
-        RETVAL = newRV_noinc((SV *) hv);
+        RETVAL = newRV_noinc((SV *) newHV());
     }
     sv_bless(RETVAL, gv_stashsv(klass, 0));
   OUTPUT: RETVAL
