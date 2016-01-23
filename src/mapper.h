@@ -47,6 +47,8 @@ public:
         const Mapper *mapper; // for Message/Group fields
         std::tr1::unordered_set<int32_t> enum_values;
         int oneof_index;
+
+        std::string full_name() const;
     };
 
     struct DecoderHandlers {
@@ -163,7 +165,7 @@ public:
     void add_item(HV *self, SV *value);
     int list_size(HV *self);
     void get_list(HV *self, SV *target);
-    void set_list(HV *self, AV *value);
+    void set_list(HV *self, SV *ref);
 
 private:
     SV *get_read_field(HV *self);

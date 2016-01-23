@@ -20,13 +20,13 @@ eq_or_diff(
 
 throws_ok(
     sub { MessageBefore->encode_from_perl({ value => 3 }) },
-    qr/Invalid enumeration value 3 for field test.MessageBefore.value/,
+    qr/Invalid enumeration value 3 for field 'test.MessageBefore.value'/,
     "unknown enum value croaks in serialization"
 );
 
 throws_ok(
     sub { MessageBefore->encode_from_perl({ array => [3, 2] }) },
-    qr/Invalid enumeration value 3 for field test.MessageBefore.array/,
+    qr/Invalid enumeration value 3 for field 'test.MessageBefore.array'/,
     "unknown enum value croaks in serialization"
 );
 

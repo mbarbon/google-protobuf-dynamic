@@ -3,9 +3,6 @@ Implement:
   - accessor styles (get_foo/set_foo, foo, foo/set_foo)
   - set_extension/get_extension/... (full scalar/list API)
     - also needs to perform the proper type coercions/checks
-  - validate data passed to the constructor
-  - validate data passed to accessor
-    - recursively for repeated/messages
 - serialize fields sorted by field number
   (will break current oneof serialization check)
 - simple extension option (Google::ProtocolBuffers compatibility)

@@ -13,19 +13,19 @@ use t::lib::Test;
 
     throws_ok(
         sub { Test1::MessageBefore->encode_from_perl({ value => 3 }) },
-        qr/Invalid enumeration value 3 for field test.MessageBefore.value/,
+        qr/Invalid enumeration value 3 for field 'test.MessageBefore.value'/,
         "unknown enum value croaks in serialization"
     );
 
     throws_ok(
         sub { Test1::MessageBefore->encode_from_perl({ array => [3, 2] }) },
-        qr/Invalid enumeration value 3 for field test.MessageBefore.array/,
+        qr/Invalid enumeration value 3 for field 'test.MessageBefore.array'/,
         "unknown enum value croaks in serialization"
     );
 
     throws_ok(
         sub { Test1::MessageBefore->new->set_value(3) },
-        qr/Invalid value 3 for enumeration/,
+        qr/Invalid value 3 for enumeration field 'test.MessageBefore.value'/,
         "unknown enum value croaks on set"
     );
 }

@@ -54,11 +54,12 @@ for my $field (keys %initial_values) {
     eq_or_diff($with_field->$get_list, [$initial_values{$field}, $added_values{$field}], 'value added to non-empty list');
     eq_or_diff($empty->$get_list, [$added_values{$field}], 'value added to empty list');
     is($with_field->$get(1), $added_values{$field}, 'get item');
+    is($with_field->$get(-2), $initial_values{$field}, 'get negative item');
     $with_field->$set(1, $initial_values{$field});
     is($with_field->$get(1), $initial_values{$field}, 'set item');
 
     $empty->$set_list([$initial_values{$field}, $added_values{$field}]);
-    eq_or_diff($empty->$get_list, [$initial_values{$field}, $added_values{$field}], 'value added to empty list');
+    eq_or_diff($empty->$get_list, [$initial_values{$field}, $added_values{$field}], 'value set to empty list');
 
     $cleared->$clear;
     is($cleared->$size, 0, 'list cleared');
@@ -66,8 +67,44 @@ for my $field (keys %initial_values) {
 
 throws_ok(
     sub { Test::Repeated->new->add_enum_f(77) },
-    qr/Invalid value 77 for enumeration/,
+    qr/Invalid value 77 for enumeration field 'test.Repeated.enum_f'/,
     'invalid enum value'
+);
+
+throws_ok(
+    sub { Test::Repeated->new->set_double_f_list(12) },
+    qr/Value for field 'test.Repeated.double_f' is not an array reference/,
+    'not an array',
+);
+
+throws_ok(
+    sub { Test::Repeated->new({ double_f => 1 })->add_double_f(12) },
+    qr/Value of field 'test.Repeated.double_f' is not an array reference/,
+    'not an array',
+);
+
+throws_ok(
+    sub { Test::Repeated->new->get_double_f(0) },
+    qr/Accessing unset array field 'test.Repeated.double_f'/,
+    'access item of empty array',
+);
+
+throws_ok(
+    sub { Test::Repeated->new({ double_f => [] })->get_double_f(0) },
+    qr/Accessing empty array field 'test.Repeated.double_f'/,
+    'access item of empty array',
+);
+
+throws_ok(
+    sub { Test::Repeated->new({ double_f => [2, 3, 4] })->get_double_f(3) },
+    qr/Accessing out-of-bounds index 3 for field 'test.Repeated.double_f'/,
+    'access out of bounds, too large',
+);
+
+throws_ok(
+    sub { Test::Repeated->new({ double_f => [2, 3, 4] })->get_double_f(-4) },
+    qr/Accessing out-of-bounds index -4 for field 'test.Repeated.double_f'/,
+    'access aout of bounds, too small',
 );
 
 done_testing();

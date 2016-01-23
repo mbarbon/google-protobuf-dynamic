@@ -134,8 +134,7 @@ The setter performs coercion and type checks; for example setting an
 integer field to a floating point value will truncate the decimal
 part.
 
-Setting a message field will take ownership of the passed-in hash/object, and
-perform a recursive type check/coercion pass for nested messages.
+Setting a message field will take ownership of the passed-in hash/object.
 
 The setters for enum fields check that the passed-in value is one of
 the valid enum values, unless L</check_enum_values> is false.
@@ -367,8 +366,6 @@ that enum when decoding.
 When a field has the incorrect value, sometimes serialization performs
 a coercion, sometimes it throws an error, but it should always be an
 error.
-
-Getters/setters/constructors don't perform deep validation of messages (yet).
 
 Unknown fields are discarded on deserialization.
 

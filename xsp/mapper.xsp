@@ -139,10 +139,10 @@ get_list(HV *self)
     XSprePUSH; PUSHs(TARG);
 
 void
-set_list(HV *self, AV *value)
+set_list(HV *self, SV *ref)
   INIT:
     gpd::MapperField *field = (gpd::MapperField *) CvXSUBANY(cv).any_ptr;
   PPCODE:
-    field->set_list(self, value);
+    field->set_list(self, ref);
 
 %}

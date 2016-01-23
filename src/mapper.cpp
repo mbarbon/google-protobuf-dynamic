@@ -65,6 +65,15 @@ namespace {
     }
 }
 
+string Mapper::Field::full_name() const {
+    if (field_def->is_extension())
+        return field_def->full_name();
+    else
+        return string(field_def->containing_type()->full_name()) +
+               '.' +
+               field_def->name();
+}
+
 bool Mapper::DecoderHandlers::apply_defaults_and_check() {
     const vector<bool> &seen = seen_fields.back();
     const Mapper *mapper = mappers.back();
@@ -123,10 +132,7 @@ bool Mapper::DecoderHandlers::apply_defaults_and_check() {
                 break;
             }
         } else if (!field_seen && check_required_fields && field.field_def->label() == UPB_LABEL_REQUIRED) {
-            error = std::string("Missing required field ")
-                + field.field_def->containing_type()->full_name()
-                + "."
-                + field.field_def->name();
+            error = "Missing required field " + field.full_name();
 
             return false;
         }
@@ -503,7 +509,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
                 SET_VALUE_HANDLER(uint64_t, on_uv<uint64_t>);
             break;
         default:
-            croak("Unhandled field type %d", field_def->type());
+            croak("Unhandled field type %d for field '%s'", field_def->type(), field.full_name().c_str());
         }
 
         if (has_default &&
@@ -524,7 +530,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
 #undef SET_HANDLER
 
         if (!ok)
-            croak("Unable to get upb selector for field %s", field_def->full_name());
+            croak("Unable to get upb selector for field %s", field.full_name().c_str());
     }
 
     int oneof_index = 0;
@@ -738,10 +744,9 @@ namespace {
         bool operator()(pTHX_ Sink *sink, const Mapper::Field &fd, int32_t value) {
             if (fd.enum_values.find(value) == fd.enum_values.end()) {
                 status->SetFormattedErrorMessage(
-                    "Invalid enumeration value %d for field %s.%s",
+                    "Invalid enumeration value %d for field '%s'",
                     value,
-                    fd.field_def->containing_type()->full_name(),
-                    fd.field_def->full_name()
+                    fd.full_name().c_str()
                 );
                 return false;
             }
@@ -827,9 +832,8 @@ bool Mapper::encode_from_perl(Encoder* encoder, Sink *sink, Status *status, SV *
         if (!he) {
             if (it->field_def->label() == UPB_LABEL_REQUIRED) {
                 status->SetFormattedErrorMessage(
-                    "Missing required field %s.%s",
-                    it->field_def->containing_type()->full_name(),
-                    it->field_def->name());
+                    "Missing required field '%s'",
+                    it->full_name().c_str());
                 return false;
             } else
                 continue;
@@ -883,10 +887,9 @@ bool Mapper::encode_from_perl(Encoder* encoder, Sink *sink, Status *status, cons
         if (check_enum_values &&
                 fd.enum_values.find(value) == fd.enum_values.end()) {
             status->SetFormattedErrorMessage(
-                "Invalid enumeration value %d for field %s.%s",
+                "Invalid enumeration value %d for field '%s'",
                 value,
-                fd.field_def->containing_type()->full_name(),
-                fd.field_def->full_name()
+                fd.full_name().c_str()
             );
             return false;
         }
@@ -914,7 +917,7 @@ bool Mapper::encode_from_perl(Encoder* encoder, Sink *sink, Status *status, cons
 
 bool Mapper::encode_from_perl_array(Encoder* encoder, Sink *sink, Status *status, const Field &fd, SV *ref) const {
     if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVAV)
-        croak("Not an array reference when encoding field %s", fd.field_def->full_name());
+        croak("Not an array reference when encoding field '%s'", fd.full_name().c_str());
     AV *array = (AV *) SvRV(ref);
 
     switch (fd.field_def->type()) {
@@ -984,7 +987,7 @@ AV *MapperField::get_read_array(HV *self) {
 
     SV *ref = HeVAL(ent);
     if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVAV)
-        croak("Value is not an array reference");
+        croak("Value of field '%s' is not an array reference", field->full_name().c_str());
 
     return (AV *) SvRV(ref);
 }
@@ -1004,7 +1007,7 @@ AV *MapperField::get_write_array(HV *self) {
     } else {
         SV *ref = HeVAL(ent);
         if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVAV)
-            croak("Value is not an array reference");
+            croak("Value of field '%s' is not an array reference", field->full_name().c_str());
 
         return (AV *) SvRV(ref);
     }
@@ -1079,6 +1082,8 @@ void MapperField::copy_value_or_default(SV *target, SV *value) {
     }
         break;
     case UPB_TYPE_MESSAGE:
+        if ((value && SvOK(value)) && (!SvROK(value) || SvTYPE(SvRV(value)) != SVt_PVHV))
+            croak("Value for message field '%s' is not an hash reference", field->full_name().c_str());
         sv_setsv(target, value ? value : &PL_sv_undef);
         break;
     case UPB_TYPE_ENUM: {
@@ -1086,7 +1091,7 @@ void MapperField::copy_value_or_default(SV *target, SV *value) {
             IV i32 = SvIV(value);
             if (field->enum_values.size() &&
                     field->enum_values.find(i32) == field->enum_values.end())
-                croak("Invalid value %d for enumeration", i32);
+                croak("Invalid value %d for enumeration field '%s'", i32, field->full_name().c_str());
             sv_setiv(target, i32);
         } else
             sv_setiv(target, field_def->default_int32());
@@ -1119,7 +1124,7 @@ void MapperField::copy_value_or_default(SV *target, SV *value) {
     }
         break;
     default:
-        croak("Unhandled field type %d", field->field_def->type());
+        croak("Unhandled field type %d for field '%s'", field->field_def->type(), field->full_name().c_str());
     }
 }
 
@@ -1171,13 +1176,15 @@ void MapperField::copy_value(SV *target, SV *value) {
     }
         break;
     case UPB_TYPE_MESSAGE:
+        if (SvOK(value) && (!SvROK(value) || SvTYPE(SvRV(value)) != SVt_PVHV))
+            croak("Value for message field '%s' is not an hash reference", field->full_name().c_str());
         sv_setsv(target, value);
         break;
     case UPB_TYPE_ENUM: {
         I32 i32 = SvIV(value);
         if (field->enum_values.size() &&
                 field->enum_values.find(i32) == field->enum_values.end())
-            croak("Invalid value %d for enumeration", i32);
+            croak("Invalid value %d for enumeration field '%s'", i32, field->full_name().c_str());
         sv_setiv(target, i32);
     }
         break;
@@ -1208,7 +1215,7 @@ void MapperField::copy_value(SV *target, SV *value) {
     }
         break;
     default:
-        croak("Unhandled field type %d", field->field_def->type());
+        croak("Unhandled field type %d for field '%s'", field->field_def->type(), field->full_name().c_str());
     }
 }
 
@@ -1216,7 +1223,12 @@ void MapperField::get_item(HV *self, int index, SV *target) {
     AV *array = get_read_array(self);
 
     if (!array)
-        croak("No array set");
+        croak("Accessing unset array field '%s'", field->full_name().c_str());
+    int max = av_top_index(array);
+    if (max == -1)
+        croak("Accessing empty array field '%s'", field->full_name().c_str());
+    if (index > max || index < -(max + 1))
+        croak("Accessing out-of-bounds index %d for field '%s'", index, field->full_name().c_str());
     SV **value = av_fetch(array, index, 0);
 
     copy_value_or_default(target, value ? *value : NULL);
@@ -1258,17 +1270,19 @@ void MapperField::get_list(HV *self, SV *target) {
     }
 }
 
-void MapperField::set_list(HV *self, AV *value) {
-    SV *ref = get_write_field(self);
+void MapperField::set_list(HV *self, SV *ref) {
+    if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVAV)
+        croak("Value for field '%s' is not an array reference", field->full_name().c_str());
+    SV *field_ref = get_write_field(self);
 
-    if (!SvOK(ref)) {
-        SvUPGRADE(ref, SVt_RV);
-        SvROK_on(ref);
+    if (!SvOK(field_ref)) {
+        SvUPGRADE(field_ref, SVt_RV);
+        SvROK_on(field_ref);
     } else {
-        if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVAV)
-            croak("Value is not an array reference");
-        SvREFCNT_dec(SvRV(ref));
+        if (!SvROK(field_ref))
+            croak("Value of field '%s' is not a reference", field->full_name().c_str());
+        SvREFCNT_dec(SvRV(field_ref));
     }
-    SvRV_set(ref, (SV *) value);
-    SvREFCNT_inc(value);
+    SvRV_set(field_ref, SvRV(ref));
+    SvREFCNT_inc(SvRV(field_ref));
 }

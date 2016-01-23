@@ -82,7 +82,7 @@ for my $field (sort keys %default_defaults) {
 
 throws_ok(
     sub { Test::Basic->new->set_enum_f(77) },
-    qr/Invalid value 77 for enumeration/,
+    qr/Invalid value 77 for enumeration field 'test.Basic.enum_f'/,
     'invalid enum value'
 );
 
