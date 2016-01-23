@@ -75,10 +75,27 @@ has_field(HV *self)
     RETVAL = has_it ? &PL_sv_yes : &PL_sv_no;
   OUTPUT: RETVAL
 
+SV *
+has_extension_field(HV *self, SV *extension)
+  INIT:
+    gpd::MapperField *field = gpd::MapperField::find_extension(cv, extension);
+  CODE:
+    bool has_it = field->has_field(self);
+
+    RETVAL = has_it ? &PL_sv_yes : &PL_sv_no;
+  OUTPUT: RETVAL
+
 void
 clear_field(HV *self)
   INIT:
     gpd::MapperField *field = (gpd::MapperField *) CvXSUBANY(cv).any_ptr;
+  CODE:
+    field->clear_field(self);
+
+void
+clear_extension_field(HV *self, SV *extension)
+  INIT:
+    gpd::MapperField *field = gpd::MapperField::find_extension(cv, extension);
   CODE:
     field->clear_field(self);
 
@@ -92,9 +109,25 @@ get_scalar(HV *self)
     XSprePUSH; PUSHs(TARG);
 
 void
+get_extension_scalar(HV *self, SV *extension)
+  INIT:
+    dXSTARG;
+    gpd::MapperField *field = gpd::MapperField::find_scalar_extension(cv, extension);
+  PPCODE:
+    field->get_scalar(self, TARG);
+    XSprePUSH; PUSHs(TARG);
+
+void
 set_scalar(HV *self, SV *value)
   INIT:
     gpd::MapperField *field = (gpd::MapperField *) CvXSUBANY(cv).any_ptr;
+  CODE:
+    field->set_scalar(self, value);
+
+void
+set_extension_scalar(HV *self, SV *extension, SV *value)
+  INIT:
+    gpd::MapperField *field = gpd::MapperField::find_scalar_extension(cv, extension);
   CODE:
     field->set_scalar(self, value);
 
@@ -108,9 +141,25 @@ get_item(HV *self, IV index)
     XSprePUSH; PUSHs(TARG);
 
 void
+get_extension_item(HV *self, SV *extension, IV index)
+  INIT:
+    dXSTARG;
+    gpd::MapperField *field = gpd::MapperField::find_repeated_extension(cv, extension);
+  PPCODE:
+    field->get_item(self, index, TARG);
+    XSprePUSH; PUSHs(TARG);
+
+void
 set_item(HV *self, IV index, SV *value)
   INIT:
     gpd::MapperField *field = (gpd::MapperField *) CvXSUBANY(cv).any_ptr;
+  CODE:
+    field->set_item(self, index, value);
+
+void
+set_extension_item(HV *self, SV *extension, IV index, SV *value)
+  INIT:
+    gpd::MapperField *field = gpd::MapperField::find_repeated_extension(cv, extension);
   CODE:
     field->set_item(self, index, value);
 
@@ -121,10 +170,25 @@ add_item(HV *self, SV *value)
   CODE:
     field->add_item(self, value);
 
+void
+add_extension_item(HV *self, SV *extension, SV *value)
+  INIT:
+    gpd::MapperField *field = gpd::MapperField::find_repeated_extension(cv, extension);
+  CODE:
+    field->add_item(self, value);
+
 IV
 list_size(HV *self)
   INIT:
     gpd::MapperField *field = (gpd::MapperField *) CvXSUBANY(cv).any_ptr;
+  CODE:
+    RETVAL = field->list_size(self);
+  OUTPUT: RETVAL
+
+IV
+extension_list_size(HV *self, SV *extension)
+  INIT:
+    gpd::MapperField *field = gpd::MapperField::find_repeated_extension(cv, extension);
   CODE:
     RETVAL = field->list_size(self);
   OUTPUT: RETVAL
@@ -139,9 +203,25 @@ get_list(HV *self)
     XSprePUSH; PUSHs(TARG);
 
 void
+get_extension_list(HV *self, SV *extension)
+  INIT:
+    dXSTARG;
+    gpd::MapperField *field = gpd::MapperField::find_repeated_extension(cv, extension);
+  PPCODE:
+    field->get_list(self, TARG);
+    XSprePUSH; PUSHs(TARG);
+
+void
 set_list(HV *self, SV *ref)
   INIT:
     gpd::MapperField *field = (gpd::MapperField *) CvXSUBANY(cv).any_ptr;
+  PPCODE:
+    field->set_list(self, ref);
+
+void
+set_extension_list(HV *self, SV *extension, SV *ref)
+  INIT:
+    gpd::MapperField *field = gpd::MapperField::find_repeated_extension(cv, extension);
   PPCODE:
     field->set_list(self, ref);
 

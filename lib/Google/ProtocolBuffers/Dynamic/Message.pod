@@ -40,4 +40,101 @@ Deserializes Protocol Buffer binary data into a message instance.
 Serializes the given message instance (or mix of message instances and
 plain hashes) to Protocol Buffer binary format.
 
+=head1 EXTENSION METHODS
+
+In the list below, C<extension_id> is either the fully-qualified name
+of the extension or the generated constant key for that extension.
+
+For example, given the message definitions:
+
+    package test;
+
+    message Message1 {
+        optional int32 value = 1;
+        extensions 100 to 150;
+    }
+
+    extend Message1 {
+        optional int32 value = 102;
+    }
+
+    message Message2 {
+        extend Message1 {
+            optional int32 extension2 = 101;
+        }
+    }
+
+and the Perl message mapping:
+
+    $dynamic->map({ package => 'test', to => 'Some::Perl::Package' });
+
+the following Perl code can be used to access extension values:
+
+    $message1 = Some::Perl::Package::Message1->decode_to_perl(...);
+
+    $value = $message1->get_extension('test.value');
+    $value = $message2->get_extension(Some::Perl::Package::TEST_VALUE_KEY());
+    $value = $message1->get_extension('test.Message2.extension2');
+    $value = $message2->get_extension(Some::Perl::Package::TEST_MESSAGE2_EXTENSION2_KEY());
+
+=head2 has_extension
+
+    $has_field = $msg->has_extension($extension_id);
+
+True if the extension field has a value.
+
+=head2 clear_extension
+
+    $msg->clear_extension($extension_id);
+
+Clears the current value of an extension field.
+
+=head2 get_extension
+
+    $value = $msg->get_extension($extension_id);
+
+Returns the value of a non-repeated extension field.
+
+=head2 set_extension
+
+    $msg->set_extension($extension_id, $value);
+
+Sets the value of a non-repeated extension field.
+
+=head2 get_extension_item
+
+    $value = $msg->get_extension_item($extension_id, $index);
+
+Gets the value of a repeated extension field item.
+
+=head2 set_extension_item
+
+    $msg->set_extension_item($extension_id, $index, $value);
+
+Sets a new value for a repeated extension field item.
+
+=head2 add_extension_item
+
+    $msg->add_extension_item($extension_id, $value);
+
+Appends an item to a repeated extension field.
+
+=head2 extension_size
+
+    $size = $msg->extension_size($extension_id);
+
+Returns the number of items contained in a repeated extension field.
+
+=head2 get_extension_list
+
+    $arrayref = $msg->get_extension_list($extension_id);
+
+Returns a mutable reference to the array backing a repeated extension field.
+
+=head2 set_extension_list
+
+    $msg->set_extension_list($extension_id, $arrayref);
+
+Sets a new value for repeated extension fields.
+
 =cut

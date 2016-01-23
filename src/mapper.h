@@ -20,6 +20,7 @@ namespace gpd {
 
 class Dynamic;
 class MappingOptions;
+class MapperField;
 
 class Mapper : public Refcounted {
 public:
@@ -99,6 +100,8 @@ public:
     Mapper(pTHX_ Dynamic *registry, const upb::MessageDef *message_def, HV *stash, const MappingOptions &options);
     ~Mapper();
 
+    const char *full_name() const;
+
     void resolve_mappers();
 
     SV *encode_from_perl(SV *ref);
@@ -108,6 +111,8 @@ public:
 
     int field_count() const;
     const Field *get_field(int index) const;
+
+    MapperField *find_extension(const std::string &name) const;
 
 private:
     bool encode_from_perl(upb::pb::Encoder* encoder, upb::Sink *sink, upb::Status *status, SV *ref) const;
@@ -131,6 +136,7 @@ private:
     upb::reffed_ptr<upb::Handlers> decoder_handlers;
     upb::reffed_ptr<const upb::pb::DecoderMethod> decoder_method;
     std::vector<Field> fields;
+    std::vector<MapperField *> extension_mapper_fields;
     upb::Environment env;
     upb::Status status;
     DecoderHandlers decoder_callbacks;
@@ -166,6 +172,10 @@ public:
     int list_size(HV *self);
     void get_list(HV *self, SV *target);
     void set_list(HV *self, SV *ref);
+
+    static MapperField *find_extension(CV *cv, SV *extension);
+    static MapperField *find_scalar_extension(CV *cv, SV *extension);
+    static MapperField *find_repeated_extension(CV *cv, SV *extension);
 
 private:
     SV *get_read_field(HV *self);

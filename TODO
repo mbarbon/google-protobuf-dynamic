@@ -1,8 +1,6 @@
 Implement:
 - message API (with value validation)
   - accessor styles (get_foo/set_foo, foo, foo/set_foo)
-  - set_extension/get_extension/... (full scalar/list API)
-    - also needs to perform the proper type coercions/checks
 - serialize fields sorted by field number
   (will break current oneof serialization check)
 - simple extension option (Google::ProtocolBuffers compatibility)
@@ -27,3 +25,4 @@ Implement:
 - custom options?
 - protoc plugin
 - encode_defaults option
+- generic extension methods perform a linear scan on the extension list

@@ -531,6 +531,14 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
 
         if (!ok)
             croak("Unable to get upb selector for field %s", field.full_name().c_str());
+
+    }
+
+    for (vector<Field>::iterator it = fields.begin(), en = fields.end(); it != en; ++it) {
+        if (it->field_def->is_extension()) {
+            extension_mapper_fields.push_back(new MapperField(this, &*it));
+            unref(); // to avoid ref loop
+        }
     }
 
     int oneof_index = 0;
@@ -552,9 +560,26 @@ Mapper::~Mapper() {
     for (vector<Field>::iterator it = fields.begin(), en = fields.end(); it != en; ++it)
         if (it->mapper)
             it->mapper->unref();
+    for (vector<MapperField *>::iterator it = extension_mapper_fields.begin(), en = extension_mapper_fields.end(); it != en; ++it)
+        // this will make the mapper ref count to go negative, but it's OK
+        (*it)->unref();
+
     // make sure this only goes away after inner destructors have completed
     refcounted_mortalize(registry);
     SvREFCNT_dec(stash);
+}
+
+const char *Mapper::full_name() const {
+    return message_def->full_name();
+}
+
+MapperField *Mapper::find_extension(const std::string &name) const {
+    for (vector<MapperField *>::const_iterator it = extension_mapper_fields.begin(), en = extension_mapper_fields.end(); it != en; ++it) {
+        if (name == (*it)->name())
+            return *it;
+    }
+
+    return NULL;
 }
 
 int Mapper::field_count() const {
@@ -965,6 +990,42 @@ MapperField::MapperField(const Mapper *_mapper, const Mapper::Field *_field) :
 
 MapperField::~MapperField() {
     mapper->unref();
+}
+
+MapperField *MapperField::find_extension(CV *cv, SV *extension) {
+    const Mapper *mapper = (const Mapper *) CvXSUBANY(cv).any_ptr;
+    STRLEN len;
+    const char *buffer = SvPV(extension, len);
+
+    // ignore square brackets at beginning and end
+    if (len > 2 && buffer[0] == '[' && buffer[len - 1] == ']') {
+        len -= 2;
+        buffer += 1;
+    }
+
+    string extension_name(buffer, len);
+    MapperField *mapper_field = mapper->find_extension(extension_name);
+
+    if (!mapper_field)
+        croak("Unknown extension field '%s' for message '%s'", extension_name.c_str(), mapper->full_name());
+
+    return mapper_field;
+}
+
+MapperField *MapperField::find_scalar_extension(CV *cv, SV *extension) {
+    MapperField *mf = find_extension(cv, extension);
+    if (mf && mf->is_repeated())
+        croak("Extension field '%s' is a repeated field", mf->field->full_name().c_str());
+
+    return mf;
+}
+
+MapperField *MapperField::find_repeated_extension(CV *cv, SV *extension) {
+    MapperField *mf = find_extension(cv, extension);
+    if (mf && !mf->is_repeated())
+        croak("Extension field '%s' is a non-repeated field", mf->field->full_name().c_str());
+
+    return mf;
 }
 
 SV *MapperField::get_read_field(HV *self) {

@@ -207,7 +207,9 @@ For example
 will create (scalar, in this case) accessors for fields named
 C<test_value> and C<test_message2_extension2>.
 
-There isn't (yet) a generic C<get_extension>/C<set_extension> API.
+In addition to per-field accessors, there is a set of generic
+extension accessors (documented in
+L<Google::ProtocolBuffers::Dynamic::Message/EXTENSION METHODS>).
 
 =head1 METHODS
 

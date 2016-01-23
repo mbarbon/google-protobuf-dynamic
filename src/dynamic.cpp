@@ -221,6 +221,17 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
     copy_and_bind(aTHX_ "encode_from_perl", perl_package, mapper);
     copy_and_bind(aTHX_ "new", perl_package, mapper);
 
+    copy_and_bind(aTHX_ "has_extension_field", "has_extension", perl_package, mapper);
+    copy_and_bind(aTHX_ "clear_extension_field", "clear_extension", perl_package, mapper);
+    copy_and_bind(aTHX_ "get_extension_scalar", "get_extension", perl_package, mapper);
+    copy_and_bind(aTHX_ "set_extension_scalar", "set_extension", perl_package, mapper);
+    copy_and_bind(aTHX_ "get_extension_item", perl_package, mapper);
+    copy_and_bind(aTHX_ "set_extension_item", perl_package, mapper);
+    copy_and_bind(aTHX_ "add_extension_item", perl_package, mapper);
+    copy_and_bind(aTHX_ "extension_list_size", "extension_size", perl_package, mapper);
+    copy_and_bind(aTHX_ "get_extension_list", perl_package, mapper);
+    copy_and_bind(aTHX_ "set_extension_list", perl_package, mapper);
+
     for (int i = 0, max = mapper->field_count(); i < max; ++i) {
         const Mapper::Field *field = mapper->get_field(i);
         MapperField *mapperfield = new MapperField(mapper, field);
