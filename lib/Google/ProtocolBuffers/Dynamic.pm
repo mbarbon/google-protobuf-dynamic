@@ -138,7 +138,7 @@ Setting a message field will take ownership of the passed-in hash/object, and
 perform a recursive type check/coercion pass for nested messages.
 
 The setters for enum fields check that the passed-in value is one of
-the valid enum values.
+the valid enum values, unless L</check_enum_values> is false.
 
 =head3 Repeated fields
 
@@ -170,8 +170,11 @@ will result in constants equivalent to
         BAZ => 2,
     };
 
-Trying to encode a message containing an invalid enum value will
-result in an error, trying to decode it will ignore the invalid value.
+If L</check_enum_values> is true (the default), trying to encode a
+message containing an invalid enum value will result in an error,
+trying to decode it will ignore the invalid value. If
+L</check_enum_values> is false, invalid enum values are passed through
+unchanged.
 
 =head2 ONEOF
 
@@ -346,6 +349,14 @@ Disabled by default.
 
 When enabled, explicitly sets all missing scalar fields (but not oneof
 members) to their default value when decoding.
+
+=head2 check_enum_values
+
+Enabled by default.
+
+When enabled, invalid enum values throw an error in
+getters/setters/encoding and are replaced with the default value for
+that enum when decoding.
 
 =cut
 
