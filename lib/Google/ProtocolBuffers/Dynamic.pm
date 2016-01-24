@@ -250,6 +250,13 @@ constructor.
 
 Parses message definitions from a string.
 
+=head2 load_serialized_string
+
+    $dynamic->load_serialized_string($string);
+
+Parses message definitions from serialized descriptor data in the
+format produced by C<protoc> C<--descriptor_set_out> option.
+
 =head2 map
 
     # the 'options' key is optional
