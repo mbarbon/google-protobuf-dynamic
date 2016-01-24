@@ -366,6 +366,13 @@ When enabled, invalid enum values throw an error in
 getters/setters/encoding and are replaced with the default value for
 that enum when decoding.
 
+=head2 generic_extension_methods
+
+Enabled by default.
+
+Controls the generation of generic extension methods. Only disable
+when there is a field named C<extension>.
+
 =cut
 
 # TODO =head2 encode_defaults

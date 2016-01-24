@@ -26,6 +26,7 @@ struct MappingOptions {
     bool explicit_defaults;
     bool encode_defaults;
     bool check_enum_values;
+    bool generic_extension_methods;
 
     MappingOptions(pTHX_ SV *options_ref);
 };
