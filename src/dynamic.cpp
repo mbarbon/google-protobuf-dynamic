@@ -205,7 +205,7 @@ void Dynamic::check_package(pTHX_ const string &perl_package, const string &pb_n
 }
 
 void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl_package, const MappingOptions &options) {
-    check_package(perl_package, descriptor->full_name());
+    check_package(aTHX_ perl_package, descriptor->full_name());
     if (descriptor_map.find(descriptor->full_name()) != descriptor_map.end())
         croak("Message '%s' has already been mapped", descriptor->full_name().c_str());
     if (options.use_bigints)
@@ -238,7 +238,7 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
 
     for (int i = 0, max = mapper->field_count(); i < max; ++i) {
         const Mapper::Field *field = mapper->get_field(i);
-        MapperField *mapperfield = new MapperField(mapper, field);
+        MapperField *mapperfield = new MapperField(aTHX_ mapper, field);
 
         {
             string upper_field;
@@ -278,7 +278,7 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
 }
 
 void Dynamic::map_enum(pTHX_ const EnumDescriptor *descriptor, const string &perl_package, const MappingOptions &options) {
-    check_package(perl_package, descriptor->full_name());
+    check_package(aTHX_ perl_package, descriptor->full_name());
     if (mapped_enums.find(descriptor->full_name()) != mapped_enums.end())
         croak("Message '%s' has already been mapped", descriptor->full_name().c_str());
 

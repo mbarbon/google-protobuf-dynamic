@@ -101,7 +101,7 @@ bool Mapper::DecoderHandlers::apply_defaults_and_check() {
                 sv_setnv(target, field.field_def->default_double());
                 break;
             case UPB_TYPE_BOOL:
-                set_bool(target, field.field_def->default_bool());
+                set_bool(aTHX_ target, field.field_def->default_bool());
                 break;
             case UPB_TYPE_BYTES:
             case UPB_TYPE_STRING: {
@@ -321,6 +321,7 @@ namespace {
 }
 
 bool Mapper::DecoderHandlers::on_bigiv(DecoderHandlers *cxt, const int *field_index, int64_t val) {
+    THX_DECLARE_AND_GET;
     cxt->mark_seen(field_index);
 
     if (val >= I32_MIN && val <= I32_MAX) {
@@ -335,6 +336,7 @@ bool Mapper::DecoderHandlers::on_bigiv(DecoderHandlers *cxt, const int *field_in
 }
 
 bool Mapper::DecoderHandlers::on_biguv(DecoderHandlers *cxt, const int *field_index, uint64_t val) {
+    THX_DECLARE_AND_GET;
     cxt->mark_seen(field_index);
 
     if (val <= U32_MAX) {
@@ -352,7 +354,7 @@ bool Mapper::DecoderHandlers::on_bool(DecoderHandlers *cxt, const int *field_ind
     THX_DECLARE_AND_GET;
 
     cxt->mark_seen(field_index);
-    set_bool(cxt->get_target(field_index), val);
+    set_bool(aTHX_ cxt->get_target(field_index), val);
 
     return true;
 }
@@ -536,7 +538,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
 
     for (vector<Field>::iterator it = fields.begin(), en = fields.end(); it != en; ++it) {
         if (it->field_def->is_extension()) {
-            extension_mapper_fields.push_back(new MapperField(this, &*it));
+            extension_mapper_fields.push_back(new MapperField(aTHX_ this, &*it));
             unref(); // to avoid ref loop
         }
     }
@@ -565,7 +567,7 @@ Mapper::~Mapper() {
         (*it)->unref();
 
     // make sure this only goes away after inner destructors have completed
-    refcounted_mortalize(registry);
+    refcounted_mortalize(aTHX_ registry);
     SvREFCNT_dec(stash);
 }
 
@@ -982,9 +984,10 @@ bool Mapper::encode_from_perl_array(Encoder* encoder, Sink *sink, Status *status
     }
 }
 
-MapperField::MapperField(const Mapper *_mapper, const Mapper::Field *_field) :
+MapperField::MapperField(pTHX_ const Mapper *_mapper, const Mapper::Field *_field) :
         field(_field),
         mapper(_mapper) {
+    SET_THX_MEMBER;
     mapper->ref();
 }
 
@@ -992,7 +995,7 @@ MapperField::~MapperField() {
     mapper->unref();
 }
 
-MapperField *MapperField::find_extension(CV *cv, SV *extension) {
+MapperField *MapperField::find_extension(pTHX_ CV *cv, SV *extension) {
     const Mapper *mapper = (const Mapper *) CvXSUBANY(cv).any_ptr;
     STRLEN len;
     const char *buffer = SvPV(extension, len);
@@ -1012,16 +1015,16 @@ MapperField *MapperField::find_extension(CV *cv, SV *extension) {
     return mapper_field;
 }
 
-MapperField *MapperField::find_scalar_extension(CV *cv, SV *extension) {
-    MapperField *mf = find_extension(cv, extension);
+MapperField *MapperField::find_scalar_extension(pTHX_ CV *cv, SV *extension) {
+    MapperField *mf = find_extension(aTHX_ cv, extension);
     if (mf && mf->is_repeated())
         croak("Extension field '%s' is a repeated field", mf->field->full_name().c_str());
 
     return mf;
 }
 
-MapperField *MapperField::find_repeated_extension(CV *cv, SV *extension) {
-    MapperField *mf = find_extension(cv, extension);
+MapperField *MapperField::find_repeated_extension(pTHX_ CV *cv, SV *extension) {
+    MapperField *mf = find_extension(aTHX_ cv, extension);
     if (mf && !mf->is_repeated())
         croak("Extension field '%s' is a non-repeated field", mf->field->full_name().c_str());
 
@@ -1111,7 +1114,7 @@ void MapperField::copy_value_or_default(SV *target, SV *value) {
         sv_setnv(target, value ? SvNV(value) : field_def->default_double());
         break;
     case UPB_TYPE_BOOL:
-        set_bool(target, value ? SvTRUE(value) : field_def->default_bool());
+        set_bool(aTHX_ target, value ? SvTRUE(value) : field_def->default_bool());
         break;
     case UPB_TYPE_STRING: {
         if (value) {
@@ -1168,7 +1171,7 @@ void MapperField::copy_value_or_default(SV *target, SV *value) {
         if (sizeof(IV) >= sizeof(int64_t))
             sv_setiv(target, value ? SvIV(value) : field_def->default_int64());
         else {
-            int64_t i64 = value ? get_int64(value) : field_def->default_int64();
+            int64_t i64 = value ? get_int64(aTHX_ value) : field_def->default_int64();
 
             set_bigint(aTHX_ target, (uint64_t) i64, i64 < 0);
         }
@@ -1178,7 +1181,7 @@ void MapperField::copy_value_or_default(SV *target, SV *value) {
         if (sizeof(IV) >= sizeof(uint64_t))
             sv_setuv(target, value ? SvUV(value) : field_def->default_uint64());
         else {
-            int64_t u64 = value ? get_uint64(value) : field_def->default_uint64();
+            int64_t u64 = value ? get_uint64(aTHX_ value) : field_def->default_uint64();
 
             set_bigint(aTHX_ target, u64, false);
         }
@@ -1219,7 +1222,7 @@ void MapperField::copy_value(SV *target, SV *value) {
         sv_setnv(target, SvNV(value));
         break;
     case UPB_TYPE_BOOL:
-        set_bool(target, SvTRUE(value));
+        set_bool(aTHX_ target, SvTRUE(value));
         break;
     case UPB_TYPE_STRING: {
         STRLEN len;
@@ -1259,7 +1262,7 @@ void MapperField::copy_value(SV *target, SV *value) {
         if (sizeof(IV) >= sizeof(int64_t))
             sv_setiv(target, SvIV(value));
         else {
-            int64_t i64 = get_int64(value);
+            int64_t i64 = get_int64(aTHX_ value);
 
             set_bigint(aTHX_ target, (uint64_t) i64, i64 < 0);
         }
@@ -1269,7 +1272,7 @@ void MapperField::copy_value(SV *target, SV *value) {
         if (sizeof(IV) >= sizeof(uint64_t))
             sv_setuv(target, SvUV(value));
         else {
-            int64_t u64 = get_uint64(value);
+            int64_t u64 = get_uint64(aTHX_ value);
 
             set_bigint(aTHX_ target, u64, false);
         }

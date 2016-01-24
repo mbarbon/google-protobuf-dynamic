@@ -150,7 +150,7 @@ private:
 
 class MapperField : public Refcounted {
 public:
-    MapperField(const Mapper *mapper, const Mapper::Field *field);
+    MapperField(pTHX_ const Mapper *mapper, const Mapper::Field *field);
     ~MapperField();
 
     const char *name();
@@ -173,11 +173,12 @@ public:
     void get_list(HV *self, SV *target);
     void set_list(HV *self, SV *ref);
 
-    static MapperField *find_extension(CV *cv, SV *extension);
-    static MapperField *find_scalar_extension(CV *cv, SV *extension);
-    static MapperField *find_repeated_extension(CV *cv, SV *extension);
+    static MapperField *find_extension(pTHX_ CV *cv, SV *extension);
+    static MapperField *find_scalar_extension(pTHX_ CV *cv, SV *extension);
+    static MapperField *find_repeated_extension(pTHX_ CV *cv, SV *extension);
 
 private:
+    DECL_THX_MEMBER;
     SV *get_read_field(HV *self);
     SV *get_write_field(HV *self);
     AV *get_read_array(HV *self);
