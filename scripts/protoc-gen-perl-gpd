@@ -1,0 +1,61 @@
+#!/usr/bin/env perl
+use Google::ProtocolBuffers::Dynamic::ProtocPlugin
+    run => 'Google::ProtocolBuffers::Dynamic::MakeModule';
+
+exit 0;
+
+__END__
+
+=head1 NAME
+
+protoc-gen-perl-gpd - protoc plugin for Google::ProtocolBuffers::Dynamic
+
+=head1 SYNOPSIS
+
+    protoc --perl-gpd_out=package=Foo.Bar:lib foo.proto
+    protoc --perl-gpd_out=package=Foo.Bar,check_enum_values:lib foo.proto
+    protoc --perl-gpd_out=package=Foo.Bar,no_check_enum_values:lib foo.proto
+
+=head1 DESCRIPTION
+
+This F<protoc> plugin generates wrapper modules for protobuf messages,
+to avoid the need of shipping F<.proto> files with a
+module/distribution.
+
+Note that since protoc command-line parsing reserves the colon as a
+separator between options list and output directory, the dot is used
+as a package separator for both protobuf and Perl packages.
+
+=head1 OPTIONS
+
+=head2 package=PACKAGE
+
+Specifies the output package/file (C<package=Foo.Bar> creates a module
+named F<Foo/Bar.pm> under the output directory).
+
+If no explicit mapping is specified, protobuf packages are
+automatically mapped to Perl packages under the main package (e.g. protobuf
+package C<baz> will be mapped to C<Foo::Bar::Baz>).
+
+=head2 map_package=PACKAGE,prefix=PREFIX[,OPTIONS]
+
+Equivalent to the C<package> mapping of L<Google::ProtocolBuffers::Dynamic/map>.
+
+The C<prefix> sub-option is mandatory.
+
+C<OPTIONS> is a comma-separated list, see L</Mapping options> for
+available options.
+
+=head2 Mapping options
+
+The following options map one to one to the C<options> key of
+L<Google::ProtocolBuffers::Dynamic/map>. When specified before the
+first mapping, they are applied to all mappings.
+
+Boolean options: C<use_bigints>, C<check_required_fields>,
+C<explicit_defaults>, C<encode_defaults>, C<check_enum_values>,
+C<generic_extension_methods>. When specified they set the option value
+to 1, when prefixed with C<no_> (e.g. C<no_use_bigints>) they set the
+option value to 0.
+
+=cut

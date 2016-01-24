@@ -23,6 +23,6 @@ Implement:
 - lazy fields
 - services
 - custom options?
-- protoc plugin
 - encode_defaults option
 - generic extension methods perform a linear scan on the extension list
+- better parameter checking/error handling in protoc plugin

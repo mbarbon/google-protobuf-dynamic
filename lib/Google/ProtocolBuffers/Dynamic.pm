@@ -57,6 +57,8 @@ __END__
     $person->set_id(77);
     $id = $person->get_id;
 
+See also L<protoc-gen-perl-gpd> for ahead-of-time generation.
+
 =head1 DESCRIPTION
 
 This module uses Google C++ Protocol Buffers parser and the uPB
@@ -390,6 +392,8 @@ Proto3 support will be implemented after Protocol Buffers 3 final is released.
 See also the L<TODO|https://github.com/mbarbon/google-protobuf-dynamic/blob/master/TODO>
 
 =head1 SEE ALSO
+
+L<protoc-gen-perl-gpd>
 
 L<Google Protocol Buffers page|https://developers.google.com/protocol-buffers>
 

@@ -1,0 +1,8 @@
+Serialized descriptors for protoc plugin interface, used for
+bootstrapping the protoc plugin
+
+If needed, they can be regenerated with:
+
+$ cd /path/to/google/protobuf
+$ protoc -o descriptor.pb -Isrc src/google/protobuf/descriptor.proto
+$ protoc -o plugin.pb -Isrc src/google/protobuf/compiler/plugin.proto
