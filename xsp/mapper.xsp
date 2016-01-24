@@ -53,10 +53,17 @@ decode_to_perl(SV *klass, SV *scalar)
   OUTPUT: RETVAL
 
 SV*
-encode_from_perl(SV *klass, SV *ref)
+encode_from_perl(SV *klass_or_object, SV *ref = NULL)
   INIT:
     gpd::Mapper *mapper = (gpd::Mapper *) CvXSUBANY(cv).any_ptr;
   CODE:
+    if (ref == NULL) {
+        if (sv_isobject(klass_or_object))
+            ref = klass_or_object;
+        else
+            croak("Usage: $object->encode_from_perl or $class->encode_from_perl($hash)");
+    }
+
     RETVAL = mapper->encode_from_perl(ref);
 
     if (!RETVAL) {
