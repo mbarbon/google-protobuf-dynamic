@@ -375,6 +375,30 @@ Enabled by default.
 Controls the generation of generic extension methods. Only disable
 when there is a field named C<extension>.
 
+=head2 accessor_style
+
+Defaults to C<get_and_set>.
+
+It controls the naming and interface of getters/setters created for
+message fields. Accepted values are:
+
+=over 4
+
+=item get_and_set
+
+Getter is prefixed with C<get_>, setter with C<set_>.
+
+=item plain_and_set
+
+Getter does not have any prefix, setter with C<set_>.
+
+=item single_accessor
+
+Generates a single method without a prefix that acts as a setter when
+a value is passed, as a getter otherwise.
+
+=back
+
 =cut
 
 # TODO =head2 encode_defaults

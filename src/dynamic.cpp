@@ -19,7 +19,8 @@ MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
         explicit_defaults(false),
         encode_defaults(true),
         check_enum_values(true),
-        generic_extension_methods(true) {
+        generic_extension_methods(true),
+        accessor_style(GetAndSet) {
     if (options_ref == NULL || !SvOK(options_ref))
         return;
     if (!SvROK(options_ref) || SvTYPE(SvRV(options_ref)) != SVt_PVHV)
@@ -38,6 +39,19 @@ MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
     BOOLEAN_OPTION(encode_defaults, encode_defaults);
     BOOLEAN_OPTION(check_enum_values, check_enum_values);
     BOOLEAN_OPTION(generic_extension_methods, generic_extension_methods);
+
+    if (SV **value = hv_fetchs(options, "accessor_style", 0)) {
+        const char *buf = SvPV_nolen(*value);
+
+        if (strEQ(buf, "get_and_set"))
+            accessor_style = GetAndSet;
+        else if (strEQ(buf, "plain_and_set"))
+            accessor_style = PlainAndSet;
+        else if (strEQ(buf, "single_accessor"))
+            accessor_style = SingleAccessor;
+        else
+            croak("Invalid value '%s' for 'accessor_style' option", buf);
+    }
 
 #undef BOOLEAN_OPTION
 }
@@ -116,6 +130,10 @@ namespace {
 
     void copy_and_bind(pTHX_ const char *name, const string &perl_package, Mapper *mapper) {
         copy_and_bind(aTHX_ name, name, perl_package, mapper);
+    }
+
+    void copy_and_bind(pTHX_ const char *name, const char *prefix, const char *suffix, const string &perl_package, Mapper *mapper) {
+        copy_and_bind(aTHX_ name, (string(prefix) + suffix).c_str(), perl_package, mapper);
     }
 
     void copy_and_bind_field(pTHX_ const char *name, const string &name_prefix, const string &name_suffix, const string &perl_package, MapperField *mapperfield) {
@@ -214,6 +232,15 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
     HV *stash = gv_stashpvn(perl_package.data(), perl_package.size(), GV_ADD);
     const MessageDef *message_def = def_builder.GetMessageDef(descriptor);
     Mapper *mapper = new Mapper(aTHX_ this, message_def, stash, options);
+    const char *getter_prefix, *setter_prefix;
+
+    if (options.accessor_style == MappingOptions::SingleAccessor) {
+        getter_prefix = setter_prefix = NULL;
+    } else {
+        getter_prefix = options.accessor_style == MappingOptions::GetAndSet ?
+            "get_" : "";
+        setter_prefix = "set_";
+    }
 
     descriptor_map[message_def->full_name()] = mapper;
     used_packages.insert(perl_package);
@@ -226,14 +253,20 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
     if (options.generic_extension_methods) {
         copy_and_bind(aTHX_ "has_extension_field", "has_extension", perl_package, mapper);
         copy_and_bind(aTHX_ "clear_extension_field", "clear_extension", perl_package, mapper);
-        copy_and_bind(aTHX_ "get_extension_scalar", "get_extension", perl_package, mapper);
-        copy_and_bind(aTHX_ "set_extension_scalar", "set_extension", perl_package, mapper);
-        copy_and_bind(aTHX_ "get_extension_item", perl_package, mapper);
-        copy_and_bind(aTHX_ "set_extension_item", perl_package, mapper);
         copy_and_bind(aTHX_ "add_extension_item", perl_package, mapper);
         copy_and_bind(aTHX_ "extension_list_size", "extension_size", perl_package, mapper);
-        copy_and_bind(aTHX_ "get_extension_list", perl_package, mapper);
-        copy_and_bind(aTHX_ "set_extension_list", perl_package, mapper);
+        if (getter_prefix) {
+            copy_and_bind(aTHX_ "get_extension_scalar", getter_prefix, "extension", perl_package, mapper);
+            copy_and_bind(aTHX_ "set_extension_scalar", setter_prefix, "extension", perl_package, mapper);
+            copy_and_bind(aTHX_ "get_extension_item", getter_prefix, "extension_item", perl_package, mapper);
+            copy_and_bind(aTHX_ "set_extension_item", setter_prefix, "extension_item", perl_package, mapper);
+            copy_and_bind(aTHX_ "get_extension_list", getter_prefix, "extension_list", perl_package, mapper);
+            copy_and_bind(aTHX_ "set_extension_list", setter_prefix, "extension_list", perl_package, mapper);
+        } else {
+            copy_and_bind(aTHX_ "get_or_set_extension_scalar", "extension", perl_package, mapper);
+            copy_and_bind(aTHX_ "get_or_set_extension_item", "extension_item", perl_package, mapper);
+            copy_and_bind(aTHX_ "get_or_set_extension_list", "extension_list", perl_package, mapper);
+        }
     }
 
     for (int i = 0, max = mapper->field_count(); i < max; ++i) {
@@ -259,16 +292,25 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
 
         copy_and_bind_field(aTHX_ "clear_field", "clear_", "", perl_package, mapperfield);
         if (mapperfield->is_repeated()) {
-            copy_and_bind_field(aTHX_ "get_item", "get_", "", perl_package, mapperfield);
-            copy_and_bind_field(aTHX_ "set_item", "set_", "", perl_package, mapperfield);
             copy_and_bind_field(aTHX_ "add_item", "add_", "", perl_package, mapperfield);
             copy_and_bind_field(aTHX_ "list_size", "", "_size", perl_package, mapperfield);
-            copy_and_bind_field(aTHX_ "get_list", "get_", "_list", perl_package, mapperfield);
-            copy_and_bind_field(aTHX_ "set_list", "set_", "_list", perl_package, mapperfield);
+            if (getter_prefix) {
+                copy_and_bind_field(aTHX_ "get_item", getter_prefix, "", perl_package, mapperfield);
+                copy_and_bind_field(aTHX_ "set_item", setter_prefix, "", perl_package, mapperfield);
+                copy_and_bind_field(aTHX_ "get_list", getter_prefix, "_list", perl_package, mapperfield);
+                copy_and_bind_field(aTHX_ "set_list", setter_prefix, "_list", perl_package, mapperfield);
+            } else {
+                copy_and_bind_field(aTHX_ "get_or_set_item", "", "", perl_package, mapperfield);
+                copy_and_bind_field(aTHX_ "get_or_set_list", "", "_list", perl_package, mapperfield);
+            }
         } else {
             copy_and_bind_field(aTHX_ "has_field", "has_", "", perl_package, mapperfield);
-            copy_and_bind_field(aTHX_ "get_scalar", "get_", "", perl_package, mapperfield);
-            copy_and_bind_field(aTHX_ "set_scalar", "set_", "", perl_package, mapperfield);
+            if (getter_prefix) {
+                copy_and_bind_field(aTHX_ "get_scalar", getter_prefix, "", perl_package, mapperfield);
+                copy_and_bind_field(aTHX_ "set_scalar", setter_prefix, "", perl_package, mapperfield);
+            } else {
+                copy_and_bind_field(aTHX_ "get_or_set_scalar", "", "", perl_package, mapperfield);
+            }
         }
 
         mapperfield->unref();

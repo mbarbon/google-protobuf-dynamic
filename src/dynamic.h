@@ -21,12 +21,19 @@ namespace gpd {
 class Mapper;
 
 struct MappingOptions {
+    enum AccessorStyle {
+        GetAndSet = 1,
+        PlainAndSet = 2,
+        SingleAccessor = 3,
+    };
+
     bool use_bigints;
     bool check_required_fields;
     bool explicit_defaults;
     bool encode_defaults;
     bool check_enum_values;
     bool generic_extension_methods;
+    AccessorStyle accessor_style;
 
     MappingOptions(pTHX_ SV *options_ref);
 };

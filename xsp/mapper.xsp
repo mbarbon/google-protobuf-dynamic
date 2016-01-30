@@ -139,6 +139,30 @@ set_extension_scalar(HV *self, SV *extension, SV *value)
     field->set_scalar(self, value);
 
 void
+get_or_set_scalar(HV *self, SV *value = NULL)
+  INIT:
+    dXSTARG;
+    gpd::MapperField *field = (gpd::MapperField *) CvXSUBANY(cv).any_ptr;
+  PPCODE:
+    if (!value) {
+        field->get_scalar(self, TARG);
+        XSprePUSH; PUSHs(TARG);
+    } else
+        field->set_scalar(self, value);
+
+void
+get_or_set_extension_scalar(HV *self, SV *extension, SV *value = NULL)
+  INIT:
+    dXSTARG;
+    gpd::MapperField *field = gpd::MapperField::find_scalar_extension(aTHX_ cv, extension);
+  PPCODE:
+    if (!value) {
+        field->get_scalar(self, TARG);
+        XSprePUSH; PUSHs(TARG);
+    } else
+        field->set_scalar(self, value);
+
+void
 get_item(HV *self, IV index)
   INIT:
     dXSTARG;
@@ -169,6 +193,30 @@ set_extension_item(HV *self, SV *extension, IV index, SV *value)
     gpd::MapperField *field = gpd::MapperField::find_repeated_extension(aTHX_ cv, extension);
   CODE:
     field->set_item(self, index, value);
+
+void
+get_or_set_item(HV *self, IV index, SV *value = NULL)
+  INIT:
+    dXSTARG;
+    gpd::MapperField *field = (gpd::MapperField *) CvXSUBANY(cv).any_ptr;
+  PPCODE:
+    if (!value) {
+        field->get_item(self, index, TARG);
+        XSprePUSH; PUSHs(TARG);
+    } else
+        field->set_item(self, index, value);
+
+void
+get_or_set_extension_item(HV *self, SV *extension, IV index, SV *value = NULL)
+  INIT:
+    dXSTARG;
+    gpd::MapperField *field = gpd::MapperField::find_scalar_extension(aTHX_ cv, extension);
+  PPCODE:
+    if (!value) {
+        field->get_item(self, index, TARG);
+        XSprePUSH; PUSHs(TARG);
+    } else
+        field->set_item(self, index, value);
 
 void
 add_item(HV *self, SV *value)
@@ -231,5 +279,29 @@ set_extension_list(HV *self, SV *extension, SV *ref)
     gpd::MapperField *field = gpd::MapperField::find_repeated_extension(aTHX_ cv, extension);
   CODE:
     field->set_list(self, ref);
+
+void
+get_or_set_list(HV *self, SV *ref = NULL)
+  INIT:
+    dXSTARG;
+    gpd::MapperField *field = (gpd::MapperField *) CvXSUBANY(cv).any_ptr;
+  PPCODE:
+    if (!ref) {
+        field->get_list(self, TARG);
+        XSprePUSH; PUSHs(TARG);
+    } else
+        field->set_list(self, ref);
+
+void
+get_or_set_extension_list(HV *self, SV *extension, SV *ref = NULL)
+  INIT:
+    dXSTARG;
+    gpd::MapperField *field = gpd::MapperField::find_scalar_extension(aTHX_ cv, extension);
+  PPCODE:
+    if (!ref) {
+        field->get_list(self, TARG);
+        XSprePUSH; PUSHs(TARG);
+    } else
+        field->set_list(self, ref);
 
 %}

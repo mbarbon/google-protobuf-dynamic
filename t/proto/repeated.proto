@@ -1,9 +1,9 @@
 package test;
 
-enum Enum {
-    FIRST = 1;
-    SECOND = 2;
-    THIRD = 3;
+enum RepeatedEnum {
+    REPEATED_FIRST = 1;
+    REPEATED_SECOND = 2;
+    REPEATED_THIRD = 3;
 }
 
 message Repeated {
@@ -16,7 +16,7 @@ message Repeated {
     repeated bool bool_f = 7;
     repeated string string_f = 8;
     repeated bytes bytes_f = 9;
-    repeated Enum enum_f = 10;
+    repeated RepeatedEnum enum_f = 10;
 }
 
 message Packed {
@@ -27,5 +27,5 @@ message Packed {
     repeated uint32 uint32_f = 5 [packed=true];
     repeated uint64 uint64_f = 6 [packed=true];
     repeated bool bool_f = 7 [packed=true];
-    repeated Enum enum_f = 10 [packed=true];
+    repeated RepeatedEnum enum_f = 10 [packed=true];
 }

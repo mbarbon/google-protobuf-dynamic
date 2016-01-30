@@ -1,6 +1,4 @@
 Implement:
-- message API (with value validation)
-  - accessor styles (get_foo/set_foo, foo, foo/set_foo)
 - serialize fields sorted by field number
   (will break current oneof serialization check)
 - simple extension option (Google::ProtocolBuffers compatibility)
