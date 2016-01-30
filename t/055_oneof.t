@@ -12,8 +12,8 @@ $d->resolve_references();
         value2 => 'foo',
     });
 
-    eq_or_diff(OneOf1->decode_to_perl($encoded), $decoded);
-    eq_or_diff(OneOf1->encode_from_perl($decoded), $encoded);
+    eq_or_diff(OneOf1->decode($encoded), $decoded);
+    eq_or_diff(OneOf1->encode($decoded), $encoded);
 }
 
 {
@@ -23,8 +23,8 @@ $d->resolve_references();
         value3 => 4,
     });
 
-    eq_or_diff(OneOf1->decode_to_perl($encoded), $decoded);
-    eq_or_diff(OneOf1->encode_from_perl($decoded), $encoded);
+    eq_or_diff(OneOf1->decode($encoded), $decoded);
+    eq_or_diff(OneOf1->encode($decoded), $encoded);
 }
 
 {
@@ -34,7 +34,7 @@ $d->resolve_references();
         value3 => 4,
     });
 
-    eq_or_diff(OneOf1->decode_to_perl($encoded), $decoded);
+    eq_or_diff(OneOf1->decode($encoded), $decoded);
 }
 
 {
@@ -44,7 +44,7 @@ $d->resolve_references();
         value2 => 'foo',
     });
 
-    eq_or_diff(OneOf1->decode_to_perl($encoded), $decoded);
+    eq_or_diff(OneOf1->decode($encoded), $decoded);
 }
 
 {
@@ -55,7 +55,7 @@ $d->resolve_references();
         value3 => 4,
     });
 
-    eq_or_diff(OneOf1->encode_from_perl($decoded), $encoded);
+    eq_or_diff(OneOf1->encode($decoded), $encoded);
 }
 
 done_testing();

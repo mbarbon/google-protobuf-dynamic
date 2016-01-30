@@ -38,13 +38,13 @@ new(SV *klass, SV *ref = NULL)
   OUTPUT: RETVAL
 
 SV*
-decode_to_perl(SV *klass, SV *scalar)
+decode(SV *klass, SV *scalar)
   INIT:
     gpd::Mapper *mapper = (gpd::Mapper *) CvXSUBANY(cv).any_ptr;
     STRLEN bufsize;
     const char *buffer = SvPV(scalar, bufsize);
   CODE:
-    RETVAL = mapper->decode_to_perl(buffer, bufsize);
+    RETVAL = mapper->decode(buffer, bufsize);
 
     if (!RETVAL) {
         sv_2mortal(RETVAL);
@@ -53,7 +53,7 @@ decode_to_perl(SV *klass, SV *scalar)
   OUTPUT: RETVAL
 
 SV*
-encode_from_perl(SV *klass_or_object, SV *ref = NULL)
+encode(SV *klass_or_object, SV *ref = NULL)
   INIT:
     gpd::Mapper *mapper = (gpd::Mapper *) CvXSUBANY(cv).any_ptr;
   CODE:
@@ -61,10 +61,10 @@ encode_from_perl(SV *klass_or_object, SV *ref = NULL)
         if (sv_isobject(klass_or_object))
             ref = klass_or_object;
         else
-            croak("Usage: $object->encode_from_perl or $class->encode_from_perl($hash)");
+            croak("Usage: $object->encode or $class->encode($hash)");
     }
 
-    RETVAL = mapper->encode_from_perl(ref);
+    RETVAL = mapper->encode(ref);
 
     if (!RETVAL) {
         sv_2mortal(RETVAL);

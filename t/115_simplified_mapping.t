@@ -12,7 +12,7 @@ use t::lib::Test;
         { package => 'test2', prefix => 'Test2' },
     );
 
-    eq_or_diff(Test1::Message3->decode_to_perl("\x0a\x02\x08\x01\x12\x02\x08\x01"), Test1::Message3->new({
+    eq_or_diff(Test1::Message3->decode("\x0a\x02\x08\x01\x12\x02\x08\x01"), Test1::Message3->new({
         test1_message3_message1 => Test1::Message1->new({
             test1_message1 => 1,
         }),
@@ -21,7 +21,7 @@ use t::lib::Test;
         }),
     }), "composite message - multiple packages");
 
-    eq_or_diff(Test2::Composite->decode_to_perl("\x0a\x02\x08\x01\x12\x02\x08\x01"), Test2::Composite->new({
+    eq_or_diff(Test2::Composite->decode("\x0a\x02\x08\x01\x12\x02\x08\x01"), Test2::Composite->new({
         test1_message3_message1 => Test2::Message1->new({
             test2_message1 => 1,
         }),

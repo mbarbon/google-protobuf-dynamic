@@ -163,7 +163,7 @@ sub generate_codegen_request {
     (my $output_file = $package) =~ s{::}{/}g;
     my $code = $class->generate(
         mappings    => \@mappings,
-        descriptors => [$descriptors->encode_from_perl],
+        descriptors => [$descriptors->encode],
         package     => $package,
     );
 

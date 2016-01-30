@@ -10,10 +10,10 @@ no warnings 'redefine';
     $d->map_package('test1', 'Test1');
     $d->resolve_references();
 
-    eq_or_diff(Test1::FirstMessage->decode_to_perl("\x08\x01"), Test1::FirstMessage->new({
+    eq_or_diff(Test1::FirstMessage->decode("\x08\x01"), Test1::FirstMessage->new({
         test1_message1 => 1,
     }), "simple message 2");
-    eq_or_diff(Test1::Message3->decode_to_perl("\x0a\x02\x08\x01\x12\x02\x08\x01"), Test1::Message3->new({
+    eq_or_diff(Test1::Message3->decode("\x0a\x02\x08\x01\x12\x02\x08\x01"), Test1::Message3->new({
         test1_message3_message1 => Test1::FirstMessage->new({
             test1_message1 => 1,
         }),

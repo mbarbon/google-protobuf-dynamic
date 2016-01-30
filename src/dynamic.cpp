@@ -219,8 +219,8 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
     used_packages.insert(perl_package);
     pending.push_back(mapper);
 
-    copy_and_bind(aTHX_ "decode_to_perl", perl_package, mapper);
-    copy_and_bind(aTHX_ "encode_from_perl", perl_package, mapper);
+    copy_and_bind(aTHX_ "decode", perl_package, mapper);
+    copy_and_bind(aTHX_ "encode", perl_package, mapper);
     copy_and_bind(aTHX_ "new", perl_package, mapper);
 
     if (options.generic_extension_methods) {

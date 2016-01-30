@@ -49,8 +49,8 @@ __END__
     $dynamic->map({ package => 'humans', prefix => 'Humans' });
 
     # encoding/decoding
-    $person = Humans::Person->decode_to_perl("\x0a\x03foo\x10\x1f");
-    $bytes = Humans::Person->encode_from_perl($person);
+    $person = Humans::Person->decode("\x0a\x03foo\x10\x1f");
+    $bytes = Humans::Person->encode($person);
 
     # field accessors
     $person = Humans::Person->new;

@@ -32,8 +32,8 @@ my %packed_values = (
 
 for my $field (sort keys %values) {
     my ($values, $encoded) = @{$values{$field}};
-    my $bytes = Repeated->encode_from_perl({ $field => $values });
-    my $decoded = Repeated->decode_to_perl($bytes);
+    my $bytes = Repeated->encode({ $field => $values });
+    my $decoded = Repeated->decode($bytes);
 
     eq_or_diff($bytes, $encoded,
                "$field - encoded value");
@@ -43,8 +43,8 @@ for my $field (sort keys %values) {
 
 for my $field (sort keys %packed_values) {
     my ($values, $encoded) = @{$packed_values{$field}};
-    my $bytes = Packed->encode_from_perl({ $field => $values });
-    my $decoded = Packed->decode_to_perl($bytes);
+    my $bytes = Packed->encode({ $field => $values });
+    my $decoded = Packed->decode($bytes);
 
     eq_or_diff($bytes, $encoded,
                "$field - packed value");
@@ -53,11 +53,11 @@ for my $field (sort keys %packed_values) {
 }
 
 # unusual, but the spec excplicitly mentions them
-eq_or_diff(Repeated->decode_to_perl("\x18\x01\x38\x01\x18\x02\x38\x00"), Repeated->new({
+eq_or_diff(Repeated->decode("\x18\x01\x38\x01\x18\x02\x38\x00"), Repeated->new({
     int32_f => [1, 2],
     bool_f  => [1, ''],
 }), "non-contiguous repeated fields");
-eq_or_diff(Packed->decode_to_perl("\x1a\x02\x01\x02\x1a\x02\x03\x04"), Packed->new({
+eq_or_diff(Packed->decode("\x1a\x02\x01\x02\x1a\x02\x03\x04"), Packed->new({
     int32_f => [1, 2, 3, 4],
 }), "packed repeated field in multiple chunks");
 

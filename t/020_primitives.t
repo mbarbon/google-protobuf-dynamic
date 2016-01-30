@@ -49,8 +49,8 @@ bless \%test_defaults, 'Default';
 
 for my $field (sort keys %values) {
     my ($value, $encoded) = @{$values{$field}};
-    my $bytes = Basic->encode_from_perl({ $field => $value });
-    my $decoded = Basic->decode_to_perl($bytes);
+    my $bytes = Basic->encode({ $field => $value });
+    my $decoded = Basic->decode($bytes);
 
     eq_or_diff($bytes, $encoded,
                "$field - encoded value");
@@ -58,7 +58,7 @@ for my $field (sort keys %values) {
                "$field - round trip");
 }
 
-eq_or_diff(Basic->decode_to_perl(''), \%default_defaults, "implicit defaults");
-eq_or_diff(Default->decode_to_perl(''), \%test_defaults, "explicit defaults");
+eq_or_diff(Basic->decode(''), \%default_defaults, "implicit defaults");
+eq_or_diff(Default->decode(''), \%test_defaults, "explicit defaults");
 
 done_testing();

@@ -14,8 +14,8 @@ $d->resolve_references();
         '[test.extension1]' => 3,
     });
 
-    eq_or_diff(BaseMessage->decode_to_perl($encoded), $decoded);
-    eq_or_diff(BaseMessage->encode_from_perl($decoded), $encoded);
+    eq_or_diff(BaseMessage->decode($encoded), $decoded);
+    eq_or_diff(BaseMessage->encode($decoded), $encoded);
 
     is(BaseMessage::VALUE_FIELD_NUMBER(), 1);
     is(ExtensionMessage::VALUE_FIELD_NUMBER(), 1);
@@ -38,8 +38,8 @@ $d->resolve_references();
         }),
     });
 
-    eq_or_diff(BaseMessage->decode_to_perl($encoded), $decoded);
-    eq_or_diff(BaseMessage->encode_from_perl($decoded), $encoded);
+    eq_or_diff(BaseMessage->decode($encoded), $decoded);
+    eq_or_diff(BaseMessage->encode($decoded), $encoded);
 }
 
 done_testing();

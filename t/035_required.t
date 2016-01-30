@@ -13,8 +13,8 @@ $d->resolve_references();
         email => 'foo@test.com',
     });
 
-    eq_or_diff(Person->decode_to_perl($encoded), $decoded);
-    eq_or_diff(Person->encode_from_perl($decoded), $encoded);
+    eq_or_diff(Person->decode($encoded), $decoded);
+    eq_or_diff(Person->encode($decoded), $encoded);
 }
 
 {
@@ -24,12 +24,12 @@ $d->resolve_references();
     });
 
     throws_ok(
-        sub { Person->decode_to_perl($encoded) },
+        sub { Person->decode($encoded) },
         qr/Deserialization failed: Missing required field test.Person.id/,
     );
 
     throws_ok(
-        sub { Person->encode_from_perl($decoded) },
+        sub { Person->encode($decoded) },
         qr/Serialization failed: Missing required field test.Person.id/,
     );
 }

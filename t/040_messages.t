@@ -29,8 +29,8 @@ $d->resolve_references();
         ],
     });
 
-    eq_or_diff(OuterWithMessage->decode_to_perl($encoded), $decoded);
-    eq_or_diff(OuterWithMessage->encode_from_perl($for_encode), $encoded);
+    eq_or_diff(OuterWithMessage->decode($encoded), $decoded);
+    eq_or_diff(OuterWithMessage->encode($for_encode), $encoded);
 }
 
 {
@@ -42,8 +42,8 @@ $d->resolve_references();
         ],
     });
 
-    eq_or_diff(OuterWithGroup->decode_to_perl($encoded), $decoded);
-    eq_or_diff(OuterWithGroup->encode_from_perl($decoded), $encoded);
+    eq_or_diff(OuterWithGroup->decode($encoded), $decoded);
+    eq_or_diff(OuterWithGroup->encode($decoded), $encoded);
 }
 
 # unusual, but the spec excplicitly mentions this
@@ -57,8 +57,8 @@ $d->resolve_references();
         }),
     });
 
-    eq_or_diff(OuterWithMessage->decode_to_perl($encoded), $decoded);
-    eq_or_diff(OuterWithMessage->encode_from_perl($decoded), $reencoded);
+    eq_or_diff(OuterWithMessage->decode($encoded), $decoded);
+    eq_or_diff(OuterWithMessage->encode($decoded), $reencoded);
 }
 
 done_testing();

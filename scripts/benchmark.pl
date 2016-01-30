@@ -41,17 +41,17 @@ sub random_person {
 
 my $person = random_person(1);
 my $pb_person = Test::Person->encode($person);
-my $pbd_person = DynamicPerson->encode_from_perl($person);
+my $pbd_person = DynamicPerson->encode($person);
 my $sereal_person = $sereal_encoder->encode($person);
 my $json_person = JSON::encode_json($person);
 
 sub encode_protobuf_pp_one { Test::Person->encode($person); }
-sub encode_protobuf_one { DynamicPerson->encode_from_perl($person); }
+sub encode_protobuf_one { DynamicPerson->encode($person); }
 sub encode_sereal_one { $sereal_encoder->encode($person); }
 sub encode_json_one { JSON::encode_json($person); }
 
 sub decode_protobuf_pp_one { Test::Person->decode($pb_person); }
-sub decode_protobuf_one { DynamicPerson->decode_to_perl($pbd_person); }
+sub decode_protobuf_one { DynamicPerson->decode($pbd_person); }
 sub decode_sereal_one { $sereal_decoder->decode($sereal_person); }
 sub decode_json_one { JSON::from_json($json_person); }
 
@@ -75,17 +75,17 @@ my $persons = {
     persons => [map random_person($_), 1 .. 100 ],
 };
 my $pb_persons = Test::PersonArray->encode($persons);
-my $pbd_persons = DynamicPersonArray->encode_from_perl($persons);
+my $pbd_persons = DynamicPersonArray->encode($persons);
 my $sereal_persons = $sereal_encoder->encode($persons);
 my $json_persons = JSON::encode_json($persons);
 
 sub encode_protobuf_pp_arr { Test::PersonArray->encode($persons); }
-sub encode_protobuf_arr { DynamicPersonArray->encode_from_perl($persons); }
+sub encode_protobuf_arr { DynamicPersonArray->encode($persons); }
 sub encode_sereal_arr { $sereal_encoder->encode($persons); }
 sub encode_json_arr { JSON::encode_json($persons); }
 
 sub decode_protobuf_pp_arr { Test::PersonArray->decode($pb_persons); }
-sub decode_protobuf_arr { DynamicPersonArray->decode_to_perl($pbd_persons); }
+sub decode_protobuf_arr { DynamicPersonArray->decode($pbd_persons); }
 sub decode_sereal_arr { $sereal_decoder->decode($sereal_persons); }
 sub decode_json_arr { JSON::from_json($json_persons); }
 

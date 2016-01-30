@@ -17,19 +17,19 @@ sub import {
         local $/;
         readline STDIN;
     };
-    my $codegen_request = Google::ProtocolBuffers::Dynamic::ProtocInterface::CodeGeneratorRequest->decode_to_perl($input);
+    my $codegen_request = Google::ProtocolBuffers::Dynamic::ProtocInterface::CodeGeneratorRequest->decode($input);
     my $codegen_response;
 
     eval {
         my $code = $generator->generate_codegen_request($codegen_request);
 
-        $codegen_response = Google::ProtocolBuffers::Dynamic::ProtocInterface::CodeGeneratorResponse->encode_from_perl($code);
+        $codegen_response = Google::ProtocolBuffers::Dynamic::ProtocInterface::CodeGeneratorResponse->encode($code);
 
         1;
     } or do {
         my $error = $@ || "Zombie error";
 
-        $codegen_response = Google::ProtocolBuffers::Dynamic::ProtocInterface::CodeGeneratorResponse->encode_from_perl({
+        $codegen_response = Google::ProtocolBuffers::Dynamic::ProtocInterface::CodeGeneratorResponse->encode({
             error => $error,
         });
     };

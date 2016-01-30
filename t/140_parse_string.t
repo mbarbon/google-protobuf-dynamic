@@ -13,7 +13,7 @@ EOT
 
 $d->map({ package => 'test', prefix => 'Test' });
 
-my $p = Test::Person->decode_to_perl("\x0a\x03foo\x10\x1f");
+my $p = Test::Person->decode("\x0a\x03foo\x10\x1f");
 
 eq_or_diff($p, Test::Person->new({ id => 31, name => 'foo' }));
 

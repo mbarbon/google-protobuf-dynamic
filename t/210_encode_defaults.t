@@ -6,11 +6,11 @@ use t::lib::Test skip_all => 'Placeholder';
     $d->map({ package => 'test', prefix => 'Test1', options => { encode_defaults => 1 } });
 
     eq_or_diff(
-        Test1::Defaults->encode_from_perl({ value => 2 }),
+        Test1::Defaults->encode({ value => 2 }),
         "\x08\x02",
     );
     eq_or_diff(
-        Test1::Defaults->encode_from_perl({ value => 7 }),
+        Test1::Defaults->encode({ value => 7 }),
         "\x08\x07",
     );
 }
@@ -21,11 +21,11 @@ use t::lib::Test skip_all => 'Placeholder';
     $d->map({ package => 'test', prefix => 'Test2', options => { encode_default => 0 } });
 
     eq_or_diff(
-        Test2::Defaults->encode_from_perl({ value => 2 }),
+        Test2::Defaults->encode({ value => 2 }),
         "\x08\x02",
     );
     eq_or_diff(
-        Test2::Defaults->encode_from_perl({ value => 7 }),
+        Test2::Defaults->encode({ value => 7 }),
         "",
     );
 }

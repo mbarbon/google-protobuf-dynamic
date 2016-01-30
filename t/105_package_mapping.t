@@ -8,13 +8,13 @@ no warnings 'redefine';
     $d->map_package('test1', 'Test1');
     $d->resolve_references();
 
-    eq_or_diff(Test1::Message1->decode_to_perl("\x08\x01"), Test1::Message1->new({
+    eq_or_diff(Test1::Message1->decode("\x08\x01"), Test1::Message1->new({
         test1_message1 => 1,
     }), "simple message 2");
-    eq_or_diff(Test1::Message2->decode_to_perl("\x08\x01"), Test1::Message2->new({
+    eq_or_diff(Test1::Message2->decode("\x08\x01"), Test1::Message2->new({
         test1_message2 => 1,
     }), "simple message 2");
-    eq_or_diff(Test1::Message3->decode_to_perl("\x0a\x02\x08\x01\x12\x02\x08\x01"), Test1::Message3->new({
+    eq_or_diff(Test1::Message3->decode("\x0a\x02\x08\x01\x12\x02\x08\x01"), Test1::Message3->new({
         test1_message3_message1 => Test1::Message1->new({
             test1_message1 => 1,
         }),
@@ -22,7 +22,7 @@ no warnings 'redefine';
             test1_message2 => 1,
         }),
     }), "composite message");
-    eq_or_diff(Test1::Message4->decode_to_perl("\x12\x02\x08\x0f"), Test1::Message4->new({
+    eq_or_diff(Test1::Message4->decode("\x12\x02\x08\x0f"), Test1::Message4->new({
         inner => Test1::Message4::Message5->new({
             value => 15,
         }),
@@ -46,7 +46,7 @@ no warnings 'redefine';
     $d->map_package('test2', 'Test2');
     $d->resolve_references();
 
-    eq_or_diff(Test2::Message3->decode_to_perl("\x0a\x02\x08\x01\x12\x02\x08\x01"), Test2::Message3->new({
+    eq_or_diff(Test2::Message3->decode("\x0a\x02\x08\x01\x12\x02\x08\x01"), Test2::Message3->new({
         test1_message3_message1 => Test2::Message1->new({
             test2_message1 => 1,
         }),

@@ -12,8 +12,8 @@ $d->resolve_references();
         uint64_f => Math::BigInt->new('0x7ffffffff'),,
     });
 
-    eq_or_diff(BigInts->decode_to_perl($encoded), $decoded);
-    eq_or_diff(BigInts->encode_from_perl($decoded), $encoded);
+    eq_or_diff(BigInts->decode($encoded), $decoded);
+    eq_or_diff(BigInts->encode($decoded), $encoded);
 }
 
 {
@@ -23,8 +23,8 @@ $d->resolve_references();
         uint64_f => 0xfffffff,
     });
 
-    eq_or_diff(BigInts->decode_to_perl($encoded), $decoded);
-    eq_or_diff(BigInts->encode_from_perl($decoded), $encoded);
+    eq_or_diff(BigInts->decode($encoded), $decoded);
+    eq_or_diff(BigInts->encode($decoded), $encoded);
 }
 
 done_testing();

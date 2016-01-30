@@ -56,8 +56,8 @@ my %set_values = (
     enum_f      => 2,
 );
 
-my $default_defaults = Test::Default->decode_to_perl('');
-my $basic_defaults = Test::Basic->decode_to_perl('');
+my $default_defaults = Test::Default->decode('');
+my $basic_defaults = Test::Basic->decode('');
 
 for my $field (sort keys %default_defaults) {
     my $with_field = bless { $field => $get_values{$field} }, 'Test::Basic';

@@ -25,17 +25,17 @@ Constructs a new message instances using the passed-in data.
 Construction recurses into message fields, and it takes ownership of
 the passed-in hash, so don't use it afterwards.
 
-=head2 decode_to_perl
+=head2 decode
 
-    $msg = Message::Class->decode_to_perl($serialized_data);
+    $msg = Message::Class->decode($serialized_data);
 
 Deserializes Protocol Buffer binary data into a message instance.
 
-=head2 encode_from_perl
+=head2 encode
 
-    $serialized_data = Message::Class->encode_from_perl({ ... });
-    $serialized_data = Message::Class->encode_from_perl($message_instance);
-    $serialized_data = $message_instance->encode_from_perl;
+    $serialized_data = Message::Class->encode({ ... });
+    $serialized_data = Message::Class->encode($message_instance);
+    $serialized_data = $message_instance->encode;
 
 Serializes the given message instance (or mix of message instances and
 plain hashes) to Protocol Buffer binary format.
@@ -70,7 +70,7 @@ and the Perl message mapping:
 
 the following Perl code can be used to access extension values:
 
-    $message1 = Some::Perl::Package::Message1->decode_to_perl(...);
+    $message1 = Some::Perl::Package::Message1->decode(...);
 
     $value = $message1->get_extension('test.value');
     $value = $message2->get_extension(Some::Perl::Package::TEST_VALUE_KEY());

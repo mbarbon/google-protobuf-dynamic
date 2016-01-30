@@ -609,18 +609,18 @@ void Mapper::resolve_mappers() {
     encoder = upb::pb::Encoder::Create(&env, encoder_handlers.get(), string_sink.input());
 }
 
-SV *Mapper::encode_from_perl(SV *ref) {
+SV *Mapper::encode(SV *ref) {
     status.Clear();
     output_buffer.clear();
     SV *result = NULL;
-    if (encode_from_perl(encoder, encoder->input(), &status, ref))
+    if (encode(encoder, encoder->input(), &status, ref))
         result = newSVpvn(output_buffer.data(), output_buffer.size());
     output_buffer.clear();
 
     return result;
 }
 
-SV *Mapper::decode_to_perl(const char *buffer, STRLEN bufsize) {
+SV *Mapper::decode(const char *buffer, STRLEN bufsize) {
     status.Clear();
     decoder->Reset();
     decoder_callbacks.prepare(newHV());
@@ -834,7 +834,7 @@ bool Mapper::encode_from_message_array(Encoder *encoder, Sink *sink, Status *sta
 
         if (!sink->StartSubMessage(fd.selector.msg_start, &submsg))
             return false;
-        if (!encode_from_perl(encoder, &submsg, status, *item))
+        if (!encode(encoder, &submsg, status, *item))
             return false;
         if (!sink->EndSubMessage(fd.selector.msg_end))
             return false;
@@ -843,7 +843,7 @@ bool Mapper::encode_from_message_array(Encoder *encoder, Sink *sink, Status *sta
     return true;
 }
 
-bool Mapper::encode_from_perl(Encoder* encoder, Sink *sink, Status *status, SV *ref) const {
+bool Mapper::encode(Encoder* encoder, Sink *sink, Status *status, SV *ref) const {
     if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVHV)
         croak("Not an hash reference when encoding a %s value", message_def->full_name());
     HV *hv = (HV *) SvRV(ref);
@@ -874,7 +874,7 @@ bool Mapper::encode_from_perl(Encoder* encoder, Sink *sink, Status *status, SV *
         if (it->field_def->label() == UPB_LABEL_REPEATED)
             ok = ok && encode_from_perl_array(encoder, sink, status, *it, HeVAL(he));
         else
-            ok = ok && encode_from_perl(encoder, sink, status, *it, HeVAL(he));
+            ok = ok && encode(encoder, sink, status, *it, HeVAL(he));
     }
 
     if (!sink->EndMessage(status))
@@ -883,7 +883,7 @@ bool Mapper::encode_from_perl(Encoder* encoder, Sink *sink, Status *status, SV *
     return ok;
 }
 
-bool Mapper::encode_from_perl(Encoder* encoder, Sink *sink, Status *status, const Field &fd, SV *ref) const {
+bool Mapper::encode(Encoder* encoder, Sink *sink, Status *status, const Field &fd, SV *ref) const {
     switch (fd.field_def->type()) {
     case UPB_TYPE_FLOAT:
         return sink->PutFloat(fd.selector.primitive, SvNV(ref));
@@ -905,7 +905,7 @@ bool Mapper::encode_from_perl(Encoder* encoder, Sink *sink, Status *status, cons
         Sink sub;
         if (!sink->StartSubMessage(fd.selector.msg_start, &sub))
             return false;
-        if (!fd.mapper->encode_from_perl(encoder, &sub, status, ref))
+        if (!fd.mapper->encode(encoder, &sub, status, ref))
             return false;
         return sink->EndSubMessage(fd.selector.msg_end);
     }

@@ -13,13 +13,13 @@ no warnings 'redefine';
     $d->map_enum('test1.Enum', 'Test1::Enumeration');
     $d->resolve_references();
 
-    eq_or_diff(Test1::FirstMessage->decode_to_perl("\x08\x01"), Test1::FirstMessage->new({
+    eq_or_diff(Test1::FirstMessage->decode("\x08\x01"), Test1::FirstMessage->new({
         test1_message1 => 1,
     }), "simple message 2");
-    eq_or_diff(Test1::AnotherMessage->decode_to_perl("\x08\x01"), Test1::AnotherMessage->new({
+    eq_or_diff(Test1::AnotherMessage->decode("\x08\x01"), Test1::AnotherMessage->new({
         test1_message2 => 1,
     }), "simple message 2");
-    eq_or_diff(Test1::CompositeMessage->decode_to_perl("\x0a\x02\x08\x01\x12\x02\x08\x01"), Test1::CompositeMessage->new({
+    eq_or_diff(Test1::CompositeMessage->decode("\x0a\x02\x08\x01\x12\x02\x08\x01"), Test1::CompositeMessage->new({
         test1_message3_message1 => Test1::FirstMessage->new({
             test1_message1 => 1,
         }),
@@ -27,7 +27,7 @@ no warnings 'redefine';
             test1_message2 => 1,
         }),
     }), "composite message");
-    eq_or_diff(Test1::OuterMessage->decode_to_perl("\x12\x02\x08\x0f"), Test1::OuterMessage->new({
+    eq_or_diff(Test1::OuterMessage->decode("\x12\x02\x08\x0f"), Test1::OuterMessage->new({
         inner => Test1::InnerMessage->new({
             value => 15,
         }),

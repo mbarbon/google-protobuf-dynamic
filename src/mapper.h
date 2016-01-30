@@ -104,8 +104,8 @@ public:
 
     void resolve_mappers();
 
-    SV *encode_from_perl(SV *ref);
-    SV *decode_to_perl(const char *buffer, STRLEN bufsize);
+    SV *encode(SV *ref);
+    SV *decode(const char *buffer, STRLEN bufsize);
 
     const char *last_error_message() const;
 
@@ -115,8 +115,8 @@ public:
     MapperField *find_extension(const std::string &name) const;
 
 private:
-    bool encode_from_perl(upb::pb::Encoder* encoder, upb::Sink *sink, upb::Status *status, SV *ref) const;
-    bool encode_from_perl(upb::pb::Encoder* encoder, upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;
+    bool encode(upb::pb::Encoder* encoder, upb::Sink *sink, upb::Status *status, SV *ref) const;
+    bool encode(upb::pb::Encoder* encoder, upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;
     bool encode_from_perl_array(upb::pb::Encoder* encoder, upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;
     bool encode_from_message_array(upb::pb::Encoder *encoder, upb::Sink *sink, upb::Status *status, const Mapper::Field &fd, AV *source) const;
 

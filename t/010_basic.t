@@ -6,11 +6,11 @@ $d->map_message("test.Person", "Person");
 $d->map_message("test.PersonArray", "PersonArray");
 $d->resolve_references();
 
-my $p = Person->decode_to_perl("\x0a\x03foo\x10\x1f");
+my $p = Person->decode("\x0a\x03foo\x10\x1f");
 
 eq_or_diff($p, Person->new({ id => 31, name => 'foo' }));
 
-my $pa = PersonArray->decode_to_perl("\x0a\x07\x0a\x03foo\x10\x1f" .
+my $pa = PersonArray->decode("\x0a\x07\x0a\x03foo\x10\x1f" .
                                      "\x0a\x06\x0a\x02ba\x10\x20");
 
 eq_or_diff($pa, PersonArray->new({
@@ -20,12 +20,12 @@ eq_or_diff($pa, PersonArray->new({
     ],
 }));
 
-eq_or_diff(Person->encode_from_perl($p), "\x0a\x03foo\x10\x1f");
-eq_or_diff(PersonArray->encode_from_perl($pa), "\x0a\x07\x0a\x03foo\x10\x1f" .
+eq_or_diff(Person->encode($p), "\x0a\x03foo\x10\x1f");
+eq_or_diff(PersonArray->encode($pa), "\x0a\x07\x0a\x03foo\x10\x1f" .
                                                "\x0a\x06\x0a\x02ba\x10\x20");
 
 throws_ok(
-    sub { Person->decode_to_perl("\x0a\x02") },
+    sub { Person->decode("\x0a\x02") },
     qr/Deserialization failed: Unexpected EOF inside delimited string/,
 );
 
