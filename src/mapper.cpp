@@ -832,6 +832,7 @@ bool Mapper::encode_from_message_array(Encoder *encoder, Sink *sink, Status *sta
             return false;
         Sink submsg;
 
+        SvGETMAGIC(*item);
         if (!sink->StartSubMessage(fd.selector.msg_start, &submsg))
             return false;
         if (!encode(encoder, &submsg, status, *item))
@@ -843,6 +844,15 @@ bool Mapper::encode_from_message_array(Encoder *encoder, Sink *sink, Status *sta
     return true;
 }
 
+namespace {
+    HE *hv_fetch_ent_tied(pTHX_ HV *hv, SV *name, I32 lval, U32 hash) {
+        if (!hv_exists_ent(hv, name, hash))
+            return NULL;
+
+        return hv_fetch_ent(hv, name, lval, hash);
+    }
+}
+
 bool Mapper::encode(Encoder* encoder, Sink *sink, Status *status, SV *ref) const {
     if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVHV)
         croak("Not an hash reference when encoding a %s value", message_def->full_name());
@@ -851,10 +861,12 @@ bool Mapper::encode(Encoder* encoder, Sink *sink, Status *status, SV *ref) const
     if (!sink->StartMessage())
         return false;
 
+    bool tied = SvTIED_mg((SV *) hv, PERL_MAGIC_tied);
     bool ok = true;
     int last_oneof = -1;
     for (vector<Field>::const_iterator it = fields.begin(), en = fields.end(); it != en; ++it) {
-        HE *he = hv_fetch_ent(hv, it->name, 0, it->name_hash);
+        HE *he = tied ? hv_fetch_ent_tied(aTHX_ hv, it->name, 0, it->name_hash) :
+                        hv_fetch_ent(hv, it->name, 0, it->name_hash);
 
         if (!he) {
             if (it->field_def->label() == UPB_LABEL_REQUIRED) {
