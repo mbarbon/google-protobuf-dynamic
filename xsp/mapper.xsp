@@ -222,14 +222,14 @@ void
 set_list(HV *self, SV *ref)
   INIT:
     gpd::MapperField *field = (gpd::MapperField *) CvXSUBANY(cv).any_ptr;
-  PPCODE:
+  CODE:
     field->set_list(self, ref);
 
 void
 set_extension_list(HV *self, SV *extension, SV *ref)
   INIT:
     gpd::MapperField *field = gpd::MapperField::find_repeated_extension(aTHX_ cv, extension);
-  PPCODE:
+  CODE:
     field->set_list(self, ref);
 
 %}
