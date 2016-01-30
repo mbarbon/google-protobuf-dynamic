@@ -286,7 +286,7 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
                 string temp = string() + "[" + field->field_def->full_name() + "]";
 
                 newCONSTSUB(stash, (upper_field + "_KEY").c_str(),
-                            newSVpv_share(temp.c_str(), 0));
+                            newSVpvn_share(temp.data(), temp.size(), 0));
             }
         }
 

@@ -57,6 +57,17 @@ void Mapper::DecoderHandlers::clear() {
 }
 
 namespace {
+#if PERL_VERSION < 18
+    inline SSize_t GPD_av_top_index(pTHX_ AV *av) {
+        return AvFILL(av);
+    }
+    #define av_top_index(av) GPD_av_top_index(aTHX_ (av))
+
+    #define READ_XDIGIT(s)  ((0xf & (isDIGIT(*(s))     \
+                                    ? (*(s)++)         \
+                                    : (*(s)++ + 9))))
+#endif
+
     inline void set_bool(pTHX_ SV *target, bool value) {
         if (value)
             sv_setiv(target, 1);
@@ -425,9 +436,9 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
         if (field_def->is_extension()) {
             string temp = string() + "[" + field_def->full_name() + "]";
 
-            field.name = newSVpv_share(temp.c_str(), 0);
+            field.name = newSVpvn_share(temp.data(), temp.size(), 0);
         } else {
-            field.name = newSVpv_share(field_def->name(), 0);
+            field.name = newSVpvn_share(field_def->name(), strlen(field_def->name()), 0);
         }
         field.name_hash = SvSHARED_HASH(field.name);
         field.mapper = NULL;
