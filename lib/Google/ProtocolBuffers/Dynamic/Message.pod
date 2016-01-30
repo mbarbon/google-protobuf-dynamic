@@ -1,6 +1,4 @@
-=head1 NAME
-
-Google::ProtocolBuffers::Dynamic::Message - abstract interface for message classes
+# PODNAME: Google::ProtocolBuffers::Dynamic::Message - abstract interface for message classes
 
 =head1 DESCRIPTION
 
