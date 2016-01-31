@@ -39,7 +39,8 @@ sub generate_to {
 sub generate {
     my ($class, %args) = @_;
     my $mappings = do {
-        package Data::Dumper;
+        package # hide from PAUSE indexer
+            Data::Dumper;
 
         our ($Terse, $Indent, $Purity, $Deepcopy, $Pad, $Sortkeys);
         local $Terse = 1;
