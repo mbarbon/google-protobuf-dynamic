@@ -75,6 +75,9 @@ the following Perl code can be used to access extension values:
     $value = $message1->get_extension('test.Message2.extension2');
     $value = $message2->get_extension(Some::Perl::Package::TEST_MESSAGE2_EXTENSION2_KEY());
 
+keep also in mind that getters and setters follow the style set by
+L<Google::ProtocolBuffers::Dynamic/accessor_style>.
+
 =head2 has_extension
 
     $has_field = $msg->has_extension($extension_id);
