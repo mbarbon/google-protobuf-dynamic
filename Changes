@@ -2,6 +2,10 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.02      2016-01-31 11:55:11 CET
+
+    - Fix trivial packaging issue
+
 0.01      2016-01-30 16:39:16 CET
 
     - First public release
