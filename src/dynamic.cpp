@@ -337,8 +337,8 @@ void Dynamic::map_enum(pTHX_ const EnumDescriptor *descriptor, const string &per
                     newSVuv(value->number()));
 
         stringstream en;
-        en << "enum_";
         en << value->number();
+        en << "_ENUM";
         const std::string tmp = en.str();
         newCONSTSUB(stash, tmp.c_str(),
                     newSVpv(value->name().c_str(),0));
