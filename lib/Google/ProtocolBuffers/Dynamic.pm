@@ -37,6 +37,8 @@ __END__
 
     $dynamic = Google::ProtocolBuffers::Dynamic->new;
     $dynamic->load_string("person.proto", <<'EOT');
+    syntax = "proto2";
+
     package humans;
 
     message Person {

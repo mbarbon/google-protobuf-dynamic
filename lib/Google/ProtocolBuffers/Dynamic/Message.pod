@@ -45,6 +45,8 @@ of the extension or the generated constant key for that extension.
 
 For example, given the message definitions:
 
+    syntax = "proto2";
+
     package test;
 
     message Message1 {

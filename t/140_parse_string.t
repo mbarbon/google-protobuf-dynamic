@@ -2,6 +2,8 @@ use t::lib::Test;
 
 my $d = Google::ProtocolBuffers::Dynamic->new;
 $d->load_string("person.proto", <<'EOT');
+syntax = "proto2";
+
 package test;
 
 message Person {
