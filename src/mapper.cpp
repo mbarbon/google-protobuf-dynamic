@@ -621,6 +621,8 @@ void Mapper::resolve_mappers() {
 }
 
 SV *Mapper::encode(SV *ref) {
+    if (encoder == NULL)
+        croak("It looks like resolve_references() was not called (and please use map() anyway)");
     status.Clear();
     output_buffer.clear();
     SV *result = NULL;
@@ -632,6 +634,8 @@ SV *Mapper::encode(SV *ref) {
 }
 
 SV *Mapper::decode(const char *buffer, STRLEN bufsize) {
+    if (decoder == NULL)
+        croak("It looks like resolve_references() was not called (and please use map() anyway)");
     status.Clear();
     decoder->Reset();
     decoder_callbacks.prepare(newHV());
