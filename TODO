@@ -2,8 +2,6 @@ Implement:
 - serialize fields sorted by field number
   (will break current oneof serialization check)
 - simple extension option (Google::ProtocolBuffers compatibility)
-- add an introspection API to get an object describing the protobuf
-  message corresponding to an object
 - implement unknown fields (needs uPB support)
 - prepare for the different sematics of proto3
   - enums

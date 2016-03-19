@@ -38,6 +38,15 @@ Deserializes Protocol Buffer binary data into a message instance.
 Serializes the given message instance (or mix of message instances and
 plain hashes) to Protocol Buffer binary format.
 
+=head2 message_descriptor
+
+    $descriptor = Message::Class->message_descriptor();
+    $descriptor = $message_instance->message_descriptor();
+
+Returns an introspection object describing the fields and types of
+this message. See L<Google::ProtocolBuffers::Dynamic::Introspection> for the
+full API.
+
 =head1 EXTENSION METHODS
 
 In the list below, C<extension_id> is either the fully-qualified name

@@ -249,6 +249,7 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
     copy_and_bind(aTHX_ "decode", perl_package, mapper);
     copy_and_bind(aTHX_ "encode", perl_package, mapper);
     copy_and_bind(aTHX_ "new", perl_package, mapper);
+    copy_and_bind(aTHX_ "message_descriptor", perl_package, mapper);
 
     if (options.generic_extension_methods) {
         copy_and_bind(aTHX_ "has_extension_field", "has_extension", perl_package, mapper);

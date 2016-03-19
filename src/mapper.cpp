@@ -603,6 +603,14 @@ const Mapper::Field *Mapper::get_field(int index) const {
     return &fields[index];
 }
 
+SV *Mapper::message_descriptor() const {
+    SV *ref = newSV(0);
+
+    sv_setref_iv(ref, "Google::ProtocolBuffers::Dynamic::MessageDef", (IV) message_def);
+
+    return ref;
+}
+
 void Mapper::resolve_mappers() {
     for (vector<Field>::iterator it = fields.begin(), en = fields.end(); it != en; ++it) {
         const FieldDef *field = it->field_def;

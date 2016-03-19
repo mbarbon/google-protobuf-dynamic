@@ -1,0 +1,337 @@
+# PODNAME: Google::ProtocolBuffers::Dynamic::Introspection - introspection API for classes
+
+=head1 SYNOPSIS
+
+    $message_def = Some::Class->message_descriptor;
+    $field_def = $message_def->find_field_by_name('some_field');
+
+    $message_name = $message_def->full_name;
+    $field_name = $field_def->full_name
+
+=head1 DESCRIPTION
+
+A simple introspection API wrapping uPB descriptor API.
+
+Note that this API does not respect referential integrity; for example
+this snippet
+
+    $message_def = ...;
+    $field_def = $message_def->find_field_by_name($name);
+    $containing_def = $field_def->containing_type;
+
+    die "Oops" if $message_def != $containing_def;
+
+C<die()>s because even if C<$message_def> and C<$containing_def>
+represent the same underlying entity, their are two distinct objects
+in Perl. This is true for all methods below returning an object.
+
+The same applies to multiple invocations of the same method, for example
+
+    $message_def = ...;
+    $field_def = $message_def->find_field_by_name($name);
+    $field_def_again = $message_def->find_field_by_name($name);
+
+    die "Oops" if $field_def != $field_def_again;
+
+=head1 Google::ProtocolBuffers::Dynamic::MessageDef
+
+=head2 full_name
+
+    $name = $message_def->full_name;
+
+The fully-qualified name of this message (including package and outer
+messages).
+
+=head2 field_count, oneof_count
+
+    $count = $message_def->field_count;
+
+The number of fields/oneofs. The number of fields includes fields
+declared in oneofs, but does not include the oneof declaration
+themselves.
+
+=head2 find_field_by_number
+
+    $field_def = $message_def->find_field_by_number($number);
+
+Returns the field matching the given number, or C<undef>.
+
+=head2 find_field_by_name
+
+    $field_def = $message_def->find_field_by_name($name);
+
+Returns the field with the given name, or C<undef>.
+
+=head2 find_oneof_by_name
+
+    $oneof_def = $message_def->find_oneof_by_name($name);
+
+Returns the oneof with the given name, or C<undef>.
+
+=head2 fields, oneofs
+
+    $field_defs = $message_def->fields;
+    $oneof_defs = $message_def->oneofs;
+
+Returns all fields/oneof as an array reference.
+
+=head2 is_map_entry
+
+    $is_map = $message_def->is_map_entry;
+
+True if this message is a key/value pair that Protocol Buffers 3 uses
+to represent a map entry.
+
+=head1 Google::ProtocolBuffers::Dynamic::FieldDef
+
+=head2 name
+
+    $name = $field_def->name;
+
+The short name of this field (the one used in the message definition).
+
+=head2 full_name
+
+    $name = $field_def->full_name;
+
+Same as C<name> for regular fields, returns the fully-qualified name
+for extension fields.
+
+=head2 number
+
+    $number = $field_def->number;
+
+The field number as declared in the message definition.
+
+=head2 label
+
+    $label = $field_def->label;
+
+Returns the L<field label|/Labels> (whether the field is C<required>,
+C<repeated> or C<optional>).
+
+=head2 is_extension, is_packed, is_message, is_string, is_repeatedm, is_primitive, is_map
+
+Simple boolean accessors.
+
+=head2 descriptor_type
+
+    $protobuf_type = $field_def->descriptor_type;
+
+Returns the L<field type|/Descriptor types> as specified in the
+message declaration (note that this returns different types for,
+e.g. C<int32>, C<sint32>, C<fixed32> and C<sfixed32> fields).
+
+=head2 value_type
+
+    $value_type = $field_def->value_type;
+
+Returns the L<underlying field type|/Value types> (note that this
+returns the same C<int32> type for, e.g. C<int32>, C<sint32>,
+C<fixed32> and C<sfixed32> fields).
+
+=head2 default_value
+
+    $value = $field_def->default_value;
+
+The default value for this field (the type depends on field
+type). Returns C<undef> for message/group fields, returns the default
+value for the underlying type for repeated fields.
+
+=head2 containing_type
+
+    $message_def = $field_def->containing_type;
+
+Containing message (for extension fields this is the message being
+extended, not the message where the extension is declared).
+
+=head2 containing_oneof
+
+    $oneof_def = $field_def->containing_oneof;
+
+Containing oneof definition, or C<undef> if this field is not part of
+an oneof.
+
+=head2 enum_type, message_type
+
+    $enum_def = $field_def->enum_type;
+    $message_def = $field_def->message_type;
+
+For fields with type enum or message, returns the matching type
+definition, or undef if the fields is not a message/enum.
+
+=head1 Google::ProtocolBuffers::Dynamic::OneofDef
+
+=head2 name
+
+    $name = $oneof_def->name;
+
+The short name of this field (the one used in the message definition).
+
+=head2 full_name
+
+    $name = $oneof_def->full_name;
+
+Same as C<name>.
+
+=head2 field_count
+
+    $count = $oneof_def->field_count;
+
+The number of fields.
+
+=head2 find_field_by_number
+
+    $field_def = $oneof_def->find_field_by_number($number);
+
+Returns the field matching the given number, or C<undef>.
+
+=head2 find_field_by_name
+
+    $field_def = $oneof_def->find_field_by_name($name);
+
+Returns the field with the given name, or C<undef>.
+
+=head2 fields
+
+    $field_defs = $message_def->fields;
+
+Returns all fields as an array reference.
+
+=head2 containing_type
+
+    $message_def = $field_def->containing_type;
+
+Containing message.
+
+=head1 Google::ProtocolBuffers::Dynamic::EnumDef
+
+=head2 full_name
+
+    $name = $enum_def->full_name;
+
+The fully-qualified name of this enum (including package and outer
+messages).
+
+=head2 default_value
+
+    $value = $enum_def->default_value;
+
+Default value for this enum.
+
+=head2 find_number_by_name
+
+    $number = $enum_def->find_number_by_name($name);
+
+Returns the integer value of the enum entry with the given name, or
+C<undef>.
+
+=head2 find_name_by_number
+
+    $name = $enum_def->find_name_by_number($number);
+
+Returns the name of the enum entry with the given value, or C<undef>.
+
+=head2 values
+
+    $value_map = $enum_def->values;
+
+Returns an hash reference containig all name/value pairs for this
+enum.
+
+=head1 CONSTANTS
+
+All the constants below are available as
+C<Google::ProtocolBuffers::Dynamic::CONSTANT> and can be exported
+either individually or using the C<:labels>, C<:descriptor> and
+C<:values> exporter tags.
+
+=head2 Labels
+
+Return value of the L</label> method.
+
+=over 4
+
+=item LABEL_OPTIONAL
+
+=item LABEL_REPEATED
+
+=item LABEL_REQUIRED
+
+=back
+
+=head2 Value types
+
+Return value of the L</value_type> method.
+
+=over 4
+
+=item VALUE_FLOAT
+
+=item VALUE_DOUBLE
+
+=item VALUE_BOOL
+
+=item VALUE_STRING
+
+=item VALUE_BYTES
+
+=item VALUE_MESSAGE
+
+=item VALUE_ENUM
+
+=item VALUE_INT32
+
+=item VALUE_UINT32
+
+=item VALUE_INT64
+
+=item VALUE_UINT64
+
+=back
+
+=head2 Descriptor types
+
+Return value of the L</descriptor_type> method.
+
+=over 4
+
+=item DESCRIPTOR_DOUBLE
+
+=item DESCRIPTOR_FLOAT
+
+=item DESCRIPTOR_INT64
+
+=item DESCRIPTOR_UINT64
+
+=item DESCRIPTOR_INT32
+
+=item DESCRIPTOR_FIXED64
+
+=item DESCRIPTOR_FIXED32
+
+=item DESCRIPTOR_BOOL
+
+=item DESCRIPTOR_STRING
+
+=item DESCRIPTOR_GROUP
+
+=item DESCRIPTOR_MESSAGE
+
+=item DESCRIPTOR_BYTES
+
+=item DESCRIPTOR_UINT32
+
+=item DESCRIPTOR_ENUM
+
+=item DESCRIPTOR_SFIXED32
+
+=item DESCRIPTOR_SFIXED64
+
+=item DESCRIPTOR_SINT32
+
+=item DESCRIPTOR_SINT64
+
+=back
+
+=cut

@@ -4,6 +4,10 @@ package Google::ProtocolBuffers::Dynamic;
 use strict;
 use warnings;
 use XSLoader;
+use Exporter ();
+
+# @EXPORT_OK/%EXPORT_TAGS are set up in XS
+*import = \&Exporter::import;
 
 # VERSION
 

@@ -3,3 +3,10 @@
 %typemap{SV *};
 %typemap{std::string};
 %typemap{const std::string};
+
+%typemap{uint32_t}{simple}{
+    %xs_type{T_UV};
+};
+%typemap{int32_t}{simple}{
+    %xs_type{T_IV};
+};

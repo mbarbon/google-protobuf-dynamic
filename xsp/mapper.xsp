@@ -36,6 +36,15 @@ new(SV *klass, SV *ref = NULL)
     sv_bless(RETVAL, gv_stashsv(klass, 0));
   OUTPUT: RETVAL
 
+
+SV*
+message_descriptor(SV *klass)
+  INIT:
+    gpd::Mapper *mapper = (gpd::Mapper *) CvXSUBANY(cv).any_ptr;
+  CODE:
+    RETVAL = mapper->message_descriptor();
+  OUTPUT: RETVAL
+
 SV*
 decode(SV *klass, SV *scalar)
   INIT:

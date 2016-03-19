@@ -1,0 +1,231 @@
+%module{Google::ProtocolBuffers::Dynamic};
+
+#include "upbwrapper.h"
+
+%typemap{const Google::ProtocolBuffers::Dynamic::MessageDef *}{simple}{
+    %xs_type{O_OBJECT};
+};
+%typemap{const Google::ProtocolBuffers::Dynamic::FieldDef *}{simple}{
+    %xs_type{O_OBJECT};
+};
+%typemap{const Google::ProtocolBuffers::Dynamic::OneofDef *}{simple}{
+    %xs_type{O_OBJECT};
+};
+%typemap{const Google::ProtocolBuffers::Dynamic::EnumDef *}{simple}{
+    %xs_type{O_OBJECT};
+};
+
+%name{Google::ProtocolBuffers::Dynamic::MessageDef} class upb::MessageDef {
+    const char *full_name() const;
+
+    int field_count() const;
+    int oneof_count() const;
+
+    %name{find_field_by_number} const Google::ProtocolBuffers::Dynamic::FieldDef *FindFieldByNumber(uint32_t number) const;
+    %name{find_field_by_name} const Google::ProtocolBuffers::Dynamic::FieldDef *FindFieldByName(const char *name) const;
+    %name{find_oneof_by_name} const Google::ProtocolBuffers::Dynamic::OneofDef *FindOneofByName(const char *name) const;
+
+    SV* fields() const %code{%
+        AV *fields = newAV();
+
+        for (upb::MessageDef::field_iterator it = THIS->field_begin(), en = THIS->field_end(); it != en; ++it) {
+            SV *field = newSV(0);
+
+            sv_setref_iv(field, "Google::ProtocolBuffers::Dynamic::FieldDef", (IV) *it);
+            av_push(fields, field);
+        }
+
+        RETVAL = newRV_noinc((SV*) fields);
+    %};
+
+    SV* oneofs() const %code{%
+        AV *oneofs = newAV();
+
+        for (upb::MessageDef::oneof_iterator it = THIS->oneof_begin(), en = THIS->oneof_end(); it != en; ++it) {
+            SV *field = newSV(0);
+
+            sv_setref_iv(field, "Google::ProtocolBuffers::Dynamic::OneofDef", (IV) *it);
+            av_push(oneofs, field);
+        }
+
+        RETVAL = newRV_noinc((SV*) oneofs);
+    %};
+
+    %name{is_map_entry} bool mapentry() const;
+};
+
+%name{Google::ProtocolBuffers::Dynamic::FieldDef} class upb::FieldDef {
+    const char *name() const;
+    const char *full_name() const;
+    uint32_t number() const;
+    bool is_extension() const;
+    int label();
+
+    %name{is_packed} bool packed() const;
+    %name{is_message} bool IsSubMessage() const;
+    %name{is_string} bool IsString() const;
+    %name{is_repeated} bool IsSequence() const;
+    %name{is_primitive} bool IsPrimitive() const %code{%
+        RETVAL = upb_fielddef_isprimitive(THIS);
+    %};
+    %name{is_map} bool IsMap() const;
+
+    // TODO JSON name
+
+    int descriptor_type() const;
+    %name{value_type} int type() const;
+
+    SV *default_value() const %code{%
+        switch (THIS->type()) {
+        case UPB_TYPE_FLOAT:
+            RETVAL = newSVnv(THIS->default_float());
+            break;
+        case UPB_TYPE_DOUBLE:
+            RETVAL = newSVnv(THIS->default_double());
+            break;
+        case UPB_TYPE_BOOL:
+            RETVAL = THIS->default_bool() ? &PL_sv_yes : &PL_sv_no;
+            break;
+        case UPB_TYPE_STRING:
+        case UPB_TYPE_BYTES: {
+             size_t length;
+             const char *bytes = THIS->default_string(&length);
+
+             RETVAL = newSVpv(bytes, length);
+             if (THIS->type() == UPB_TYPE_STRING)
+                SvUTF8_on(RETVAL);
+        }
+            break;
+        case UPB_TYPE_MESSAGE:
+            RETVAL = &PL_sv_undef;
+            break;
+        case UPB_TYPE_ENUM:
+        case UPB_TYPE_INT32:
+            RETVAL = newSViv(THIS->default_int32());
+            break;
+        case UPB_TYPE_INT64:
+            RETVAL = newSViv(THIS->default_int64());
+            break;
+        case UPB_TYPE_UINT32:
+            RETVAL = newSVuv(THIS->default_uint32());
+            break;
+        case UPB_TYPE_UINT64:
+            RETVAL = newSVuv(THIS->default_uint64());
+            break;
+        }
+    %};
+
+    const Google::ProtocolBuffers::Dynamic::MessageDef *containing_type() const;
+    const Google::ProtocolBuffers::Dynamic::OneofDef *containing_oneof() const;
+
+    %name{enum_type} const Google::ProtocolBuffers::Dynamic::EnumDef *enum_subdef() const;
+    %name{message_type} const Google::ProtocolBuffers::Dynamic::MessageDef *message_subdef() const;
+};
+
+%name{Google::ProtocolBuffers::Dynamic::OneofDef} class upb::OneofDef {
+    const char *name() const;
+    const char *full_name() const;
+
+    int field_count();
+
+    %name{find_field_by_number} const Google::ProtocolBuffers::Dynamic::FieldDef *FindFieldByNumber(uint32_t number) const;
+    %name{find_field_by_name} const Google::ProtocolBuffers::Dynamic::FieldDef *FindFieldByName(const char *name) const %code%{
+        RETVAL = ((const upb::OneofDef *) THIS)->FindFieldByName(name);
+    %};
+
+    SV* fields() const %code{%
+        AV *fields = newAV();
+
+        for (upb::OneofDef::iterator it = THIS->begin(), en = THIS->end(); it != en; ++it) {
+            SV *field = newSV(0);
+
+            sv_setref_iv(field, "Google::ProtocolBuffers::Dynamic::FieldDef", (IV) *it);
+            av_push(fields, field);
+        }
+
+        RETVAL = newRV_noinc((SV*) fields);
+    %};
+
+    const Google::ProtocolBuffers::Dynamic::MessageDef *containing_type() const;
+};
+
+%name{Google::ProtocolBuffers::Dynamic::EnumDef} class upb::EnumDef {
+    const char *full_name() const;
+    int32_t default_value() const;
+
+    int value_count() const;
+
+    SV *find_number_by_name(const char *name) %code{%
+       int32_t number;
+       bool found = THIS->FindValueByName(name, &number);
+
+       RETVAL = found ? newSViv(number) : &PL_sv_undef;
+    %};
+
+    SV *find_name_by_number(int32_t number) %code{%
+       const char *name = THIS->FindValueByNumber(number);
+
+       RETVAL = name ? newSVpv(name, 0) : &PL_sv_undef;
+    %};
+
+    SV *values() const %code{%
+        HV *values = newHV();
+        upb_enum_iter it;
+
+        for (upb_enum_begin(&it, THIS); !upb_enum_done(&it); upb_enum_next(&it)) {
+            const char *name = upb_enum_iter_name(&it);
+            SV **value = hv_fetch(values, name, strlen(name), 1);
+
+            sv_setiv(*value, upb_enum_iter_number(&it));
+        }
+
+        RETVAL = newRV_noinc((SV *) values);
+    %};
+};
+
+%{
+
+#define DESCRIPTOR_TYPE(name) \
+    gpd::define_constant("DESCRIPTOR_" #name, "descriptor", UPB_DESCRIPTOR_TYPE_##name);
+#define VALUE_TYPE(name) \
+    gpd::define_constant("VALUE_" #name, "values", UPB_TYPE_##name);
+#define LABEL_TYPE(name) \
+    gpd::define_constant("LABEL_" #name, "labels", UPB_LABEL_##name);
+
+BOOT:
+    LABEL_TYPE(OPTIONAL);
+    LABEL_TYPE(REPEATED);
+    LABEL_TYPE(REQUIRED);
+
+    DESCRIPTOR_TYPE(DOUBLE);
+    DESCRIPTOR_TYPE(FLOAT);
+    DESCRIPTOR_TYPE(INT64);
+    DESCRIPTOR_TYPE(UINT64);
+    DESCRIPTOR_TYPE(INT32);
+    DESCRIPTOR_TYPE(FIXED64);
+    DESCRIPTOR_TYPE(FIXED32);
+    DESCRIPTOR_TYPE(BOOL);
+    DESCRIPTOR_TYPE(STRING);
+    DESCRIPTOR_TYPE(GROUP);
+    DESCRIPTOR_TYPE(MESSAGE);
+    DESCRIPTOR_TYPE(BYTES);
+    DESCRIPTOR_TYPE(UINT32);
+    DESCRIPTOR_TYPE(ENUM);
+    DESCRIPTOR_TYPE(SFIXED32);
+    DESCRIPTOR_TYPE(SFIXED64);
+    DESCRIPTOR_TYPE(SINT32);
+    DESCRIPTOR_TYPE(SINT64);
+
+    VALUE_TYPE(FLOAT);
+    VALUE_TYPE(DOUBLE);
+    VALUE_TYPE(BOOL);
+    VALUE_TYPE(STRING);
+    VALUE_TYPE(BYTES);
+    VALUE_TYPE(MESSAGE);
+    VALUE_TYPE(ENUM);
+    VALUE_TYPE(INT32);
+    VALUE_TYPE(UINT32);
+    VALUE_TYPE(INT64);
+    VALUE_TYPE(UINT64);
+
+%}
