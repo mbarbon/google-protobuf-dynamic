@@ -44,6 +44,7 @@ for my $field (keys %initial_values) {
 
     is($with_field->$size, 1, 'non-empty list size');
     is($empty->$size, 0, 'empty list size');
+    is($empty->$get_list, undef, 'empty list is empty');
 
     $with_field->$add($added_values{$field});
     $empty->$add($added_values{$field});
@@ -63,6 +64,7 @@ for my $field (keys %initial_values) {
 
     $cleared->$clear;
     is($cleared->$size, 0, 'list cleared');
+    is($cleared->$get_list, undef, 'cleared list is empty');
 }
 
 throws_ok(

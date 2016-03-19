@@ -68,6 +68,9 @@ for my $field (sort keys %default_defaults) {
     my $set = "set_$field";
     my $clear = "clear_$field";
 
+    ok(!$empty->$has, "empty '$field'");
+    is($empty->$get, $default_defaults{$field}, "empty '$field' is default");
+
     $empty->$set($set_values{$field});
     $cleared->$clear;
 
@@ -78,6 +81,7 @@ for my $field (sort keys %default_defaults) {
     is($default_defaults->$get, $test_defaults{$field}, "default default for '$field'");
     is($basic_defaults->$get, $default_defaults{$field}, "custom default for '$field'");
     ok(!$cleared->$has, "cleared '$field'");
+    is($cleared->$get, $default_defaults{$field}, "cleared '$field' is default");
 }
 
 throws_ok(

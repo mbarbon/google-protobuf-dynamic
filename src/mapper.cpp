@@ -1340,18 +1340,18 @@ void MapperField::add_item(HV *self, SV *value) {
 }
 
 int MapperField::list_size(HV *self) {
-    AV *target = get_read_array(self);
+    AV *array = get_read_array(self);
 
-    if (!target)
+    if (!array)
         return 0;
 
-    return av_top_index(target) + 1;
+    return av_top_index(array) + 1;
 }
 
 void MapperField::get_list(HV *self, SV *target) {
     AV *array = get_read_array(self);
 
-    if (!target) {
+    if (!array) {
         sv_setsv(target, &PL_sv_undef);
     } else {
         SvUPGRADE(target, SVt_RV);
