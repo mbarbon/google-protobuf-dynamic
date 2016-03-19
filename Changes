@@ -2,6 +2,11 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.03      2016-03-19 19:24:38 CET
+
+    - Fix segmentation fault
+    - Added introspection API
+
 0.02      2016-01-31 11:55:11 CET
 
     - Fix trivial packaging issue
