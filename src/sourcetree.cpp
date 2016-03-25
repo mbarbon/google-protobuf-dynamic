@@ -4,7 +4,7 @@
 
 using namespace gpd;
 using namespace std;
-using namespace std::tr1;
+using namespace STD_TR1;
 using namespace google::protobuf;
 using namespace google::protobuf::io;
 using namespace google::protobuf::compiler;

@@ -10,8 +10,7 @@
 #include "sourcetree.h"
 #include "ref.h"
 
-#include <tr1/unordered_map>
-#include <tr1/unordered_set>
+#include "unordered_map.h"
 
 #include "EXTERN.h"
 #include "perl.h"
@@ -70,10 +69,10 @@ private:
     MemorySourceTree memory_source_tree;
     upb::googlepb::DefBuilder def_builder;
     CollectErrors die_on_error;
-    std::tr1::unordered_map<std::string, const Mapper *> descriptor_map;
-    std::tr1::unordered_set<std::string> used_packages;
-    std::tr1::unordered_set<std::string> mapped_enums;
-    std::tr1::unordered_set<const google::protobuf::FileDescriptor *> files;
+    STD_TR1::unordered_map<std::string, const Mapper *> descriptor_map;
+    STD_TR1::unordered_set<std::string> used_packages;
+    STD_TR1::unordered_set<std::string> mapped_enums;
+    STD_TR1::unordered_set<const google::protobuf::FileDescriptor *> files;
     std::vector<Mapper *> pending;
 };
 

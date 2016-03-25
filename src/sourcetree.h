@@ -5,7 +5,7 @@
 
 #include <google/protobuf/compiler/importer.h>
 
-#include <tr1/unordered_map>
+#include "unordered_map.h"
 
 namespace gpd {
 
@@ -29,7 +29,7 @@ public:
     virtual google::protobuf::io::ZeroCopyInputStream *Open(const std::string &filename);
 
 private:
-    std::tr1::unordered_map<std::string, std::string> sources;
+    STD_TR1::unordered_map<std::string, std::string> sources;
 };
 
 }

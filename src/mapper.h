@@ -9,7 +9,7 @@
 #include <upb/pb/decoder.h>
 #include <upb/bindings/stdc++/string.h>
 
-#include <tr1/unordered_set>
+#include "unordered_map.h"
 
 #include "EXTERN.h"
 #include "perl.h"
@@ -46,7 +46,7 @@ public:
         U32 name_hash;
         bool has_default;
         const Mapper *mapper; // for Message/Group fields
-        std::tr1::unordered_set<int32_t> enum_values;
+        STD_TR1::unordered_set<int32_t> enum_values;
         int oneof_index;
 
         std::string full_name() const;

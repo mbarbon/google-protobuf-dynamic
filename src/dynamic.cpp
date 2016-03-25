@@ -5,6 +5,7 @@
 
 using namespace gpd;
 using namespace std;
+using namespace STD_TR1;
 using namespace google::protobuf;
 using namespace upb;
 using namespace upb::googlepb;
@@ -160,7 +161,7 @@ void Dynamic::map_message(pTHX_ const string &message, const string &perl_packag
 }
 
 void Dynamic::map_package(pTHX_ const string &pb_package, const string &perl_package_prefix, const MappingOptions &options) {
-    for (std::tr1::unordered_set<const FileDescriptor *>::iterator it = files.begin(), en = files.end(); it != en; ++it) {
+    for (unordered_set<const FileDescriptor *>::iterator it = files.begin(), en = files.end(); it != en; ++it) {
         const FileDescriptor *file = *it;
 
         if (pb_package != file->package())
@@ -345,7 +346,7 @@ void Dynamic::resolve_references() {
 }
 
 const Mapper *Dynamic::find_mapper(const MessageDef *message_def) const {
-    std::tr1::unordered_map<string, const Mapper *>::const_iterator item = descriptor_map.find(message_def->full_name());
+    unordered_map<string, const Mapper *>::const_iterator item = descriptor_map.find(message_def->full_name());
 
     if (item == descriptor_map.end())
         croak("Unknown type '%s'", message_def->full_name());
