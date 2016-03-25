@@ -1078,7 +1078,7 @@ SV *MapperField::get_write_field(HV *self) {
     return HeVAL(ent);
 }
 
-AV *MapperField::get_read_array(HV *self) {
+SV *MapperField::get_read_array_ref(HV *self) {
     HE *ent = hv_fetch_ent(self, field->name, 0, field->name_hash);
 
     if (!ent)
@@ -1088,7 +1088,13 @@ AV *MapperField::get_read_array(HV *self) {
     if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVAV)
         croak("Value of field '%s' is not an array reference", field->full_name().c_str());
 
-    return (AV *) SvRV(ref);
+    return ref;
+}
+
+AV *MapperField::get_read_array(HV *self) {
+    SV *ref = get_read_array_ref(self);
+
+    return ref ? (AV *) SvRV(ref) : NULL;
 }
 
 AV *MapperField::get_write_array(HV *self) {
@@ -1132,81 +1138,64 @@ void MapperField::clear_field(HV *self) {
     hv_delete_ent(self, field->name, G_DISCARD, field->name_hash);
 }
 
-void MapperField::get_scalar(HV *self, SV *target) {
+SV *MapperField::get_scalar(HV *self, SV *target) {
     SV *value = get_read_field(self);
 
-    copy_value_or_default(target, value);
+    if (value) {
+        return value;
+    } else {
+        copy_default(target);
+
+        return target;
+    }
 }
 
-void MapperField::copy_value_or_default(SV *target, SV *value) {
+void MapperField::copy_default(SV *target) {
     const FieldDef *field_def = field->field_def;
 
     switch (field_def->type()) {
     case UPB_TYPE_FLOAT:
-        sv_setnv(target, value ? SvNV(value) : field_def->default_float());
+        sv_setnv(target, field_def->default_float());
         break;
     case UPB_TYPE_DOUBLE:
-        sv_setnv(target, value ? SvNV(value) : field_def->default_double());
+        sv_setnv(target, field_def->default_double());
         break;
     case UPB_TYPE_BOOL:
-        set_bool(aTHX_ target, value ? SvTRUE(value) : field_def->default_bool());
+        set_bool(aTHX_ target, field_def->default_bool());
         break;
     case UPB_TYPE_STRING: {
-        if (value) {
-            STRLEN len;
-            const char *str = SvPVutf8(value, len);
+        size_t len;
+        const char *str = field_def->default_string(&len);
 
-            sv_setpvn(target, str, len);
-        } else {
-            size_t len;
-            const char *str = field_def->default_string(&len);
-
-            sv_setpvn(target, str, len);
-        }
+        sv_setpvn(target, str, len);
         SvUTF8_on(target);
     }
         break;
     case UPB_TYPE_BYTES: {
-        if (value) {
-            STRLEN len;
-            const char *str = SvPV(value, len);
+        size_t len;
+        const char *str = field_def->default_string(&len);
 
-            sv_setpvn(target, str, len);
-        } else {
-            size_t len;
-            const char *str = field_def->default_string(&len);
-
-            sv_setpvn(target, str, len);
-        }
+        sv_setpvn(target, str, len);
     }
         break;
     case UPB_TYPE_MESSAGE:
-        if ((value && SvOK(value)) && (!SvROK(value) || SvTYPE(SvRV(value)) != SVt_PVHV))
-            croak("Value for message field '%s' is not an hash reference", field->full_name().c_str());
-        sv_setsv(target, value ? value : &PL_sv_undef);
+        sv_setsv(target, &PL_sv_undef);
         break;
     case UPB_TYPE_ENUM: {
-        if (value) {
-            IV i32 = SvIV(value);
-            if (field->enum_values.size() &&
-                    field->enum_values.find(i32) == field->enum_values.end())
-                croak("Invalid value %d for enumeration field '%s'", i32, field->full_name().c_str());
-            sv_setiv(target, i32);
-        } else
-            sv_setiv(target, field_def->default_int32());
+        sv_setiv(target, field_def->default_int32());
     }
         break;
     case UPB_TYPE_INT32:
-        sv_setiv(target, value ? SvIV(value) : field_def->default_int32());
+        sv_setiv(target, field_def->default_int32());
         break;
     case UPB_TYPE_UINT32:
-        sv_setuv(target, value ? SvUV(value) : field_def->default_uint32());
+        sv_setuv(target, field_def->default_uint32());
         break;
     case UPB_TYPE_INT64: {
         if (sizeof(IV) >= sizeof(int64_t))
-            sv_setiv(target, value ? SvIV(value) : field_def->default_int64());
+            sv_setiv(target, field_def->default_int64());
         else {
-            int64_t i64 = value ? get_int64(aTHX_ value) : field_def->default_int64();
+            int64_t i64 = field_def->default_int64();
 
             set_bigint(aTHX_ target, (uint64_t) i64, i64 < 0);
         }
@@ -1214,9 +1203,9 @@ void MapperField::copy_value_or_default(SV *target, SV *value) {
         break;
     case UPB_TYPE_UINT64: {
         if (sizeof(IV) >= sizeof(uint64_t))
-            sv_setuv(target, value ? SvUV(value) : field_def->default_uint64());
+            sv_setuv(target, field_def->default_uint64());
         else {
-            int64_t u64 = value ? get_uint64(aTHX_ value) : field_def->default_uint64();
+            int64_t u64 = field_def->default_uint64();
 
             set_bigint(aTHX_ target, u64, false);
         }
@@ -1318,7 +1307,7 @@ void MapperField::copy_value(SV *target, SV *value) {
     }
 }
 
-void MapperField::get_item(HV *self, int index, SV *target) {
+SV *MapperField::get_item(HV *self, int index, SV *target) {
     AV *array = get_read_array(self);
 
     if (!array)
@@ -1330,7 +1319,13 @@ void MapperField::get_item(HV *self, int index, SV *target) {
         croak("Accessing out-of-bounds index %d for field '%s'", index, field->full_name().c_str());
     SV **value = av_fetch(array, index, 0);
 
-    copy_value_or_default(target, value ? *value : NULL);
+    if (value) {
+        return *value;
+    } else {
+        copy_default(target);
+
+        return target;
+    }
 }
 
 void MapperField::set_item(HV *self, int index, SV *value) {
@@ -1356,17 +1351,10 @@ int MapperField::list_size(HV *self) {
     return av_top_index(array) + 1;
 }
 
-void MapperField::get_list(HV *self, SV *target) {
-    AV *array = get_read_array(self);
+SV *MapperField::get_list(HV *self) {
+    SV *array_ref = get_read_array_ref(self);
 
-    if (!array) {
-        sv_setsv(target, &PL_sv_undef);
-    } else {
-        SvUPGRADE(target, SVt_RV);
-        SvROK_on(target);
-        SvRV_set(target, (SV *) array);
-        SvREFCNT_inc(array);
-    }
+    return array_ref ? array_ref : &PL_sv_undef;
 }
 
 void MapperField::set_list(HV *self, SV *ref) {

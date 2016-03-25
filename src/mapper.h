@@ -164,15 +164,15 @@ public:
     void clear_field(HV *self);
 
     // optional/oneof/required
-    void get_scalar(HV *self, SV *target);
+    SV *get_scalar(HV *self, SV *target);
     void set_scalar(HV *self, SV *value);
 
     // repeated
-    void get_item(HV *self, int index, SV *target);
+    SV *get_item(HV *self, int index, SV *target);
     void set_item(HV *self, int index, SV *value);
     void add_item(HV *self, SV *value);
     int list_size(HV *self);
-    void get_list(HV *self, SV *target);
+    SV *get_list(HV *self);
     void set_list(HV *self, SV *ref);
 
     static MapperField *find_extension(pTHX_ CV *cv, SV *extension);
@@ -183,9 +183,10 @@ private:
     DECL_THX_MEMBER;
     SV *get_read_field(HV *self);
     SV *get_write_field(HV *self);
+    SV *get_read_array_ref(HV *self);
     AV *get_read_array(HV *self);
     AV *get_write_array(HV *self);
-    void copy_value_or_default(SV *target, SV *value);
+    void copy_default(SV *target);
     void copy_value(SV *target, SV *value);
     void clear_oneof(HV *self);
 
