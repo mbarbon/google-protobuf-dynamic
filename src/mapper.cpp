@@ -441,6 +441,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
             field.name = newSVpvn_share(field_def->name(), strlen(field_def->name()), 0);
         }
         field.name_hash = SvSHARED_HASH(field.name);
+        field.has_default = false;
         field.mapper = NULL;
         field.oneof_index = -1;
 
