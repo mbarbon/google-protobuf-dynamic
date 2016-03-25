@@ -2,6 +2,10 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.04      2016-03-25 15:39:16 CET
+
+    - Fixed memory leak in some accessors
+
 0.03      2016-03-19 19:24:38 CET
 
     - Fix segmentation fault
