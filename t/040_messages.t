@@ -46,7 +46,7 @@ $d->resolve_references();
     eq_or_diff(OuterWithGroup->encode($decoded), $encoded);
 }
 
-# unusual, but the spec excplicitly mentions this
+# unusual, but the spec explicitly mentions this
 {
     my $encoded = "\x0a\x02\x08\x02\x0a\x02\x10\x07";
     my $reencoded = "\x0a\x04\x08\x02\x10\x07";
