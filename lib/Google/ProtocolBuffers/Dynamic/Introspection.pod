@@ -8,6 +8,9 @@
     $message_name = $message_def->full_name;
     $field_name = $field_def->full_name
 
+    $enum_def = Some::Enum::Package->enum_descriptor;
+    $value = $enum_def->values;
+
 =head1 DESCRIPTION
 
 A simple introspection API wrapping uPB descriptor API.

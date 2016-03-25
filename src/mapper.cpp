@@ -1374,3 +1374,24 @@ void MapperField::set_list(HV *self, SV *ref) {
     SvRV_set(field_ref, SvRV(ref));
     SvREFCNT_inc(SvRV(field_ref));
 }
+
+EnumMapper::EnumMapper(pTHX_ Dynamic *_registry, const upb::EnumDef *_enum_def) :
+        registry(_registry),
+        enum_def(_enum_def) {
+    SET_THX_MEMBER;
+
+    registry->ref();
+}
+
+EnumMapper::~EnumMapper() {
+    // make sure this only goes away after inner destructors have completed
+    refcounted_mortalize(aTHX_ registry);
+}
+
+SV *EnumMapper::enum_descriptor() const {
+    SV *ref = newSV(0);
+
+    sv_setref_iv(ref, "Google::ProtocolBuffers::Dynamic::EnumDef", (IV) enum_def);
+
+    return ref;
+}

@@ -45,4 +45,12 @@ is($enum_t->find_name_by_number(7), undef);
 is($enum_t->find_number_by_name('SECOND'), 2);
 is($enum_t->find_number_by_name('SEVENTH'), undef);
 
+my $enum_t_again = Test::Enum->enum_descriptor;
+is($enum_t_again->full_name, 'test.Enum');
+eq_or_diff($enum_t_again->values, {
+    FIRST   => 1,
+    SECOND  => 2,
+    THIRD   => 3,
+});
+
 done_testing();

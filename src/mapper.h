@@ -194,6 +194,19 @@ private:
     const Mapper *mapper;
 };
 
+class EnumMapper : public Refcounted {
+public:
+    EnumMapper(pTHX_ Dynamic *registry, const upb::EnumDef *enum_def);
+    ~EnumMapper();
+
+    SV *enum_descriptor() const;
+
+private:
+    DECL_THX_MEMBER;
+    Dynamic *registry;
+    const upb::EnumDef *enum_def;
+};
+
 };
 
 #endif

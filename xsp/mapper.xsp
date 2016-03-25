@@ -46,6 +46,14 @@ message_descriptor(SV *klass)
   OUTPUT: RETVAL
 
 SV*
+enum_descriptor(SV *klass)
+  INIT:
+    gpd::EnumMapper *mapper = (gpd::EnumMapper *) CvXSUBANY(cv).any_ptr;
+  CODE:
+    RETVAL = mapper->enum_descriptor();
+  OUTPUT: RETVAL
+
+SV*
 decode(SV *klass, SV *scalar)
   INIT:
     gpd::Mapper *mapper = (gpd::Mapper *) CvXSUBANY(cv).any_ptr;

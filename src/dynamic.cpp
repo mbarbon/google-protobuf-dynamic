@@ -129,8 +129,8 @@ namespace {
         refcounted->ref();
     }
 
-    void copy_and_bind(pTHX_ const char *name, const string &perl_package, Mapper *mapper) {
-        copy_and_bind(aTHX_ name, name, perl_package, mapper);
+    void copy_and_bind(pTHX_ const char *name, const string &perl_package, Refcounted *refcounted) {
+        copy_and_bind(aTHX_ name, name, perl_package, refcounted);
     }
 
     void copy_and_bind(pTHX_ const char *name, const char *prefix, const char *suffix, const string &perl_package, Mapper *mapper) {
@@ -326,10 +326,15 @@ void Dynamic::map_enum(pTHX_ const EnumDescriptor *descriptor, const string &per
     if (mapped_enums.find(descriptor->full_name()) != mapped_enums.end())
         croak("Message '%s' has already been mapped", descriptor->full_name().c_str());
 
+    const EnumDef *enum_def = def_builder.GetEnumDef(descriptor);
+    EnumMapper *mapper = new EnumMapper(aTHX_ this, enum_def);
+
     mapped_enums.insert(descriptor->full_name());
     used_packages.insert(perl_package);
 
     HV *stash = gv_stashpvn(perl_package.data(), perl_package.size(), GV_ADD);
+
+    copy_and_bind(aTHX_ "enum_descriptor", perl_package, mapper);
 
     for (int i = 0, max = descriptor->value_count(); i < max; ++i) {
         const EnumValueDescriptor *value = descriptor->value(i);
@@ -353,4 +358,3 @@ const Mapper *Dynamic::find_mapper(const MessageDef *message_def) const {
 
     return item->second;
 }
-
