@@ -23,6 +23,10 @@ Constructs a new message instances using the passed-in data.
 Construction recurses into message fields, and it takes ownership of
 the passed-in hash, so don't use it afterwards.
 
+=head2 new_and_check
+
+Constructs a new message instances using the passed-in data, and then calls L</check>. See also L</new>.
+
 =head2 decode
 
     $msg = Message::Class->decode($serialized_data);
@@ -37,6 +41,17 @@ Deserializes Protocol Buffer binary data into a message instance.
 
 Serializes the given message instance (or mix of message instances and
 plain hashes) to Protocol Buffer binary format.
+
+=head2 check
+
+    Message::Class->check({ ... });
+    Message::Class->check($message_instance);
+    $message_instance->check;
+
+Performs a sanity check, verifying (recursively) that the object
+structure does not contain unknown fields. Consider this as a typo
+protection: this check passing does not imply encoding will succeed
+(for example, scalar values are not checked).
 
 =head2 message_descriptor
 

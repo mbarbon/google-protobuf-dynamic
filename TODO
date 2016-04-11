@@ -20,3 +20,5 @@ Implement:
 - encode_defaults option
 - generic extension methods perform a linear scan on the extension list
 - better parameter checking/error handling in protoc plugin
+- check duplicate oneof fields in check methods?
+- check required fields in check methods?

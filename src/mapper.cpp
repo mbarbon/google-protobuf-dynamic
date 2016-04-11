@@ -438,7 +438,9 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
 
             field.name = newSVpvn_share(temp.data(), temp.size(), 0);
         } else {
-            field.name = newSVpvn_share(field_def->name(), strlen(field_def->name()), 0);
+            string temp = string(field_def->name());
+
+            field.name = newSVpvn_share(temp.data(), temp.size(), 0);
         }
         field.name_hash = SvSHARED_HASH(field.name);
         field.has_default = false;
@@ -553,6 +555,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
             extension_mapper_fields.push_back(new MapperField(aTHX_ this, &*it));
             unref(); // to avoid ref loop
         }
+        field_map[SvPV_nolen(it->name)] = &*it;
     }
 
     int oneof_index = 0;
@@ -685,6 +688,13 @@ SV *Mapper::decode(const char *buffer, STRLEN bufsize) {
     decoder_callbacks.clear();
 
     return result;
+}
+
+bool Mapper::check(SV *ref) {
+    if (encoder == NULL)
+        croak("It looks like resolve_references() was not called (and please use map() anyway)");
+    status.Clear();
+    return check(&status, ref);
 }
 
 const char *Mapper::last_error_message() const {
@@ -1047,6 +1057,124 @@ bool Mapper::encode_from_perl_array(Encoder* encoder, Sink *sink, Status *status
             return encode_from_array<U64Getter, UInt64Emitter>(encoder, sink, fd, array);
     default:
         return false; // just in case
+    }
+}
+
+bool Mapper::check_from_message_array(Status *status, const Mapper::Field &fd, AV *source) const {
+    int size = av_top_index(source) + 1;
+
+    for (int i = 0; i < size; ++i) {
+        SV **item = av_fetch(source, i, 0);
+        if (!item)
+            return false;
+
+        SvGETMAGIC(*item);
+        if (!check(status, *item))
+            return false;
+    }
+
+    return true;
+}
+
+bool Mapper::check_from_enum_array(Status *status, const Mapper::Field &fd, AV *source) const {
+    int size = av_top_index(source) + 1;
+
+    for (int i = 0; i < size; ++i) {
+        SV **item = av_fetch(source, i, 0);
+        if (!item)
+            return false;
+
+        IV value = SvIV(*item);
+        if (fd.enum_values.find(value) == fd.enum_values.end()) {
+            status->SetFormattedErrorMessage(
+                "Invalid enumeration value %d for field '%s'",
+                value,
+                fd.full_name().c_str()
+            );
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool Mapper::check(Status *status, SV *ref) const {
+    if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVHV)
+        croak("Not an hash reference when checking a %s value", message_def->full_name());
+    HV *hv = (HV *) SvRV(ref);
+
+    I32 count = hv_iterinit(hv);
+    bool ok = true;
+    for (int i = 0; i < count; ++i) {
+        char *key;
+        I32 keylen;
+        SV *value = hv_iternextsv(hv, &key, &keylen);
+        // if the key is marked as UTF-8 and contains non-ASCII characters,
+        // it will not be there anyway in the lookup
+        string name(key, keylen < 0 ? -keylen : keylen);
+        STD_TR1::unordered_map<string, Field *>::const_iterator it = field_map.find(name);
+
+        if (it == field_map.end()) {
+            status->SetFormattedErrorMessage(
+                "Unknown field '%s' during check",
+                name.c_str());
+            return false;
+        }
+
+        Field *field = it->second;
+        if (field->field_def->label() == UPB_LABEL_REPEATED)
+            ok = ok && check_from_perl_array(status, *field, value);
+        else
+            ok = ok && check(status, *field, value);
+    }
+
+    return ok;
+}
+
+bool Mapper::check(Status *status, const Field &fd, SV *ref) const {
+    switch (fd.field_def->type()) {
+    case UPB_TYPE_MESSAGE:
+        return fd.mapper->check(status, ref);
+    case UPB_TYPE_ENUM: {
+        if (!check_enum_values)
+            return true;
+
+        IV value = SvIV(ref);
+        if (fd.enum_values.find(value) == fd.enum_values.end()) {
+            status->SetFormattedErrorMessage(
+                "Invalid enumeration value %d for field '%s'",
+                value,
+                fd.full_name().c_str()
+            );
+            return false;
+        }
+
+        return true;
+    }
+    default:
+        // I doubt there is any point in performing "strict" type checks
+        // on scalar values, due to coercion
+        return true;
+    }
+}
+
+bool Mapper::check_from_perl_array(Status *status, const Field &fd, SV *ref) const {
+    if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVAV)
+        croak("Not an array reference when encoding field '%s'", fd.full_name().c_str());
+    AV *array = (AV *) SvRV(ref);
+
+    switch (fd.field_def->type()) {
+    case UPB_TYPE_MESSAGE:
+        return fd.mapper->check_from_message_array(status, fd, array);
+    case UPB_TYPE_ENUM:
+        if (check_enum_values)
+            return check_from_enum_array(status, fd, array);
+        else
+            return true;
+    default:
+        // I doubt there is any point in performing "strict" type checks
+        // on scalar values, due to coercion
+        return true;
     }
 }
 

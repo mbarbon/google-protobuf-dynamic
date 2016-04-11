@@ -17,6 +17,16 @@ new(SV *klass, SV *ref = NULL)
     RETVAL = mapper->make_object(ref);
   OUTPUT: RETVAL
 
+SV*
+new_and_check(SV *klass, SV *ref = NULL)
+  INIT:
+    gpd::Mapper *mapper = (gpd::Mapper *) CvXSUBANY(cv).any_ptr;
+  CODE:
+    if (!mapper->check(ref))
+        croak("Check failed: %s", mapper->last_error_message());
+
+    RETVAL = mapper->make_object(ref);
+  OUTPUT: RETVAL
 
 SV*
 message_descriptor(SV *klass)
@@ -68,6 +78,21 @@ encode(SV *klass_or_object, SV *ref = NULL)
         croak("Serialization failed: %s", mapper->last_error_message());
     }
   OUTPUT: RETVAL
+
+void
+check(SV *klass_or_object, SV *ref = NULL)
+  INIT:
+    gpd::Mapper *mapper = (gpd::Mapper *) CvXSUBANY(cv).any_ptr;
+  CODE:
+    if (ref == NULL) {
+        if (sv_isobject(klass_or_object))
+            ref = klass_or_object;
+        else
+            croak("Usage: $object->check or $class->check($hash)");
+    }
+
+    if (mapper->check(ref))
+        croak("Check failed: %s", mapper->last_error_message());
 
 SV *
 has_field(HV *self)

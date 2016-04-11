@@ -106,6 +106,7 @@ public:
 
     SV *encode(SV *ref);
     SV *decode(const char *buffer, STRLEN bufsize);
+    bool check(SV *ref);
 
     const char *last_error_message() const;
 
@@ -131,6 +132,12 @@ private:
         return encode_from_array<G, S>(encoder, sink, NULL, fd, source);
     }
 
+    bool check(upb::Status *status, SV *ref) const;
+    bool check(upb::Status *status, const Field &fd, SV *ref) const;
+    bool check_from_perl_array(upb::Status *status, const Field &fd, SV *ref) const;
+    bool check_from_message_array(upb::Status *status, const Mapper::Field &fd, AV *source) const;
+    bool check_from_enum_array(upb::Status *status, const Mapper::Field &fd, AV *source) const;
+
     DECL_THX_MEMBER;
     Dynamic *registry;
     const upb::MessageDef *message_def;
@@ -140,6 +147,7 @@ private:
     upb::reffed_ptr<const upb::pb::DecoderMethod> decoder_method;
     std::vector<Field> fields;
     std::vector<MapperField *> extension_mapper_fields;
+    STD_TR1::unordered_map<std::string, Field *> field_map;
     upb::Environment env;
     upb::Status status;
     DecoderHandlers decoder_callbacks;
