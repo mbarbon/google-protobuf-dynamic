@@ -612,6 +612,36 @@ SV *Mapper::message_descriptor() const {
     return ref;
 }
 
+SV *Mapper::make_object(SV *data) const {
+    SV *obj = NULL;
+
+    if (data) {
+        if (!SvROK(data) || SvTYPE(SvRV(data)) != SVt_PVHV)
+            croak("Not an hash reference");
+
+        if (SvTEMP(data) && SvREFCNT(data) == 1) {
+            // steal
+            SvREFCNT_inc(data);
+            obj = data;
+        } else {
+            HV * hv = newHV();
+            sv_2mortal((SV *) hv);
+            HV *orig = (HV *) SvRV(data);
+            I32 items = hv_iterinit(orig), keylen;
+            char *key;
+            while (SV *sv = hv_iternextsv(orig, &key, &keylen)) {
+                hv_store(hv, key, keylen, newSVsv(sv), 0);
+            }
+            obj = newRV_inc((SV *) hv);
+        }
+    } else {
+        obj = newRV_noinc((SV *) newHV());
+    }
+    sv_bless(obj, stash);
+
+    return obj;
+}
+
 void Mapper::resolve_mappers() {
     for (vector<Field>::iterator it = fields.begin(), en = fields.end(); it != en; ++it) {
         const FieldDef *field = it->field_def;

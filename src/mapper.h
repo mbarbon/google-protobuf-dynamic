@@ -115,6 +115,7 @@ public:
     MapperField *find_extension(const std::string &name) const;
 
     SV *message_descriptor() const;
+    SV *make_object(SV *data) const;
 
 private:
     bool encode(upb::pb::Encoder* encoder, upb::Sink *sink, upb::Status *status, SV *ref) const;

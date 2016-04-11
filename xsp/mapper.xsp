@@ -11,29 +11,10 @@
 
 SV*
 new(SV *klass, SV *ref = NULL)
+  INIT:
+    gpd::Mapper *mapper = (gpd::Mapper *) CvXSUBANY(cv).any_ptr;
   CODE:
-    if (ref) {
-        if (SvTEMP(ref) && SvREFCNT(ref) == 1) {
-            // steal
-            SvREFCNT_inc(ref);
-            RETVAL = ref;
-        } else {
-            HV * hv = newHV();
-            sv_2mortal((SV *) hv);
-            if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVHV)
-                croak("Not an hash reference");
-            HV *orig = (HV *) SvRV(ref);
-            I32 items = hv_iterinit(orig), keylen;
-            char *key;
-            while (SV *sv = hv_iternextsv(orig, &key, &keylen)) {
-                hv_store(hv, key, keylen, newSVsv(sv), 0);
-            }
-            RETVAL = newRV_inc((SV *) hv);
-        }
-    } else {
-        RETVAL = newRV_noinc((SV *) newHV());
-    }
-    sv_bless(RETVAL, gv_stashsv(klass, 0));
+    RETVAL = mapper->make_object(ref);
   OUTPUT: RETVAL
 
 
