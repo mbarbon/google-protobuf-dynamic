@@ -60,6 +60,21 @@ decode(SV *klass, SV *scalar)
   OUTPUT: RETVAL
 
 SV*
+decode_json(SV *klass, SV *scalar)
+  INIT:
+    gpd::Mapper *mapper = (gpd::Mapper *) CvXSUBANY(cv).any_ptr;
+    STRLEN bufsize;
+    const char *buffer = SvPV(scalar, bufsize);
+  CODE:
+    RETVAL = mapper->decode_json(buffer, bufsize);
+
+    if (!RETVAL) {
+        sv_2mortal(RETVAL);
+        croak("Deserialization failed: %s", mapper->last_error_message());
+    }
+  OUTPUT: RETVAL
+
+SV*
 encode(SV *klass_or_object, SV *ref = NULL)
   INIT:
     gpd::Mapper *mapper = (gpd::Mapper *) CvXSUBANY(cv).any_ptr;
@@ -72,6 +87,26 @@ encode(SV *klass_or_object, SV *ref = NULL)
     }
 
     RETVAL = mapper->encode(ref);
+
+    if (!RETVAL) {
+        sv_2mortal(RETVAL);
+        croak("Serialization failed: %s", mapper->last_error_message());
+    }
+  OUTPUT: RETVAL
+
+SV*
+encode_json(SV *klass_or_object, SV *ref = NULL)
+  INIT:
+    gpd::Mapper *mapper = (gpd::Mapper *) CvXSUBANY(cv).any_ptr;
+  CODE:
+    if (ref == NULL) {
+        if (sv_isobject(klass_or_object))
+            ref = klass_or_object;
+        else
+            croak("Usage: $object->encode or $class->encode($hash)");
+    }
+
+    RETVAL = mapper->encode_json(ref);
 
     if (!RETVAL) {
         sv_2mortal(RETVAL);

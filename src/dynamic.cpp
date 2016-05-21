@@ -281,6 +281,8 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
 
     copy_and_bind(aTHX_ "decode", perl_package, mapper);
     copy_and_bind(aTHX_ "encode", perl_package, mapper);
+    copy_and_bind(aTHX_ "decode_json", perl_package, mapper);
+    copy_and_bind(aTHX_ "encode_json", perl_package, mapper);
     copy_and_bind(aTHX_ "new", perl_package, mapper);
     copy_and_bind(aTHX_ "new_and_check", perl_package, mapper);
     copy_and_bind(aTHX_ "message_descriptor", perl_package, mapper);

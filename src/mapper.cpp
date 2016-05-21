@@ -10,6 +10,7 @@ using namespace gpd;
 using namespace std;
 using namespace upb;
 using namespace upb::pb;
+using namespace upb::json;
 
 #ifdef MULTIPLICITY
 #    define THX_DECLARE_AND_GET tTHX my_perl = cxt->my_perl
@@ -414,6 +415,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
     env.ReportErrorsTo(&status);
     registry->ref();
     pb_encoder_handlers = Encoder::NewHandlers(message_def);
+    json_encoder_handlers = Printer::NewHandlers(message_def, false /* XXX option */);
     decoder_handlers = Handlers::New(message_def);
     decode_explicit_defaults = options.explicit_defaults;
     encode_defaults = options.encode_defaults;
@@ -657,9 +659,12 @@ void Mapper::resolve_mappers() {
     }
 
     pb_decoder_method = DecoderMethod::New(DecoderMethodOptions(decoder_handlers.get()));
+    json_decoder_method = ParserMethod::New(message_def);
     decoder_sink.Reset(decoder_handlers.get(), &decoder_callbacks);
     pb_decoder = upb::pb::Decoder::Create(&env, pb_decoder_method.get(), &decoder_sink);
+    json_decoder = upb::json::Parser::Create(&env, json_decoder_method.get(), &decoder_sink);
     pb_encoder = upb::pb::Encoder::Create(&env, pb_encoder_handlers.get(), string_sink.input());
+    json_encoder = upb::json::Printer::Create(&env, json_encoder_handlers.get(), string_sink.input());
 }
 
 SV *Mapper::encode(SV *ref) {
@@ -675,6 +680,19 @@ SV *Mapper::encode(SV *ref) {
     return result;
 }
 
+SV *Mapper::encode_json(SV *ref) {
+    if (json_encoder == NULL)
+        croak("It looks like resolve_references() was not called (and please use map() anyway)");
+    status.Clear();
+    output_buffer.clear();
+    SV *result = NULL;
+    if (encode(json_encoder->input(), &status, ref))
+        result = newSVpvn(output_buffer.data(), output_buffer.size());
+    output_buffer.clear();
+
+    return result;
+}
+
 SV *Mapper::decode(const char *buffer, STRLEN bufsize) {
     if (pb_decoder == NULL)
         croak("It looks like resolve_references() was not called (and please use map() anyway)");
@@ -684,6 +702,20 @@ SV *Mapper::decode(const char *buffer, STRLEN bufsize) {
 
     SV *result = NULL;
     if (BufferSource::PutBuffer(buffer, bufsize, pb_decoder->input()))
+        result = sv_bless(newRV_inc(decoder_callbacks.get_target()), stash);
+    decoder_callbacks.clear();
+
+    return result;
+}
+
+SV *Mapper::decode_json(const char *buffer, STRLEN bufsize) {
+    if (json_decoder == NULL)
+        croak("It looks like resolve_references() was not called (and please use map() anyway)");
+    status.Clear();
+    decoder_callbacks.prepare(newHV());
+
+    SV *result = NULL;
+    if (BufferSource::PutBuffer(buffer, bufsize, json_decoder->input()))
         result = sv_bless(newRV_inc(decoder_callbacks.get_target()), stash);
     decoder_callbacks.clear();
 

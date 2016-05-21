@@ -7,6 +7,8 @@
 
 #include <upb/pb/encoder.h>
 #include <upb/pb/decoder.h>
+#include <upb/json/printer.h>
+#include <upb/json/parser.h>
 #include <upb/bindings/stdc++/string.h>
 
 #include "unordered_map.h"
@@ -106,6 +108,8 @@ public:
 
     SV *encode(SV *ref);
     SV *decode(const char *buffer, STRLEN bufsize);
+    SV *encode_json(SV *ref);
+    SV *decode_json(const char *buffer, STRLEN bufsize);
     bool check(SV *ref);
 
     const char *last_error_message() const;
@@ -142,9 +146,10 @@ private:
     Dynamic *registry;
     const upb::MessageDef *message_def;
     HV *stash;
-    upb::reffed_ptr<const upb::Handlers> pb_encoder_handlers;
+    upb::reffed_ptr<const upb::Handlers> pb_encoder_handlers, json_encoder_handlers;
     upb::reffed_ptr<upb::Handlers> decoder_handlers;
     upb::reffed_ptr<const upb::pb::DecoderMethod> pb_decoder_method;
+    upb::reffed_ptr<const upb::json::ParserMethod> json_decoder_method;
     std::vector<Field> fields;
     std::vector<MapperField *> extension_mapper_fields;
     STD_TR1::unordered_map<std::string, Field *> field_map;
@@ -153,9 +158,11 @@ private:
     DecoderHandlers decoder_callbacks;
     upb::Sink encoder_sink, decoder_sink;
     upb::pb::Decoder *pb_decoder;
+    upb::json::Parser *json_decoder;
     std::string output_buffer;
     upb::StringSink string_sink;
     upb::pb::Encoder *pb_encoder;
+    upb::json::Printer *json_encoder;
     bool check_required_fields, decode_explicit_defaults, encode_defaults, check_enum_values;
 };
 

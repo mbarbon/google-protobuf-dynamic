@@ -33,6 +33,12 @@ Constructs a new message instances using the passed-in data, and then calls L</c
 
 Deserializes Protocol Buffer binary data into a message instance.
 
+=head2 decode_json
+
+    $msg = Message::Class->decode_json($json_data);
+
+Deserializes Protocol Buffer JSON data into a message instance.
+
 =head2 encode
 
     $serialized_data = Message::Class->encode({ ... });
@@ -41,6 +47,15 @@ Deserializes Protocol Buffer binary data into a message instance.
 
 Serializes the given message instance (or mix of message instances and
 plain hashes) to Protocol Buffer binary format.
+
+=head2 encode_json
+
+    $serialized_data = Message::Class->encode_json({ ... });
+    $serialized_data = Message::Class->encode_json($message_instance);
+    $serialized_data = $message_instance->encode_json;
+
+Serializes the given message instance (or mix of message instances and
+plain hashes) to Protocol Buffer JSON format.
 
 =head2 check
 

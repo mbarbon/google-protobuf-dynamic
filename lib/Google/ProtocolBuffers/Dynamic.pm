@@ -58,7 +58,9 @@ __END__
 
     # encoding/decoding
     $person = Humans::Person->decode("\x0a\x03foo\x10\x1f");
+    $person = Humans::Person->decode_json('{"id":31,"name":"John Doe"}');
     $bytes = Humans::Person->encode($person);
+    $bytes = Humans::Person->encode_json($person);
 
     # field accessors
     $person = Humans::Person->new;
