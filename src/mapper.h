@@ -119,17 +119,17 @@ public:
     SV *make_object(SV *data) const;
 
 private:
-    bool encode(upb::pb::Encoder* encoder, upb::Sink *sink, upb::Status *status, SV *ref) const;
-    bool encode(upb::pb::Encoder* encoder, upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;
-    bool encode_from_perl_array(upb::pb::Encoder* encoder, upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;
-    bool encode_from_message_array(upb::pb::Encoder *encoder, upb::Sink *sink, upb::Status *status, const Mapper::Field &fd, AV *source) const;
+    bool encode(upb::Sink *sink, upb::Status *status, SV *ref) const;
+    bool encode(upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;
+    bool encode_from_perl_array(upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;
+    bool encode_from_message_array(upb::Sink *sink, upb::Status *status, const Mapper::Field &fd, AV *source) const;
 
     template<class G, class S>
-    bool encode_from_array(upb::pb::Encoder *encoder, upb::Sink *sink, upb::Status *status, const Mapper::Field &fd, AV *source) const;
+    bool encode_from_array(upb::Sink *sink, upb::Status *status, const Mapper::Field &fd, AV *source) const;
 
     template<class G, class S>
-    bool encode_from_array(upb::pb::Encoder *encoder, upb::Sink *sink, const Mapper::Field &fd, AV *source) const {
-        return encode_from_array<G, S>(encoder, sink, NULL, fd, source);
+    bool encode_from_array(upb::Sink *sink, const Mapper::Field &fd, AV *source) const {
+        return encode_from_array<G, S>(sink, NULL, fd, source);
     }
 
     bool check(upb::Status *status, SV *ref) const;

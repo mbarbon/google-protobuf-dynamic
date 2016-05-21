@@ -668,7 +668,7 @@ SV *Mapper::encode(SV *ref) {
     status.Clear();
     output_buffer.clear();
     SV *result = NULL;
-    if (encode(encoder, encoder->input(), &status, ref))
+    if (encode(encoder->input(), &status, ref))
         result = newSVpvn(output_buffer.data(), output_buffer.size());
     output_buffer.clear();
 
@@ -862,7 +862,7 @@ namespace {
 }
 
 template<class G, class S>
-bool Mapper::encode_from_array(Encoder *encoder, Sink *sink, Status *status, const Mapper::Field &fd, AV *source) const {
+bool Mapper::encode_from_array(Sink *sink, Status *status, const Mapper::Field &fd, AV *source) const {
     G getter;
     S setter(status);
     Sink sub, *actual = sink;
@@ -887,7 +887,7 @@ bool Mapper::encode_from_array(Encoder *encoder, Sink *sink, Status *status, con
     return !packed || sink->EndSequence(fd.selector.seq_end);
 }
 
-bool Mapper::encode_from_message_array(Encoder *encoder, Sink *sink, Status *status, const Mapper::Field &fd, AV *source) const {
+bool Mapper::encode_from_message_array(Sink *sink, Status *status, const Mapper::Field &fd, AV *source) const {
     int size = av_top_index(source) + 1;
 
     for (int i = 0; i < size; ++i) {
@@ -899,7 +899,7 @@ bool Mapper::encode_from_message_array(Encoder *encoder, Sink *sink, Status *sta
         SvGETMAGIC(*item);
         if (!sink->StartSubMessage(fd.selector.msg_start, &submsg))
             return false;
-        if (!encode(encoder, &submsg, status, *item))
+        if (!encode(&submsg, status, *item))
             return false;
         if (!sink->EndSubMessage(fd.selector.msg_end))
             return false;
@@ -917,7 +917,7 @@ namespace {
     }
 }
 
-bool Mapper::encode(Encoder* encoder, Sink *sink, Status *status, SV *ref) const {
+bool Mapper::encode(Sink *sink, Status *status, SV *ref) const {
     if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVHV)
         croak("Not an hash reference when encoding a %s value", message_def->full_name());
     HV *hv = (HV *) SvRV(ref);
@@ -948,9 +948,9 @@ bool Mapper::encode(Encoder* encoder, Sink *sink, Status *status, SV *ref) const
         }
 
         if (it->field_def->label() == UPB_LABEL_REPEATED)
-            ok = ok && encode_from_perl_array(encoder, sink, status, *it, HeVAL(he));
+            ok = ok && encode_from_perl_array(sink, status, *it, HeVAL(he));
         else
-            ok = ok && encode(encoder, sink, status, *it, HeVAL(he));
+            ok = ok && encode(sink, status, *it, HeVAL(he));
     }
 
     if (!sink->EndMessage(status))
@@ -959,7 +959,7 @@ bool Mapper::encode(Encoder* encoder, Sink *sink, Status *status, SV *ref) const
     return ok;
 }
 
-bool Mapper::encode(Encoder* encoder, Sink *sink, Status *status, const Field &fd, SV *ref) const {
+bool Mapper::encode(Sink *sink, Status *status, const Field &fd, SV *ref) const {
     switch (fd.field_def->type()) {
     case UPB_TYPE_FLOAT:
         return sink->PutFloat(fd.selector.primitive, SvNV(ref));
@@ -981,7 +981,7 @@ bool Mapper::encode(Encoder* encoder, Sink *sink, Status *status, const Field &f
         Sink sub;
         if (!sink->StartSubMessage(fd.selector.msg_start, &sub))
             return false;
-        if (!fd.mapper->encode(encoder, &sub, status, ref))
+        if (!fd.mapper->encode(&sub, status, ref))
             return false;
         return sink->EndSubMessage(fd.selector.msg_end);
     }
@@ -1018,43 +1018,43 @@ bool Mapper::encode(Encoder* encoder, Sink *sink, Status *status, const Field &f
     }
 }
 
-bool Mapper::encode_from_perl_array(Encoder* encoder, Sink *sink, Status *status, const Field &fd, SV *ref) const {
+bool Mapper::encode_from_perl_array(Sink *sink, Status *status, const Field &fd, SV *ref) const {
     if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVAV)
         croak("Not an array reference when encoding field '%s'", fd.full_name().c_str());
     AV *array = (AV *) SvRV(ref);
 
     switch (fd.field_def->type()) {
     case UPB_TYPE_FLOAT:
-        return encode_from_array<NVGetter, FloatEmitter>(encoder, sink, fd, array);
+        return encode_from_array<NVGetter, FloatEmitter>(sink, fd, array);
     case UPB_TYPE_DOUBLE:
-        return encode_from_array<NVGetter, DoubleEmitter>(encoder, sink, fd, array);
+        return encode_from_array<NVGetter, DoubleEmitter>(sink, fd, array);
     case UPB_TYPE_BOOL:
-        return encode_from_array<BoolGetter, BoolEmitter>(encoder, sink, fd, array);
+        return encode_from_array<BoolGetter, BoolEmitter>(sink, fd, array);
     case UPB_TYPE_STRING:
-        return encode_from_array<SVGetter, StringEmitter>(encoder, sink, fd, array);
+        return encode_from_array<SVGetter, StringEmitter>(sink, fd, array);
     case UPB_TYPE_BYTES:
-        return encode_from_array<SVGetter, StringEmitter>(encoder, sink, fd, array);
+        return encode_from_array<SVGetter, StringEmitter>(sink, fd, array);
     case UPB_TYPE_MESSAGE:
-        return fd.mapper->encode_from_message_array(encoder, sink, status, fd, array);
+        return fd.mapper->encode_from_message_array(sink, status, fd, array);
     case UPB_TYPE_ENUM:
         if (check_enum_values)
-            return encode_from_array<IVGetter, EnumEmitter>(encoder, sink, status, fd, array);
+            return encode_from_array<IVGetter, EnumEmitter>(sink, status, fd, array);
         else
-            return encode_from_array<IVGetter, Int32Emitter>(encoder, sink, fd, array);
+            return encode_from_array<IVGetter, Int32Emitter>(sink, fd, array);
     case UPB_TYPE_INT32:
-        return encode_from_array<IVGetter, Int32Emitter>(encoder, sink, fd, array);
+        return encode_from_array<IVGetter, Int32Emitter>(sink, fd, array);
     case UPB_TYPE_UINT32:
-        return encode_from_array<UVGetter, UInt32Emitter>(encoder, sink, fd, array);
+        return encode_from_array<UVGetter, UInt32Emitter>(sink, fd, array);
     case UPB_TYPE_INT64:
         if (sizeof(IV) >= sizeof(int64_t))
-            return encode_from_array<IVGetter, Int64Emitter>(encoder, sink, fd, array);
+            return encode_from_array<IVGetter, Int64Emitter>(sink, fd, array);
         else
-            return encode_from_array<I64Getter, Int64Emitter>(encoder, sink, fd, array);
+            return encode_from_array<I64Getter, Int64Emitter>(sink, fd, array);
     case UPB_TYPE_UINT64:
         if (sizeof(IV) >= sizeof(int64_t))
-            return encode_from_array<UVGetter, UInt64Emitter>(encoder, sink, fd, array);
+            return encode_from_array<UVGetter, UInt64Emitter>(sink, fd, array);
         else
-            return encode_from_array<U64Getter, UInt64Emitter>(encoder, sink, fd, array);
+            return encode_from_array<U64Getter, UInt64Emitter>(sink, fd, array);
     default:
         return false; // just in case
     }
