@@ -17,7 +17,9 @@ sub map {
     my ($self, @mappings) = @_;
 
     for my $mapping (@mappings) {
-        if (exists $mapping->{package}) {
+        if (exists $mapping->{pb_prefix}) {
+            $self->map_package_prefix($mapping->{pb_prefix}, $mapping->{prefix}, $mapping->{options});
+        } elsif (exists $mapping->{package}) {
             $self->map_package($mapping->{package}, $mapping->{prefix}, $mapping->{options});
         } elsif (exists $mapping->{message}) {
             $self->map_message($mapping->{message}, $mapping->{to}, $mapping->{options});
@@ -269,6 +271,7 @@ format produced by C<protoc> C<--descriptor_set_out> option.
 
     # the 'options' key is optional
     $dynamic->map(
+        { pb_prefix => $pb_prefix,prefix => $perl_prefix, options => $options },
         { package => $pb_package, prefix => $perl_prefix, options => $options },
         { message => $pb_message, to    => $perl_package, options => $options },
         { enum    => $pb_enum,    to    => $perl_package, options => $options },
@@ -304,6 +307,15 @@ C<OtherPackage::Bar> whereas
 
 throws an error because C<test.Foo> has already been mapped (to
 C<OtherPackage::Foo>) by the first mapping.
+
+=head2 map_package_prefix
+
+    $dynamic->map_package_prefix($pb_prefix, $perl_prefix);
+    $dynamic->map_package_prefix($pb_prefix, $perl_prefix, $options);
+
+Finds all types contained in ProtocolBuffers packages having the given
+prefix and (recursively) maps them under the specified Perl package
+prefix. It silently skips any already mapped types.
 
 =head2 map_package
 

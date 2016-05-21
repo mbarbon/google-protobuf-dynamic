@@ -161,18 +161,50 @@ void Dynamic::map_message(pTHX_ const string &message, const string &perl_packag
 }
 
 void Dynamic::map_package(pTHX_ const string &pb_package, const string &perl_package_prefix, const MappingOptions &options) {
+    map_package_or_prefix(aTHX_ pb_package, false, perl_package_prefix, options);
+}
+
+void Dynamic::map_package_prefix(pTHX_ const string &pb_prefix, const string &perl_package_prefix, const MappingOptions &options) {
+    map_package_or_prefix(aTHX_ pb_prefix, true, perl_package_prefix, options);
+}
+
+void Dynamic::map_package_or_prefix(pTHX_ const string &pb_package_or_prefix, bool is_prefix, const string &perl_package_prefix, const MappingOptions &options) {
+    string prefix_and_dot = pb_package_or_prefix + ".";
+
     for (unordered_set<const FileDescriptor *>::iterator it = files.begin(), en = files.end(); it != en; ++it) {
         const FileDescriptor *file = *it;
+        const string &file_package = file->package();
+        bool is_exact = false;
 
-        if (pb_package != file->package())
+        if (pb_package_or_prefix == file_package) {
+            is_exact = true;
+        } else if (is_prefix) {
+
+            if (file_package.length() <= prefix_and_dot.length() ||
+                    strncmp(file_package.data(), prefix_and_dot.data(), prefix_and_dot.length()) != 0)
+                continue;
+        } else {
             continue;
+        }
+
+        string perl_package = perl_package_prefix;
+        if (!is_exact) {
+            perl_package += "::";
+
+            for (string::const_iterator it = file_package.begin() + prefix_and_dot.length(), en = file_package.end(); it != en; ++it) {
+                if (*it == '.')
+                    perl_package += "::";
+                else
+                    perl_package += *it;
+            }
+        }
 
         for (int i = 0, max = file->message_type_count(); i < max; ++i) {
             const Descriptor *descriptor = file->message_type(i);
             if (descriptor_map.find(descriptor->full_name()) != descriptor_map.end())
                 continue;
 
-            map_message_recursive(aTHX_ descriptor, perl_package_prefix + "::" + descriptor->name(), options);
+            map_message_recursive(aTHX_ descriptor, perl_package + "::" + descriptor->name(), options);
         }
 
         for (int i = 0, max = file->enum_type_count(); i < max; ++i) {
@@ -180,7 +212,7 @@ void Dynamic::map_package(pTHX_ const string &pb_package, const string &perl_pac
             if (mapped_enums.find(descriptor->full_name()) != mapped_enums.end())
                 continue;
 
-            map_enum(aTHX_ descriptor, perl_package_prefix + "::" + descriptor->name(), options);
+            map_enum(aTHX_ descriptor, perl_package + "::" + descriptor->name(), options);
         }
     }
 }

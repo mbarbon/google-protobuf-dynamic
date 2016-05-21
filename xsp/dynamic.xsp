@@ -24,5 +24,8 @@
     void map_package(const std::string &pb_package, const std::string &perl_package, SV *options = NULL)
         %code{% THIS->map_package(aTHX_ *pb_package, *perl_package, gpd::MappingOptions(aTHX_ options)); %};
 
+    void map_package_prefix(const std::string &pb_package, const std::string &perl_package, SV *options = NULL)
+        %code{% THIS->map_package_prefix(aTHX_ *pb_package, *perl_package, gpd::MappingOptions(aTHX_ options)); %};
+
     void resolve_references();
 };
