@@ -865,14 +865,11 @@ template<class G, class S>
 bool Mapper::encode_from_array(Sink *sink, Status *status, const Mapper::Field &fd, AV *source) const {
     G getter;
     S setter(status);
-    Sink sub, *actual = sink;
+    Sink sub;
     bool packed = upb_fielddef_isprimitive(fd.field_def) && fd.field_def->packed();
 
-    if (packed) {
-        if (!sink->StartSequence(fd.selector.seq_start, &sub))
-            return false;
-        actual = &sub;
-    }
+    if (!sink->StartSequence(fd.selector.seq_start, &sub))
+        return false;
     int size = av_top_index(source) + 1;
 
     for (int i = 0; i < size; ++i) {
@@ -880,15 +877,19 @@ bool Mapper::encode_from_array(Sink *sink, Status *status, const Mapper::Field &
         if (!item)
             return false;
 
-        if (!setter(aTHX_ actual, fd, getter(aTHX_ *item)))
+        if (!setter(aTHX_ &sub, fd, getter(aTHX_ *item)))
             return false;
     }
 
-    return !packed || sink->EndSequence(fd.selector.seq_end);
+    return sink->EndSequence(fd.selector.seq_end);
 }
 
 bool Mapper::encode_from_message_array(Sink *sink, Status *status, const Mapper::Field &fd, AV *source) const {
     int size = av_top_index(source) + 1;
+    Sink sub;
+
+    if (!sink->StartSequence(fd.selector.seq_start, &sub))
+        return false;
 
     for (int i = 0; i < size; ++i) {
         SV **item = av_fetch(source, i, 0);
@@ -897,15 +898,15 @@ bool Mapper::encode_from_message_array(Sink *sink, Status *status, const Mapper:
         Sink submsg;
 
         SvGETMAGIC(*item);
-        if (!sink->StartSubMessage(fd.selector.msg_start, &submsg))
+        if (!sub.StartSubMessage(fd.selector.msg_start, &submsg))
             return false;
         if (!encode(&submsg, status, *item))
             return false;
-        if (!sink->EndSubMessage(fd.selector.msg_end))
+        if (!sub.EndSubMessage(fd.selector.msg_end))
             return false;
     }
 
-    return true;
+    return sink->EndSequence(fd.selector.seq_end);
 }
 
 namespace {
