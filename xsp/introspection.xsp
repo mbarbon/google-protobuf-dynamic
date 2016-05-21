@@ -124,7 +124,6 @@
 
 %name{Google::ProtocolBuffers::Dynamic::OneofDef} class upb::OneofDef {
     const char *name() const;
-    const char *full_name() const;
 
     int field_count();
 
