@@ -142,9 +142,9 @@ private:
     Dynamic *registry;
     const upb::MessageDef *message_def;
     HV *stash;
-    upb::reffed_ptr<const upb::Handlers> encoder_handlers;
+    upb::reffed_ptr<const upb::Handlers> pb_encoder_handlers;
     upb::reffed_ptr<upb::Handlers> decoder_handlers;
-    upb::reffed_ptr<const upb::pb::DecoderMethod> decoder_method;
+    upb::reffed_ptr<const upb::pb::DecoderMethod> pb_decoder_method;
     std::vector<Field> fields;
     std::vector<MapperField *> extension_mapper_fields;
     STD_TR1::unordered_map<std::string, Field *> field_map;
@@ -152,10 +152,10 @@ private:
     upb::Status status;
     DecoderHandlers decoder_callbacks;
     upb::Sink encoder_sink, decoder_sink;
-    upb::pb::Decoder *decoder;
+    upb::pb::Decoder *pb_decoder;
     std::string output_buffer;
     upb::StringSink string_sink;
-    upb::pb::Encoder *encoder;
+    upb::pb::Encoder *pb_encoder;
     bool check_required_fields, decode_explicit_defaults, encode_defaults, check_enum_values;
 };
 

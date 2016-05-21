@@ -413,7 +413,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
 
     env.ReportErrorsTo(&status);
     registry->ref();
-    encoder_handlers = Encoder::NewHandlers(message_def);
+    pb_encoder_handlers = Encoder::NewHandlers(message_def);
     decoder_handlers = Handlers::New(message_def);
     decode_explicit_defaults = options.explicit_defaults;
     encode_defaults = options.encode_defaults;
@@ -448,7 +448,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
         field.oneof_index = -1;
 
 #define GET_SELECTOR(KIND, TO) \
-    ok = ok && encoder_handlers->GetSelector(field_def, UPB_HANDLER_##KIND, &field.selector.TO)
+    ok = ok && pb_encoder_handlers->GetSelector(field_def, UPB_HANDLER_##KIND, &field.selector.TO)
 
 #define SET_VALUE_HANDLER(TYPE, FUNCTION) \
     ok = ok && decoder_handlers->SetValueHandler<TYPE>(field_def, UpbBind(DecoderHandlers::FUNCTION, new int(index)))
@@ -656,19 +656,19 @@ void Mapper::resolve_mappers() {
         decoder_handlers->SetSubHandlers(it->field_def, it->mapper->decoder_handlers.get());
     }
 
-    decoder_method = DecoderMethod::New(DecoderMethodOptions(decoder_handlers.get()));
+    pb_decoder_method = DecoderMethod::New(DecoderMethodOptions(decoder_handlers.get()));
     decoder_sink.Reset(decoder_handlers.get(), &decoder_callbacks);
-    decoder = upb::pb::Decoder::Create(&env, decoder_method.get(), &decoder_sink);
-    encoder = upb::pb::Encoder::Create(&env, encoder_handlers.get(), string_sink.input());
+    pb_decoder = upb::pb::Decoder::Create(&env, pb_decoder_method.get(), &decoder_sink);
+    pb_encoder = upb::pb::Encoder::Create(&env, pb_encoder_handlers.get(), string_sink.input());
 }
 
 SV *Mapper::encode(SV *ref) {
-    if (encoder == NULL)
+    if (pb_encoder == NULL)
         croak("It looks like resolve_references() was not called (and please use map() anyway)");
     status.Clear();
     output_buffer.clear();
     SV *result = NULL;
-    if (encode(encoder->input(), &status, ref))
+    if (encode(pb_encoder->input(), &status, ref))
         result = newSVpvn(output_buffer.data(), output_buffer.size());
     output_buffer.clear();
 
@@ -676,14 +676,14 @@ SV *Mapper::encode(SV *ref) {
 }
 
 SV *Mapper::decode(const char *buffer, STRLEN bufsize) {
-    if (decoder == NULL)
+    if (pb_decoder == NULL)
         croak("It looks like resolve_references() was not called (and please use map() anyway)");
     status.Clear();
-    decoder->Reset();
+    pb_decoder->Reset();
     decoder_callbacks.prepare(newHV());
 
     SV *result = NULL;
-    if (BufferSource::PutBuffer(buffer, bufsize, decoder->input()))
+    if (BufferSource::PutBuffer(buffer, bufsize, pb_decoder->input()))
         result = sv_bless(newRV_inc(decoder_callbacks.get_target()), stash);
     decoder_callbacks.clear();
 
@@ -691,7 +691,7 @@ SV *Mapper::decode(const char *buffer, STRLEN bufsize) {
 }
 
 bool Mapper::check(SV *ref) {
-    if (encoder == NULL)
+    if (pb_encoder == NULL)
         croak("It looks like resolve_references() was not called (and please use map() anyway)");
     status.Clear();
     return check(&status, ref);
