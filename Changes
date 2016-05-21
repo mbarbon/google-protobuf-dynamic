@@ -2,6 +2,14 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.05      2016-05-21 18:51:11 CEST
+
+    - Implement JSON serialization/deserialization
+    - Add check() method, as a way to protect against typos in field names
+    - Add an option to use a single mapping for an entire package hierarchy
+    - Add introspection API to get enum descriptors without going
+      through a message field
+
 0.04      2016-03-25 15:39:16 CET
 
     - Fixed memory leak in some accessors
