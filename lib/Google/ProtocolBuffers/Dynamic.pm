@@ -273,9 +273,13 @@ format produced by C<protoc> C<--descriptor_set_out> option.
 
     # the 'options' key is optional
     $dynamic->map(
+        # uses map_package_prefix
         { pb_prefix => $pb_prefix,prefix => $perl_prefix, options => $options },
+        # uses map_package
         { package => $pb_package, prefix => $perl_prefix, options => $options },
+        # uses map_message
         { message => $pb_message, to    => $perl_package, options => $options },
+        # uses map_enum
         { enum    => $pb_enum,    to    => $perl_package, options => $options },
     );
 
