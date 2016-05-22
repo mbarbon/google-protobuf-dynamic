@@ -2,6 +2,10 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.06      2016-05-22 12:27:55 CEST
+
+    - Implement pb_prefix mapping option for the protoc plugin
+
 0.05      2016-05-21 18:51:11 CEST
 
     - Implement JSON serialization/deserialization
