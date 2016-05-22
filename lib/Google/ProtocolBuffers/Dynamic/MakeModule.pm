@@ -138,6 +138,9 @@ sub generate_codegen_request {
         } elsif ($key eq 'map_package') {
             push @mappings, $mapping = {};
             $mapping->{package} = $value;
+        } elsif ($key eq 'pb_prefix') {
+            push @mappings, $mapping = {};
+            $mapping->{pb_prefix} = $value;
         } elsif ($key eq 'prefix') {
             $mapping->{prefix} = _perlify_package($value);
         } elsif (!_to_option(($mapping ? $mapping->{options} : \%global_options), $key, $value)) {

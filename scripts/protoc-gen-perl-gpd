@@ -46,6 +46,15 @@ The C<prefix> sub-option is mandatory.
 C<OPTIONS> is a comma-separated list, see L</Mapping options> for
 available options.
 
+=head2 pb_prefix=PACKAGE,prefix=PREFIX[,OPTIONS]
+
+Equivalent to the C<pb_prefix> mapping of L<Google::ProtocolBuffers::Dynamic/map>.
+
+The C<prefix> sub-option is mandatory.
+
+C<OPTIONS> is a comma-separated list, see L</Mapping options> for
+available options.
+
 =head2 Mapping options
 
 The following options map one to one to the C<options> key of
