@@ -657,7 +657,9 @@ void Mapper::resolve_mappers() {
         it->mapper->ref();
         decoder_handlers->SetSubHandlers(it->field_def, it->mapper->decoder_handlers.get());
     }
+}
 
+void Mapper::create_encoder_decoder() {
     pb_decoder_method = DecoderMethod::New(DecoderMethodOptions(decoder_handlers.get()));
     json_decoder_method = ParserMethod::New(message_def);
     decoder_sink.Reset(decoder_handlers.get(), &decoder_callbacks);

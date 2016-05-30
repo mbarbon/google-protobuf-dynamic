@@ -382,6 +382,8 @@ void Dynamic::map_enum(pTHX_ const EnumDescriptor *descriptor, const string &per
 void Dynamic::resolve_references() {
     for (std::vector<Mapper *>::iterator it = pending.begin(), en = pending.end(); it != en; ++it)
         (*it)->resolve_mappers();
+    for (std::vector<Mapper *>::iterator it = pending.begin(), en = pending.end(); it != en; ++it)
+        (*it)->create_encoder_decoder();
     pending.clear();
 }
 

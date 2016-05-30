@@ -105,6 +105,7 @@ public:
     const char *full_name() const;
 
     void resolve_mappers();
+    void create_encoder_decoder();
 
     SV *encode(SV *ref);
     SV *decode(const char *buffer, STRLEN bufsize);
