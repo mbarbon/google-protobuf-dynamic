@@ -1,0 +1,8 @@
+syntax = "proto2";
+
+package test;
+
+message List {
+        optional int32 value = 1;
+        optional List next = 2;
+}
