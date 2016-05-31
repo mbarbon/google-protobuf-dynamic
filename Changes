@@ -2,6 +2,10 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.07      2016-05-31 08:50:50 CEST
+
+    - Fix bug with some nested data structures
+
 0.06      2016-05-22 12:27:55 CEST
 
     - Implement pb_prefix mapping option for the protoc plugin
