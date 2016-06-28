@@ -31,6 +31,13 @@ sub import {
     strict->import;
     warnings->import;
 
+    if (@_ > 1 && $_[1] eq 'proto3') {
+        splice @_, 1, 1;
+
+        @_ = ("skip_all", "Protocol Buffers v3 required")
+            unless Google::ProtocolBuffers::Dynamic::is_proto3();
+    }
+
     goto &Test::Builder::Module::import;
 }
 

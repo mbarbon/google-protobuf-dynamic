@@ -28,4 +28,6 @@
         %code{% THIS->map_package_prefix(aTHX_ *pb_package, *perl_package, gpd::MappingOptions(aTHX_ options)); %};
 
     void resolve_references();
+
+    static bool is_proto3();
 };
