@@ -214,6 +214,40 @@ bool Mapper::DecoderHandlers::on_end_sequence(DecoderHandlers *cxt, const int *f
     return true;
 }
 
+Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_map(DecoderHandlers *cxt, const int *field_index) {
+    THX_DECLARE_AND_GET;
+
+    cxt->mark_seen(field_index);
+    const Mapper *mapper = cxt->mappers.back();
+    SV *target = cxt->get_target(field_index);
+    HV *hv = NULL;
+
+    if (!SvROK(target)) {
+        hv = newHV();
+
+        SvUPGRADE(target, SVt_RV);
+        SvROK_on(target);
+        SvRV_set(target, (SV *) hv);
+    } else
+        hv = (HV *) SvRV(target);
+
+    cxt->mappers.push_back(mapper->fields[*field_index].mapper);
+    cxt->items.push_back((SV *) hv);
+    cxt->items.push_back(sv_newmortal());
+    cxt->items.push_back(NULL);
+
+    return cxt;
+}
+
+bool Mapper::DecoderHandlers::on_end_map(DecoderHandlers *cxt, const int *field_index) {
+    cxt->mappers.pop_back();
+    cxt->items.pop_back();
+    cxt->items.pop_back();
+    cxt->items.pop_back();
+
+    return true;
+}
+
 Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_sub_message(DecoderHandlers *cxt, const int *field_index) {
     THX_DECLARE_AND_GET;
 
@@ -250,6 +284,22 @@ bool Mapper::DecoderHandlers::on_end_sub_message(DecoderHandlers *cxt, const int
     cxt->seen_fields.pop_back();
     if (cxt->mappers.back()->message_def->oneof_count())
         cxt->seen_oneof.pop_back();
+
+    return true;
+}
+
+bool Mapper::DecoderHandlers::on_end_map_entry(DecoderHandlers *cxt, const int *field_index) {
+    size_t size = cxt->items.size();
+    HV *hash = (HV *) cxt->items[size - 3];
+    SV *key = (SV *) cxt->items[size - 2];
+    SV *value = (SV *) cxt->items[size - 1];
+
+    SvREFCNT_inc(value);
+    hv_store_ent(hash, key, value, 0);
+
+    if (SvPOK(key))
+        SvLEN_set(key, 0);
+    SvOK_off(key);
 
     return true;
 }
@@ -376,7 +426,15 @@ SV *Mapper::DecoderHandlers::get_target(const int *field_index) {
     const Field &field = mapper->fields[*field_index];
     SV *curr = items.back();
 
-    if (SvTYPE(curr) == SVt_PVAV) {
+    if (field.is_key) {
+        return items[items.size() - 2];
+    } else if (field.is_value) {
+        SV *sv = sv_newmortal();
+
+        items[items.size() - 1] = sv;
+
+        return sv;
+    } else if (SvTYPE(curr) == SVt_PVAV) {
         AV *av = (AV *) curr;
 
         return *av_fetch(av, av_top_index(av) + 1, 1);
@@ -445,9 +503,20 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
             field.name = newSVpvn_share(temp.data(), temp.size(), 0);
         }
         field.name_hash = SvSHARED_HASH(field.name);
-        field.has_default = false;
+        field.has_default = field.is_map = false;
         field.mapper = NULL;
         field.oneof_index = -1;
+
+        if (message_def->mapentry()) {
+            field.is_key = field_def->number() == 1;
+            field.is_value = field_def->number() == 2;
+        }
+
+        if (field_def->label() == UPB_LABEL_REPEATED &&
+                field_def->type() == UPB_TYPE_MESSAGE &&
+                field_def->message_subdef()->mapentry()) {
+            field.is_map = true;
+        }
 
 #define GET_SELECTOR(KIND, TO) \
     ok = ok && pb_encoder_handlers->GetSelector(field_def, UPB_HANDLER_##KIND, &field.selector.TO)
@@ -485,8 +554,12 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
         case UPB_TYPE_MESSAGE:
             GET_SELECTOR(STARTSUBMSG, msg_start);
             GET_SELECTOR(ENDSUBMSG, msg_end);
-            SET_HANDLER(StartSubMessage, on_start_sub_message);
-            SET_HANDLER(EndSubMessage, on_end_sub_message);
+            if (field.is_map) {
+                SET_HANDLER(EndSubMessage, on_end_map_entry);
+            } else {
+                SET_HANDLER(StartSubMessage, on_start_sub_message);
+                SET_HANDLER(EndSubMessage, on_end_sub_message);
+            }
             has_default = false;
             break;
         case UPB_TYPE_ENUM: {
@@ -539,8 +612,13 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
         if (field_def->label() == UPB_LABEL_REPEATED) {
             GET_SELECTOR(STARTSEQ, seq_start);
             GET_SELECTOR(ENDSEQ, seq_end);
-            SET_HANDLER(StartSequence, on_start_sequence);
-            SET_HANDLER(EndSequence, on_end_sequence);
+            if (field.is_map) {
+                SET_HANDLER(StartSequence, on_start_map);
+                SET_HANDLER(EndSequence, on_end_map);
+            } else {
+                SET_HANDLER(StartSequence, on_start_sequence);
+                SET_HANDLER(EndSequence, on_end_sequence);
+            }
         }
 
 #undef GET_SELECTOR
@@ -632,8 +710,9 @@ SV *Mapper::make_object(SV *data) const {
             HV * hv = newHV();
             sv_2mortal((SV *) hv);
             HV *orig = (HV *) SvRV(data);
-            I32 items = hv_iterinit(orig), keylen;
+            I32 keylen;
             char *key;
+            hv_iterinit(orig);
             while (SV *sv = hv_iternextsv(orig, &key, &keylen)) {
                 hv_store(hv, key, keylen, newSVsv(sv), 0);
             }
@@ -786,6 +865,34 @@ namespace {
             return negative ? -value : value;
         } else
             return SvIV(src);
+    }
+
+    IV key_iv(const char *key, I32 keylen) {
+        UV value;
+        int numtype = grok_number(key, keylen, &value);
+
+        if (numtype & IS_NUMBER_IN_UV) {
+            if (numtype & IS_NUMBER_NEG) {
+                if (value < (UV) IV_MIN)
+                    return - (IV) value;
+            } else {
+                if (value < (UV) IV_MAX)
+                    return (IV) value;
+            }
+        }
+        // XXX warn
+        return 0;
+    }
+
+    UV key_uv(const char *key, I32 keylen) {
+        UV value;
+        int numtype = grok_number(key, keylen, &value);
+
+        if (numtype & IS_NUMBER_IN_UV) {
+            return value;
+        }
+        // XXX warn
+        return 0;
     }
 
     class SVGetter {
@@ -982,7 +1089,9 @@ bool Mapper::encode(Sink *sink, Status *status, SV *ref) const {
                 last_oneof = it->oneof_index;
         }
 
-        if (it->field_def->label() == UPB_LABEL_REPEATED)
+        if (it->is_map)
+            ok = ok && encode_from_perl_hash(sink, status, *it, HeVAL(he));
+        else if (it->field_def->label() == UPB_LABEL_REPEATED)
             ok = ok && encode_from_perl_array(sink, status, *it, HeVAL(he));
         else
             ok = ok && encode(sink, status, *it, HeVAL(he));
@@ -1051,6 +1160,96 @@ bool Mapper::encode(Sink *sink, Status *status, const Field &fd, SV *ref) const 
     default:
         return false; // just in case
     }
+}
+
+bool Mapper::encode_key(Sink *sink, Status *status, const Field &fd, const char *key, I32 keylen) const {
+    switch (fd.field_def->type()) {
+    case UPB_TYPE_BOOL: {
+        // follows what SvTRUE() does for strings
+        bool bval = keylen > 1 || keylen == 1 && key[0] != '0';
+        return sink->PutBool(fd.selector.primitive, bval);
+    }
+    case UPB_TYPE_STRING: {
+        Sink sub;
+        if (!sink->StartString(fd.selector.str_start, keylen, &sub))
+            return false;
+        sub.PutStringBuffer(fd.selector.str_cont, key, keylen, NULL);
+        return sink->EndString(fd.selector.str_end);
+    }
+    case UPB_TYPE_INT32:
+        return sink->PutInt32(fd.selector.primitive, key_iv(key, keylen));
+    case UPB_TYPE_UINT32:
+        return sink->PutUInt32(fd.selector.primitive, key_uv(key, keylen));
+    case UPB_TYPE_INT64:
+        return sink->PutInt64(fd.selector.primitive, key_iv(key, keylen));
+    case UPB_TYPE_UINT64:
+        return sink->PutInt64(fd.selector.primitive, key_uv(key, keylen));
+    default:
+        return false; // just in case
+    }
+}
+
+bool Mapper::encode_hash_kv(Sink *sink, Status *status, const char *key, STRLEN keylen, SV *value) const {
+    if (!sink->StartMessage())
+        return false;
+    if (fields[0].is_key) {
+        if (!encode_key(sink, status, fields[0], key, keylen))
+            return false;
+        if (!encode(sink, status, fields[1], value))
+            return false;
+    } else {
+        if (!encode_key(sink, status, fields[1], key, keylen))
+            return false;
+        if (!encode(sink, status, fields[0], value))
+            return false;
+    }
+    if (!sink->EndMessage(status))
+        return false;
+    return true;
+}
+
+bool Mapper::encode_from_perl_hash(Sink *sink, Status *status, const Field &fd, SV *ref) const {
+    // in case we get passed an array of entry structures
+    if (SvROK(ref) && SvTYPE(SvRV(ref)) == SVt_PVAV)
+        return fd.mapper->encode_from_message_array(sink, status, fd, (AV *) SvRV(ref));
+    if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVHV)
+        croak("Not an hash reference when encoding field '%s'", fd.full_name().c_str());
+    HV *hash = (HV *) SvRV(ref);
+    Sink repeated;
+
+    if (!sink->StartSequence(fd.selector.seq_start, &repeated))
+        return false;
+
+    hv_iterinit(hash);
+    while (HE *entry = hv_iternext(hash)) {
+        Sink key_value;
+        SV *value = HeVAL(entry);
+        const char *key;
+        STRLEN keylen;
+        bool needs_free = false;
+
+        if (HeKLEN(entry) == HEf_SVKEY) {
+            key = SvPVutf8(HeKEY_sv(entry), keylen);
+        } else {
+            if (HeKUTF8(entry)) {
+                key = HeKEY(entry);
+                keylen = HeKLEN(entry);
+            } else {
+                keylen = HeKLEN(entry);
+                key = (const char *) bytes_to_utf8((U8*) HeKEY(entry), &keylen);
+                SAVEFREEPV(key);
+            }
+        }
+
+        if (!repeated.StartSubMessage(fd.selector.msg_start, &key_value))
+            return false;
+        if (!fd.mapper->encode_hash_kv(&key_value, status, key, keylen, value))
+            return false;
+        if (!repeated.EndSubMessage(fd.selector.msg_end))
+            return false;
+    }
+
+    return sink->EndSequence(fd.selector.seq_end);
 }
 
 bool Mapper::encode_from_perl_array(Sink *sink, Status *status, const Field &fd, SV *ref) const {

@@ -47,6 +47,9 @@ public:
         SV *name;
         U32 name_hash;
         bool has_default;
+        bool is_map;
+        bool is_key;
+        bool is_value;
         const Mapper *mapper; // for Message/Group fields
         STD_TR1::unordered_set<int32_t> enum_values;
         int oneof_index;
@@ -75,8 +78,11 @@ public:
         static bool on_end_string(DecoderHandlers *cxt, const int *field_index);
         static DecoderHandlers *on_start_sequence(DecoderHandlers *cxt, const int *field_index);
         static bool on_end_sequence(DecoderHandlers *cxt, const int *field_index);
+        static DecoderHandlers *on_start_map(DecoderHandlers *cxt, const int *field_index);
+        static bool on_end_map(DecoderHandlers *cxt, const int *field_index);
         static DecoderHandlers *on_start_sub_message(DecoderHandlers *cxt, const int *field_index);
         static bool on_end_sub_message(DecoderHandlers *cxt, const int *field_index);
+        static bool on_end_map_entry(DecoderHandlers *cxt, const int *field_index);
 
         template<class T>
         static bool on_nv(DecoderHandlers *cxt, const int *field_index, T val);
@@ -126,7 +132,10 @@ public:
 private:
     bool encode(upb::Sink *sink, upb::Status *status, SV *ref) const;
     bool encode(upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;
+    bool encode_key(upb::Sink *sink, upb::Status *status, const Field &fd, const char *key, I32 keylen) const;
+    bool encode_hash_kv(upb::Sink *sink, upb::Status *status, const char *key, STRLEN keylen, SV *value) const;
     bool encode_from_perl_array(upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;
+    bool encode_from_perl_hash(upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;
     bool encode_from_message_array(upb::Sink *sink, upb::Status *status, const Mapper::Field &fd, AV *source) const;
 
     template<class G, class S>
