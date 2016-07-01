@@ -17,8 +17,14 @@ Implement:
 - lazy fields
 - services
 - custom options?
-- encode_defaults option
+- encode_defaults option (it must be forced to 0 for proto3)
 - generic extension methods perform a linear scan on the extension list
 - better parameter checking/error handling in protoc plugin
 - check duplicate oneof fields in check methods?
 - check required fields in check methods?
+- proto3 well-known types
+  - any
+  - timestamp
+  - duration
+  - struct
+  - fieldmask
