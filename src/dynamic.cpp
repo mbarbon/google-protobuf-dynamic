@@ -330,16 +330,26 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
         }
 
         copy_and_bind_field(aTHX_ "clear_field", "clear_", "", perl_package, mapperfield);
-        if (mapperfield->is_repeated()) {
+        if (mapperfield->is_map()) {
+            if (getter_prefix) {
+                copy_and_bind_field(aTHX_ "get_map_item", getter_prefix, "", perl_package, mapperfield);
+                copy_and_bind_field(aTHX_ "set_map_item", setter_prefix, "", perl_package, mapperfield);
+                copy_and_bind_field(aTHX_ "get_map", getter_prefix, "_map", perl_package, mapperfield);
+                copy_and_bind_field(aTHX_ "set_map", setter_prefix, "_map", perl_package, mapperfield);
+            } else {
+                copy_and_bind_field(aTHX_ "get_or_set_map_item", "", "", perl_package, mapperfield);
+                copy_and_bind_field(aTHX_ "get_or_set_map", "", "_map", perl_package, mapperfield);
+            }
+        } else if (mapperfield->is_repeated()) {
             copy_and_bind_field(aTHX_ "add_item", "add_", "", perl_package, mapperfield);
             copy_and_bind_field(aTHX_ "list_size", "", "_size", perl_package, mapperfield);
             if (getter_prefix) {
-                copy_and_bind_field(aTHX_ "get_item", getter_prefix, "", perl_package, mapperfield);
-                copy_and_bind_field(aTHX_ "set_item", setter_prefix, "", perl_package, mapperfield);
+                copy_and_bind_field(aTHX_ "get_list_item", getter_prefix, "", perl_package, mapperfield);
+                copy_and_bind_field(aTHX_ "set_list_item", setter_prefix, "", perl_package, mapperfield);
                 copy_and_bind_field(aTHX_ "get_list", getter_prefix, "_list", perl_package, mapperfield);
                 copy_and_bind_field(aTHX_ "set_list", setter_prefix, "_list", perl_package, mapperfield);
             } else {
-                copy_and_bind_field(aTHX_ "get_or_set_item", "", "", perl_package, mapperfield);
+                copy_and_bind_field(aTHX_ "get_or_set_list_item", "", "", perl_package, mapperfield);
                 copy_and_bind_field(aTHX_ "get_or_set_list", "", "_list", perl_package, mapperfield);
             }
         } else {

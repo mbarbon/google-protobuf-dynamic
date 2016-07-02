@@ -51,12 +51,12 @@ my %values = (
             4294967296 => "\x22\x08\x08\x80\x80\x80\x80\x10\x10\x09",
         },
     ],
-    uint32_string_map => [
+    uint32_enum_map => [
         {
-            4294967295 => "cde",
+            4294967295 => 2,
         },
         {
-            4294967295 => "\x2a\x0b\x08\xff\xff\xff\xff\x0f\x12\x03cde",
+            4294967295 => "\x2a\x08\x08\xff\xff\xff\xff\x0f\x10\x02",
         },
     ],
     uint64_int32_map => [

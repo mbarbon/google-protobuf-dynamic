@@ -216,7 +216,7 @@ get_or_set_extension_scalar(HV *self, SV *extension, SV *value = NULL)
         field->set_scalar(self, value);
 
 void
-get_item(HV *self, IV index)
+get_list_item(HV *self, IV index)
   INIT:
     dXSTARG;
     gpd::MapperField *field = (gpd::MapperField *) CvXSUBANY(cv).any_ptr;
@@ -232,7 +232,7 @@ get_extension_item(HV *self, SV *extension, IV index)
     PUSHs(field->get_item(self, index, TARG));
 
 void
-set_item(HV *self, IV index, SV *value)
+set_list_item(HV *self, IV index, SV *value)
   INIT:
     gpd::MapperField *field = (gpd::MapperField *) CvXSUBANY(cv).any_ptr;
   CODE:
@@ -246,7 +246,7 @@ set_extension_item(HV *self, SV *extension, IV index, SV *value)
     field->set_item(self, index, value);
 
 void
-get_or_set_item(HV *self, IV index, SV *value = NULL)
+get_or_set_list_item(HV *self, IV index, SV *value = NULL)
   INIT:
     dXSTARG;
     gpd::MapperField *field = (gpd::MapperField *) CvXSUBANY(cv).any_ptr;
@@ -348,5 +348,57 @@ get_or_set_extension_list(HV *self, SV *extension, SV *ref = NULL)
         PUSHs(field->get_list(self));
     else
         field->set_list(self, ref);
+
+void
+get_map_item(HV *self, SV *key)
+  INIT:
+    dXSTARG;
+    gpd::MapperField *field = (gpd::MapperField *) CvXSUBANY(cv).any_ptr;
+  PPCODE:
+    PUSHs(field->get_item(self, key, TARG));
+
+void
+set_map_item(HV *self, SV *key, SV *value)
+  INIT:
+    gpd::MapperField *field = (gpd::MapperField *) CvXSUBANY(cv).any_ptr;
+  CODE:
+    field->set_item(self, key, value);
+
+void
+get_or_set_map_item(HV *self, SV *key, SV *value = NULL)
+  INIT:
+    dXSTARG;
+    gpd::MapperField *field = (gpd::MapperField *) CvXSUBANY(cv).any_ptr;
+  PPCODE:
+    if (!value)
+        PUSHs(field->get_item(self, key, TARG));
+    else
+        field->set_item(self, key, value);
+
+void
+get_map(HV *self)
+  INIT:
+    dXSTARG;
+    gpd::MapperField *field = (gpd::MapperField *) CvXSUBANY(cv).any_ptr;
+  PPCODE:
+    PUSHs(field->get_map(self));
+
+void
+set_map(HV *self, SV *ref)
+  INIT:
+    gpd::MapperField *field = (gpd::MapperField *) CvXSUBANY(cv).any_ptr;
+  CODE:
+    field->set_map(self, ref);
+
+void
+get_or_set_map(HV *self, SV *ref = NULL)
+  INIT:
+    dXSTARG;
+    gpd::MapperField *field = (gpd::MapperField *) CvXSUBANY(cv).any_ptr;
+  PPCODE:
+    if (!ref)
+        PUSHs(field->get_map(self));
+    else
+        field->set_map(self, ref);
 
 %}

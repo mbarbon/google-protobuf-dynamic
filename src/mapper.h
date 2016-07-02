@@ -55,6 +55,8 @@ public:
         int oneof_index;
 
         std::string full_name() const;
+        upb::FieldDef::Type map_value_type() const;
+        const STD_TR1::unordered_set<int32_t> &map_enum_values() const;
     };
 
     struct DecoderHandlers {
@@ -184,6 +186,7 @@ public:
     const char *name();
     bool is_repeated();
     bool is_extension();
+    bool is_map();
 
     // presence
     bool has_field(HV *self);
@@ -201,6 +204,12 @@ public:
     SV *get_list(HV *self);
     void set_list(HV *self, SV *ref);
 
+    // map
+    SV *get_item(HV *self, SV *key, SV *target);
+    void set_item(HV *self, SV *key, SV *value);
+    SV *get_map(HV *self);
+    void set_map(HV *self, SV *ref);
+
     static MapperField *find_extension(pTHX_ CV *cv, SV *extension);
     static MapperField *find_scalar_extension(pTHX_ CV *cv, SV *extension);
     static MapperField *find_repeated_extension(pTHX_ CV *cv, SV *extension);
@@ -212,6 +221,9 @@ private:
     SV *get_read_array_ref(HV *self);
     AV *get_read_array(HV *self);
     AV *get_write_array(HV *self);
+    SV *get_read_hash_ref(HV *self);
+    HV *get_read_hash(HV *self);
+    HV *get_write_hash(HV *self);
     void copy_default(SV *target);
     void copy_value(SV *target, SV *value);
     void clear_oneof(HV *self);

@@ -86,6 +86,22 @@ string Mapper::Field::full_name() const {
                field_def->name();
 }
 
+FieldDef::Type Mapper::Field::map_value_type() const {
+    const vector<Field> &map_fields = mapper->fields;
+
+    return map_fields[1].is_value ?
+        map_fields[1].field_def->type() :
+        map_fields[0].field_def->type();
+}
+
+const STD_TR1::unordered_set<int32_t> &Mapper::Field::map_enum_values() const {
+    const vector<Field> &map_fields = mapper->fields;
+
+    return map_fields[1].is_value ?
+        map_fields[1].enum_values :
+        map_fields[0].enum_values;
+}
+
 bool Mapper::DecoderHandlers::apply_defaults_and_check() {
     const vector<bool> &seen = seen_fields.back();
     const Mapper *mapper = mappers.back();
@@ -1532,6 +1548,46 @@ AV *MapperField::get_write_array(HV *self) {
     }
 }
 
+SV *MapperField::get_read_hash_ref(HV *self) {
+    HE *ent = hv_fetch_ent(self, field->name, 0, field->name_hash);
+
+    if (!ent)
+        return NULL;
+
+    SV *ref = HeVAL(ent);
+    if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVHV)
+        croak("Value of field '%s' is not an hash reference", field->full_name().c_str());
+
+    return ref;
+}
+
+HV *MapperField::get_read_hash(HV *self) {
+    SV *ref = get_read_hash_ref(self);
+
+    return ref ? (HV *) SvRV(ref) : NULL;
+}
+
+HV *MapperField::get_write_hash(HV *self) {
+    HE *ent = hv_fetch_ent(self, field->name, 1, field->name_hash);
+    SV *ref = HeVAL(ent);
+
+    if (!SvOK(ref)) {
+        HV *hv = newHV();
+
+        SvUPGRADE(ref, SVt_RV);
+        SvROK_on(ref);
+        SvRV_set(ref, (SV *) hv);
+
+        return hv;
+    } else {
+        SV *ref = HeVAL(ent);
+        if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVHV)
+            croak("Value of field '%s' is not an hash reference", field->full_name().c_str());
+
+        return (HV *) SvRV(ref);
+    }
+}
+
 const char *MapperField::name() {
     return field->field_def->name();
 }
@@ -1542,6 +1598,10 @@ bool MapperField::is_repeated() {
 
 bool MapperField::is_extension() {
     return field->field_def->is_extension();
+}
+
+bool MapperField::is_map() {
+    return field->is_map;
 }
 
 bool MapperField::has_field(HV *self) {
@@ -1652,7 +1712,7 @@ void MapperField::set_scalar(HV *self, SV *value) {
 void MapperField::copy_value(SV *target, SV *value) {
     const FieldDef *field_def = field->field_def;
 
-    switch (field_def->type()) {
+    switch (field->is_map ? field->map_value_type() : field_def->type()) {
     case UPB_TYPE_FLOAT:
         sv_setnv(target, SvNV(value));
         break;
@@ -1684,8 +1744,11 @@ void MapperField::copy_value(SV *target, SV *value) {
         break;
     case UPB_TYPE_ENUM: {
         I32 i32 = SvIV(value);
-        if (field->enum_values.size() &&
-                field->enum_values.find(i32) == field->enum_values.end())
+        const STD_TR1::unordered_set<int32_t> &enum_values = field->is_map ?
+            field->map_enum_values() :
+            field->enum_values;
+        if (enum_values.size() &&
+                enum_values.find(i32) == field->enum_values.end())
             croak("Invalid value %d for enumeration field '%s'", i32, field->full_name().c_str());
         sv_setiv(target, i32);
     }
@@ -1742,11 +1805,34 @@ SV *MapperField::get_item(HV *self, int index, SV *target) {
     }
 }
 
+SV *MapperField::get_item(HV *self, SV *key, SV *target) {
+    HV *hash = get_read_hash(self);
+
+    if (!hash)
+        croak("Accessing unset map field '%s'", field->full_name().c_str());
+    if (HvTOTALKEYS(hash) == 0)
+        croak("Accessing empty map field '%s'", field->full_name().c_str());
+    HE *value = hv_fetch_ent(hash, key, 0, 0);
+
+    if (value) {
+        return HeVAL(value);
+    } else {
+        croak("Accessing non-existing key '%s' for field '%s'", SvPV_nolen(key), field->full_name().c_str());
+    }
+}
+
 void MapperField::set_item(HV *self, int index, SV *value) {
     AV *array = get_write_array(self);
     SV **target = av_fetch(array, index, 1);
 
     copy_value(*target, value ? value : NULL);
+}
+
+void MapperField::set_item(HV *self, SV *key, SV *value) {
+    HV *hash = get_write_hash(self);
+    HE *target = hv_fetch_ent(hash, key, 1, 0);
+
+    copy_value(HeVAL(target), value ? value : NULL);
 }
 
 void MapperField::add_item(HV *self, SV *value) {
@@ -1774,6 +1860,29 @@ SV *MapperField::get_list(HV *self) {
 void MapperField::set_list(HV *self, SV *ref) {
     if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVAV)
         croak("Value for field '%s' is not an array reference", field->full_name().c_str());
+    SV *field_ref = get_write_field(self);
+
+    if (!SvOK(field_ref)) {
+        SvUPGRADE(field_ref, SVt_RV);
+        SvROK_on(field_ref);
+    } else {
+        if (!SvROK(field_ref))
+            croak("Value of field '%s' is not a reference", field->full_name().c_str());
+        SvREFCNT_dec(SvRV(field_ref));
+    }
+    SvRV_set(field_ref, SvRV(ref));
+    SvREFCNT_inc(SvRV(field_ref));
+}
+
+SV *MapperField::get_map(HV *self) {
+    SV *hash_ref = get_read_hash_ref(self);
+
+    return hash_ref ? hash_ref : &PL_sv_undef;
+}
+
+void MapperField::set_map(HV *self, SV *ref) {
+    if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVHV)
+        croak("Value for field '%s' is not an hash reference", field->full_name().c_str());
     SV *field_ref = get_write_field(self);
 
     if (!SvOK(field_ref)) {
