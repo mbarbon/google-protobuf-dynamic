@@ -1,10 +1,16 @@
 use t::lib::Test;
 
-my $d = Google::ProtocolBuffers::Dynamic->new('t/proto');
-$d->load_file("map_proto2.proto");
-$d->map_message("test.Maps", "Maps", { implicit_maps => 1 });
-$d->map_message("test.Item", "Item");
-$d->resolve_references();
+my $d1 = Google::ProtocolBuffers::Dynamic->new('t/proto');
+$d1->load_file("map_proto2.proto");
+$d1->map_message("test.Maps", "Maps", { implicit_maps => 1 });
+$d1->map_message("test.Item", "Item");
+$d1->resolve_references();
+
+my $d2 = Google::ProtocolBuffers::Dynamic->new('t/proto');
+$d2->load_file("map_proto2.proto");
+$d2->map_message("test.Maps", "NoMaps", { implicit_maps => 0 });
+$d2->map_message("test.Item", "NoItem");
+$d2->resolve_references();
 
 my %values = (
     string_int32_map => [
@@ -69,13 +75,22 @@ sub encode {
     return join('', map $parts->{$_}, keys %$map);
 }
 
+sub to_array {
+    my ($map) = @_;
+
+    return [map +{ key => $_, value => $map->{$_} }, keys %$map];
+}
+
 for my $field (sort keys %values) {
     my ($values, $encoded) = @{$values{$field}};
     my $bytes = Maps->encode({ $field => $values });
+    my $bytes_nomap = NoMaps->encode({ $field => to_array($values) });
     my $decoded = Maps->decode($bytes);
 
     eq_or_diff($bytes, encode($values, $encoded),
                "$field - encoded value");
+    eq_or_diff($bytes, $bytes_nomap,
+               "$field - encoded value (pair array)");
     eq_or_diff($decoded, Maps->new({ $field => $values }),
                "$field - round trip");
 }
@@ -89,7 +104,11 @@ utf8::upgrade($string);
 
 eq_or_diff(Maps->encode({ string_int32_map => { $bytes => 1 } }), $encoded,
        "bytes -> UTF-8 upgrade");
+eq_or_diff(NoMaps->encode({ string_int32_map => [{ key => $bytes, value => 1 }] }), $encoded,
+       "bytes -> UTF-8 upgrade (pair array)");
 eq_or_diff(Maps->encode({ string_int32_map => { $string => 1 } }), $encoded,
        "UTF-8 string");
+eq_or_diff(NoMaps->encode({ string_int32_map => [{ key => $string, value => 1 }] }), $encoded,
+       "UTF-8 string (pair array)");
 
 done_testing();
