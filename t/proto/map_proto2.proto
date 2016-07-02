@@ -1,0 +1,47 @@
+syntax = 'proto2';
+
+package test;
+
+message Maps {
+    message StringInt32MapEntry {
+        optional string key = 1;
+        optional int32 value = 2;
+    }
+
+    message BoolInt32MapEntry {
+        optional bool key = 1;
+        optional int32 value = 2;
+    }
+
+    message Int32MessageMapEntry {
+        optional int32 key = 1;
+        optional Item value = 2;
+    }
+
+    message Int64Int32MapEntry {
+        optional int64 key = 1;
+        optional int32 value = 2;
+    }
+
+    message Uint32StringMapEntry {
+        optional uint32 key = 1;
+        optional string value = 2;
+    }
+
+    message Uint64Int32MapEntry {
+        optional uint64 key = 1;
+        optional int32 value = 2;
+    }
+
+    repeated StringInt32MapEntry string_int32_map = 1;
+    repeated BoolInt32MapEntry bool_int32_map = 2;
+    repeated Int32MessageMapEntry int32_message_map = 3;
+    repeated Int64Int32MapEntry int64_int32_map = 4;
+    repeated Uint32StringMapEntry uint32_string_map = 5;
+    repeated Uint64Int32MapEntry uint64_int32_map = 6;
+}
+
+message Item {
+    optional int32 one_value = 1;
+    optional string another_value = 2;
+}

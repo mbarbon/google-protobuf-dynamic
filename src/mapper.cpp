@@ -380,6 +380,29 @@ namespace {
 
         return true;
     }
+
+    bool is_map_entry(const MessageDef *message, bool check_implicit_map) {
+        if (message->mapentry())
+            return true;
+        if (!check_implicit_map)
+            return false;
+        const FieldDef *key = message->FindFieldByNumber(1);
+        const FieldDef *value = message->FindFieldByNumber(2);
+        const char *msg_name = message->name();
+        if (message->field_count() != 2 || message->oneof_count() != 0 ||
+                key == NULL || value == NULL)
+            return false;
+        if (strcmp(key->name(), "key") != 0 || strcmp(value->name(), "value") != 0)
+            return false;
+        size_t msg_name_len = strlen(msg_name);
+        if (msg_name_len < 6 || strcmp(msg_name + msg_name_len - 5, "Entry") != 0)
+            return false;
+        if (key->IsSequence() || value->IsSequence() ||
+                key->is_extension() || value->is_extension() ||
+                key->subdef() /* message or enum */)
+            return false;
+        return true;
+    }
 }
 
 bool Mapper::DecoderHandlers::on_bigiv(DecoderHandlers *cxt, const int *field_index, int64_t val) {
@@ -482,6 +505,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
     if (!decoder_handlers->SetEndMessageHandler(UpbMakeHandler(DecoderHandlers::on_end_message)))
         croak("Unable to set upb end message handler for %s", message_def->full_name());
 
+    bool map_entry = is_map_entry(message_def, options.implicit_maps);
     bool has_required = false;
     for (MessageDef::const_field_iterator it = message_def->field_begin(), en = message_def->field_end(); it != en; ++it) {
         int index = fields.size();
@@ -507,14 +531,14 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
         field.mapper = NULL;
         field.oneof_index = -1;
 
-        if (message_def->mapentry()) {
+        if (map_entry) {
             field.is_key = field_def->number() == 1;
             field.is_value = field_def->number() == 2;
         }
 
         if (field_def->label() == UPB_LABEL_REPEATED &&
                 field_def->type() == UPB_TYPE_MESSAGE &&
-                field_def->message_subdef()->mapentry()) {
+                is_map_entry(field_def->message_subdef(), options.implicit_maps)) {
             field.is_map = true;
         }
 

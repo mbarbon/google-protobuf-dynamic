@@ -32,6 +32,7 @@ struct MappingOptions {
     bool encode_defaults;
     bool check_enum_values;
     bool generic_extension_methods;
+    bool implicit_maps;
     AccessorStyle accessor_style;
 
     MappingOptions(pTHX_ SV *options_ref);
