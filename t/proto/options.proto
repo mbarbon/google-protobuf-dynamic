@@ -2,8 +2,22 @@ syntax = "proto2";
 
 package test;
 
+enum OptionsEnum {
+    OPTION_FIRST = 1;
+    OPTION_SECOND = 2;
+    OPTION_THIRD = 3;
+}
+
 message Defaults {
-    optional int32 value = 1 [default = 7];
+    optional int32 int32_f = 1 [default = 7];
+    optional uint32 uint32_f = 2 [default = 8];
+    optional int64 int64_f = 3 [default = 9];
+    optional uint64 uint64_f = 4 [default = 10];
+    optional float float_f = 5 [default = 1.25];
+    optional double double_f = 6 [default = 2.125];
+    optional string string_f = 7 [default = "abcde"];
+    optional bytes bytes_f = 8 [default = "def"];
+    optional OptionsEnum enum_f = 9 [default = OPTION_SECOND];
 }
 
 message Required {

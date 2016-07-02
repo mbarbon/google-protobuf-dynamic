@@ -8,7 +8,7 @@ $d1->resolve_references();
 
 my $d2 = Google::ProtocolBuffers::Dynamic->new('t/proto');
 $d2->load_file("map_proto2.proto");
-$d2->map_message("test.Maps", "NoMaps", { implicit_maps => 0 });
+$d2->map_message("test.Maps", "NoMaps", { implicit_maps => 0, encode_defaults => 1 });
 $d2->map_message("test.Item", "NoItem");
 $d2->resolve_references();
 

@@ -18,7 +18,7 @@ MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
         use_bigints(sizeof(IV) < sizeof(int64_t)),
         check_required_fields(true),
         explicit_defaults(false),
-        encode_defaults(true),
+        encode_defaults(false),
         check_enum_values(true),
         generic_extension_methods(true),
         implicit_maps(false),

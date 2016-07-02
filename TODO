@@ -4,11 +4,10 @@ Implement:
 - simple extension option (Google::ProtocolBuffers compatibility)
 - implement unknown fields (needs uPB support)
 - prepare for the different sematics of proto3
-  - enums
-  - unknown fields
-  - maps (maybe add a compatibility layer for protobuf 2.x)
+  - enum unrecognized values are always passed through
+  - unknown fields are always discarded
   - any
-  - JSON mapping/parsing
+  - JSON mapping/parsing (explicitly test all types)
 - remove from fast path
   - enum validation
   - oneof handling
@@ -17,7 +16,6 @@ Implement:
 - lazy fields
 - services
 - custom options?
-- encode_defaults option (it must be forced to 0 for proto3)
 - generic extension methods perform a linear scan on the extension list
 - better parameter checking/error handling in protoc plugin
 - check duplicate oneof fields in check methods?

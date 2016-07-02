@@ -409,6 +409,17 @@ Enabled by default.
 When enabled, checks that all required fields are present (for both
 encoding and decoding).
 
+=head2 encode_defaults
+
+Disabled by default, it can't be enabled for C<proto3>.
+
+When disabled, if the value of a field is equal to its default, the
+field is not emitted during serialization, whether the value was
+explicitly set or not.
+
+When enabled, and a value was explicitly set for the field, the field
+is always emitted.
+
 =head2 explicit_defaults
 
 Disabled by default.
@@ -454,10 +465,6 @@ Generates a single method without a prefix that acts as a setter when
 a value is passed, as a getter otherwise.
 
 =back
-
-=cut
-
-# TODO =head2 encode_defaults
 
 =head1 KNOWN BUGS
 

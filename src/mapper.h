@@ -53,6 +53,18 @@ public:
         const Mapper *mapper; // for Message/Group fields
         STD_TR1::unordered_set<int32_t> enum_values;
         int oneof_index;
+        union {
+            struct {
+                size_t default_str_len;
+                const char *default_str;
+            };
+            bool default_bool;
+            IV default_iv;
+            UV default_uv;
+            NV default_nv;
+            int64_t default_i64;
+            uint64_t default_u64;
+        };
 
         std::string full_name() const;
         upb::FieldDef::Type map_value_type() const;
@@ -134,6 +146,7 @@ public:
 private:
     bool encode(upb::Sink *sink, upb::Status *status, SV *ref) const;
     bool encode(upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;
+    bool encode_nodefaults(upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;
     bool encode_key(upb::Sink *sink, upb::Status *status, const Field &fd, const char *key, I32 keylen) const;
     bool encode_hash_kv(upb::Sink *sink, upb::Status *status, const char *key, STRLEN keylen, SV *value) const;
     bool encode_from_perl_array(upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;

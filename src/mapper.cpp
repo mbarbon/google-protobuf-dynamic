@@ -515,7 +515,8 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
     json_encoder_handlers = Printer::NewHandlers(message_def, false /* XXX option */);
     decoder_handlers = Handlers::New(message_def);
     decode_explicit_defaults = options.explicit_defaults;
-    encode_defaults = options.encode_defaults;
+    encode_defaults = message_def->syntax() == UPB_SYNTAX_PROTO2 &&
+        options.encode_defaults;
     check_enum_values = options.check_enum_values;
 
     if (!decoder_handlers->SetEndMessageHandler(UpbMakeHandler(DecoderHandlers::on_end_message)))
@@ -573,14 +574,17 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
         case UPB_TYPE_FLOAT:
             GET_SELECTOR(FLOAT, primitive);
             SET_VALUE_HANDLER(float, on_nv<float>);
+            field.default_nv = field_def->default_float();
             break;
         case UPB_TYPE_DOUBLE:
             GET_SELECTOR(DOUBLE, primitive);
             SET_VALUE_HANDLER(double, on_nv<double>);
+            field.default_nv = field_def->default_double();
             break;
         case UPB_TYPE_BOOL:
             GET_SELECTOR(BOOL, primitive);
             SET_VALUE_HANDLER(bool, on_bool);
+            field.default_bool = field_def->default_bool();
             break;
         case UPB_TYPE_STRING:
         case UPB_TYPE_BYTES:
@@ -590,6 +594,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
             SET_HANDLER(StartString, on_start_string);
             SET_HANDLER(String, on_string);
             SET_HANDLER(EndString, on_end_string);
+            field.default_str = field_def->default_string(&field.default_str_len);
             break;
         case UPB_TYPE_MESSAGE:
             GET_SELECTOR(STARTSUBMSG, msg_start);
@@ -608,6 +613,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
                 SET_VALUE_HANDLER(int32_t, on_enum);
             else
                 SET_VALUE_HANDLER(int32_t, on_iv<int32_t>);
+            field.default_iv = field_def->default_int32();
 
             if (check_enum_values) {
                 const EnumDef *enumdef = field_def->enum_subdef();
@@ -620,10 +626,12 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
         case UPB_TYPE_INT32:
             GET_SELECTOR(INT32, primitive);
             SET_VALUE_HANDLER(int32_t, on_iv<int32_t>);
+            field.default_iv = field_def->default_int32();
             break;
         case UPB_TYPE_UINT32:
             GET_SELECTOR(UINT32, primitive);
             SET_VALUE_HANDLER(uint32_t, on_uv<uint32_t>);
+            field.default_uv = field_def->default_uint32();
             break;
         case UPB_TYPE_INT64:
             GET_SELECTOR(INT64, primitive);
@@ -631,6 +639,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
                 SET_VALUE_HANDLER(int64_t, on_bigiv);
             else
                 SET_VALUE_HANDLER(int64_t, on_iv<int64_t>);
+            field.default_i64 = field_def->default_int64();
             break;
         case UPB_TYPE_UINT64:
             GET_SELECTOR(UINT64, primitive);
@@ -638,6 +647,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
                 SET_VALUE_HANDLER(uint64_t, on_biguv);
             else
                 SET_VALUE_HANDLER(uint64_t, on_uv<uint64_t>);
+            field.default_u64 = field_def->default_uint64();
             break;
         default:
             croak("Unhandled field type %d for field '%s'", field_def->type(), field.full_name().c_str());
@@ -1133,8 +1143,10 @@ bool Mapper::encode(Sink *sink, Status *status, SV *ref) const {
             ok = ok && encode_from_perl_hash(sink, status, *it, HeVAL(he));
         else if (it->field_def->label() == UPB_LABEL_REPEATED)
             ok = ok && encode_from_perl_array(sink, status, *it, HeVAL(he));
-        else
+        else if (encode_defaults || !it->has_default)
             ok = ok && encode(sink, status, *it, HeVAL(he));
+        else
+            ok = ok && encode_nodefaults(sink, status, *it, HeVAL(he));
     }
 
     if (!sink->EndMessage(status))
@@ -1197,6 +1209,84 @@ bool Mapper::encode(Sink *sink, Status *status, const Field &fd, SV *ref) const 
             return sink->PutInt64(fd.selector.primitive, SvUV(ref));
         else
             return sink->PutUInt64(fd.selector.primitive, get_uint64(aTHX_ ref));
+    default:
+        return false; // just in case
+    }
+}
+
+bool Mapper::encode_nodefaults(Sink *sink, Status *status, const Field &fd, SV *ref) const {
+    switch (fd.field_def->type()) {
+    case UPB_TYPE_FLOAT: {
+        NV value = SvNV(ref);
+        if (value == fd.default_nv)
+            return true;
+        return sink->PutFloat(fd.selector.primitive, value);
+    }
+    case UPB_TYPE_DOUBLE: {
+        NV value = SvNV(ref);
+        if (value == fd.default_nv)
+            return true;
+        return sink->PutDouble(fd.selector.primitive, value);
+    }
+    case UPB_TYPE_BOOL: {
+        bool value = SvNV(ref);
+        if (value == fd.default_bool)
+            return true;
+        return sink->PutBool(fd.selector.primitive, value);
+    }
+    case UPB_TYPE_STRING:
+    case UPB_TYPE_BYTES: {
+        STRLEN len;
+        const char *str = fd.field_def->type() == UPB_TYPE_STRING ? SvPVutf8(ref, len) : SvPV(ref, len);
+        if (len == fd.default_str_len &&
+                (len == 0 || memcmp(str, fd.default_str, len) == 0))
+            return true;
+        Sink sub;
+        if (!sink->StartString(fd.selector.str_start, len, &sub))
+            return false;
+        sub.PutStringBuffer(fd.selector.str_cont, str, len, NULL);
+        return sink->EndString(fd.selector.str_end);
+    }
+    case UPB_TYPE_ENUM: {
+        IV value = SvIV(ref);
+        if (value == fd.default_iv)
+            return true;
+        if (check_enum_values &&
+                fd.enum_values.find(value) == fd.enum_values.end()) {
+            status->SetFormattedErrorMessage(
+                "Invalid enumeration value %d for field '%s'",
+                value,
+                fd.full_name().c_str()
+            );
+            return false;
+        }
+
+        return sink->PutInt32(fd.selector.primitive, value);
+    }
+    case UPB_TYPE_INT32: {
+        IV value = SvIV(ref);
+        if (value == fd.default_iv)
+            return true;
+        return sink->PutInt32(fd.selector.primitive, value);
+    }
+    case UPB_TYPE_UINT32: {
+        UV value = SvUV(ref);
+        if (value == fd.default_uv)
+            return true;
+        return sink->PutUInt32(fd.selector.primitive, value);
+    }
+    case UPB_TYPE_INT64: {
+        int64_t value = sizeof(IV) >= sizeof(int64_t) ? SvIV(ref) : get_int64(aTHX_ ref);
+        if (value == fd.default_i64)
+            return true;
+        return sink->PutInt64(fd.selector.primitive, value);
+    }
+    case UPB_TYPE_UINT64: {
+        uint64_t value = sizeof(UV) >= sizeof(int64_t) ? SvUV(ref) : get_uint64(aTHX_ ref);
+        if (value == fd.default_u64)
+            return true;
+        return sink->PutUInt64(fd.selector.primitive, value);
+    }
     default:
         return false; // just in case
     }

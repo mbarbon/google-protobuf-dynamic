@@ -1,0 +1,7 @@
+syntax = 'proto3';
+
+package test;
+
+message Defaults {
+    int32 int32_f = 1;
+}
