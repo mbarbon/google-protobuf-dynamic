@@ -61,7 +61,7 @@ The following options map one to one to the C<options> key of
 L<Google::ProtocolBuffers::Dynamic/map>. When specified before the
 first mapping, they are applied to all mappings.
 
-Boolean options: C<use_bigints>, C<check_required_fields>,
+Boolean options: C<implicit_maps>, C<use_bigints>, C<check_required_fields>,
 C<explicit_defaults>, C<encode_defaults>, C<check_enum_values>,
 C<generic_extension_methods>. When specified they set the option value
 to 1, when prefixed with C<no_> (e.g. C<no_use_bigints>) they set the

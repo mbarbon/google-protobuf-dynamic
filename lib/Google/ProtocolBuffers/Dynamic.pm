@@ -162,6 +162,18 @@ C<< $msg->foo_size >> returns the number of elements in the list, C<<
 $msg->get_foo_list >> and C<< $msg->set_foo_list >> act as
 getter/setter for the whole list, taking/returning an array reference.
 
+=head3 Map fields
+
+For a field named C<foo> the message class will have an item getter
+(C<< $msg->get_foo($key) >>) and an item setter (C<<
+$msg->set_foo($key, $value) >>).
+
+C<< $msg->get_foo_map >> and C<< $msg->set_foo_map >> act as
+getter/setter for the whole map, taking/returning an hash reference.
+
+The C<< map<key, value> >> syntax is only available for C<proto3>, see
+see L</implicit_maps> to emulate map support when using C<proto2>.
+
 =head2 ENUMERATIONS
 
 Enumeration values are passed around as integers.
@@ -361,6 +373,26 @@ with message or enumeration types).
 =head1 OPTIONS
 
 Can be passed to the various mapping methods.
+
+=head2 implicit_maps
+
+C<proto3> provides a special C<< map<key, value> >> syntax to define
+map fields:
+
+    map<key-type, value-type> field = 1;
+
+which is equivalent to the following C<proto2> definition
+
+    message FieldEntry {
+        optional key-type key = 1;
+        optional value-type value = 2;
+    }
+    repeated FieldEntry field = 1;
+
+C<Google::ProtocolBuffers::Dynamic> can detect when a map-like
+structure has been defined using the C<proto2> syntax above and
+provide the same semantics as a C<proto3> map (i.e. it will accept a
+Perl hash when encoding and produce a Perl hash when decoding).
 
 =head2 use_bigints
 
