@@ -3,9 +3,9 @@ syntax = 'proto2';
 package test;
 
 enum MapEnum {
-    REPEATED_FIRST = 1;
-    REPEATED_SECOND = 2;
-    REPEATED_THIRD = 3;
+    MAP_FIRST = 1;
+    MAP_SECOND = 2;
+    MAP_THIRD = 3;
 }
 
 message Maps {
