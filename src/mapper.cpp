@@ -1233,9 +1233,6 @@ bool Mapper::encode_hash_kv(Sink *sink, Status *status, const char *key, STRLEN 
 }
 
 bool Mapper::encode_from_perl_hash(Sink *sink, Status *status, const Field &fd, SV *ref) const {
-    // in case we get passed an array of entry structures
-    if (SvROK(ref) && SvTYPE(SvRV(ref)) == SVt_PVAV)
-        return fd.mapper->encode_from_message_array(sink, status, fd, (AV *) SvRV(ref));
     if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVHV)
         croak("Not an hash reference when encoding field '%s'", fd.full_name().c_str());
     HV *hash = (HV *) SvRV(ref);
