@@ -708,7 +708,8 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
 }
 
 Mapper::~Mapper() {
-    upb_env_free(&env, json_decoder);
+    if (json_decoder)
+        upb_env_free(&env, json_decoder);
     upb_env_free(&env, json_encoder);
     upb_env_free(&env, pb_decoder);
     upb_env_free(&env, pb_encoder);
@@ -802,7 +803,7 @@ void Mapper::create_encoder_decoder() {
     json_decoder_method = ParserMethod::New(message_def);
     decoder_sink.Reset(decoder_handlers.get(), &decoder_callbacks);
     pb_decoder = upb::pb::Decoder::Create(&env, pb_decoder_method.get(), &decoder_sink);
-    json_decoder = upb::json::Parser::Create(&env, json_decoder_method.get(), &decoder_sink);
+    json_decoder = NULL;
     pb_encoder = upb::pb::Encoder::Create(&env, pb_encoder_handlers.get(), string_sink.input());
     json_encoder = upb::json::Printer::Create(&env, json_encoder_handlers.get(), string_sink.input());
 }
@@ -849,15 +850,23 @@ SV *Mapper::decode(const char *buffer, STRLEN bufsize) {
 }
 
 SV *Mapper::decode_json(const char *buffer, STRLEN bufsize) {
-    if (json_decoder == NULL)
+    if (pb_decoder == NULL)
         croak("It looks like resolve_references() was not called (and please use map() anyway)");
     status.Clear();
     decoder_callbacks.prepare(newHV());
+    // if an exception was thrown
+    if (json_decoder != NULL)
+        upb_env_free(&env, json_decoder);
+    // at the moment, the JSON parser can't be reused, and it's unclear whether
+    // this is a bug or a feature, so just create a new one every time
+    json_decoder = upb::json::Parser::Create(&env, json_decoder_method.get(), &decoder_sink);
 
     SV *result = NULL;
     if (BufferSource::PutBuffer(buffer, bufsize, json_decoder->input()))
         result = sv_bless(newRV_inc(decoder_callbacks.get_target()), stash);
     decoder_callbacks.clear();
+    upb_env_free(&env, json_decoder);
+    json_decoder = NULL;
 
     return result;
 }
