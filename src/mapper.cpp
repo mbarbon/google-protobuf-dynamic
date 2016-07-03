@@ -511,6 +511,10 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
 
     env.ReportErrorsTo(&status);
     registry->ref();
+    pb_encoder = NULL;
+    pb_decoder = NULL;
+    json_encoder = NULL;
+    json_decoder = NULL;
     pb_encoder_handlers = Encoder::NewHandlers(message_def);
     json_encoder_handlers = Printer::NewHandlers(message_def, false /* XXX option */);
     decoder_handlers = Handlers::New(message_def);
@@ -704,6 +708,11 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
 }
 
 Mapper::~Mapper() {
+    upb_env_free(&env, json_decoder);
+    upb_env_free(&env, json_encoder);
+    upb_env_free(&env, pb_decoder);
+    upb_env_free(&env, pb_encoder);
+
     for (vector<Field>::iterator it = fields.begin(), en = fields.end(); it != en; ++it)
         if (it->mapper)
             it->mapper->unref();
