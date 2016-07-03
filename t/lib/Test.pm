@@ -34,7 +34,7 @@ sub import {
     if (@_ > 1 && $_[1] eq 'proto3') {
         splice @_, 1, 1;
 
-        @_ = ("skip_all", "Protocol Buffers v3 required")
+        @_ = ($_[0], "skip_all", "Protocol Buffers v3 required")
             unless Google::ProtocolBuffers::Dynamic::is_proto3();
     }
 
