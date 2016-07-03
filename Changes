@@ -2,6 +2,14 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.08      2016-07-03 18:54:19 CEST
+
+    - Fix JSON deserialization
+    - Support maps (both proto2 and proto3, except for map<> syntax
+      which is proto3-only)
+    - Optionally, don't encode fields having a value equal to the
+      default
+
 0.07      2016-05-31 08:50:50 CEST
 
     - Fix bug with some nested data structures
