@@ -474,7 +474,7 @@ error.
 
 Unknown fields are discarded on deserialization.
 
-Proto3 support will be implemented after Protocol Buffers 3 final is released.
+Proto3 support is only partial (support for well-known types, such as Any and Duration is missing).
 
 See also the L<TODO|https://github.com/mbarbon/google-protobuf-dynamic/blob/master/TODO>
 
