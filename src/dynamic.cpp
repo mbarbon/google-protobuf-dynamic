@@ -149,6 +149,29 @@ namespace {
 
         copy_and_bind(aTHX_ name, temp_name.c_str(), perl_package, mapperfield);
     }
+
+    bool is_map_entry(const MessageDef *message, bool check_implicit_map) {
+        if (message->mapentry())
+            return true;
+        if (!check_implicit_map)
+            return false;
+        const FieldDef *key = message->FindFieldByNumber(1);
+        const FieldDef *value = message->FindFieldByNumber(2);
+        const char *msg_name = message->name();
+        if (message->field_count() != 2 || message->oneof_count() != 0 ||
+                key == NULL || value == NULL)
+            return false;
+        if (strcmp(key->name(), "key") != 0 || strcmp(value->name(), "value") != 0)
+            return false;
+        size_t msg_name_len = strlen(msg_name);
+        if (msg_name_len < 6 || strcmp(msg_name + msg_name_len - 5, "Entry") != 0)
+            return false;
+        if (key->IsSequence() || value->IsSequence() ||
+                key->is_extension() || value->is_extension() ||
+                key->subdef() /* message or enum */)
+            return false;
+        return true;
+    }
 }
 
 void Dynamic::map_message(pTHX_ const string &message, const string &perl_package, const MappingOptions &options) {
@@ -263,9 +286,11 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
         croak("Message '%s' has already been mapped", descriptor->full_name().c_str());
     if (options.use_bigints)
         eval_pv("require Math::BigInt", 1);
-
     HV *stash = gv_stashpvn(perl_package.data(), perl_package.size(), GV_ADD);
     const MessageDef *message_def = def_builder.GetMessageDef(descriptor);
+    if (is_map_entry(message_def, options.implicit_maps))
+        // it's likely I will regret this const_cast<>
+        upb_msgdef_setmapentry(const_cast<MessageDef *>(message_def), true);
     Mapper *mapper = new Mapper(aTHX_ this, message_def, stash, options);
     const char *getter_prefix, *setter_prefix;
 
