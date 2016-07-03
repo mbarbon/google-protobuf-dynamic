@@ -6,3 +6,5 @@ If needed, they can be regenerated with:
 $ cd /path/to/google/protobuf
 $ protoc -o descriptor.pb -Isrc src/google/protobuf/descriptor.proto
 $ protoc -o plugin.pb -Isrc src/google/protobuf/compiler/plugin.proto
+$ cd /path/to/google-protobuf-dynamic
+$ perl scripts/make_plugin_interface.pl
