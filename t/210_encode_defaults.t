@@ -100,7 +100,7 @@ use t::lib::Test;
     );
 }
 
-{
+if (Google::ProtocolBuffers::Dynamic::is_proto3()) {
     my $d = Google::ProtocolBuffers::Dynamic->new('t/proto');
     $d->load_file("defaults_proto3.proto");
     $d->map({ package => 'test', prefix => 'Test3', options => { encode_defaults => 0 } });
@@ -121,7 +121,7 @@ use t::lib::Test;
     );
 }
 
-{
+if (Google::ProtocolBuffers::Dynamic::is_proto3()) {
     my $d = Google::ProtocolBuffers::Dynamic->new('t/proto');
     $d->load_file("defaults_proto3.proto");
     $d->map({ package => 'test', prefix => 'Test4', options => { encode_defaults => 0 } });
