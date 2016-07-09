@@ -394,6 +394,26 @@ structure has been defined using the C<proto2> syntax above and
 provide the same semantics as a C<proto3> map (i.e. it will accept a
 Perl hash when encoding and produce a Perl hash when decoding).
 
+When C<implicit_maps> is enabled, messages with the following properties:
+
+=over 4
+
+=item message name ends in C<Entry>
+
+=item it has an C<optional> field named C<key> with tag 1
+
+=item it has an C<optional> field named C<value> with tag 2
+
+=item it has exactly two fields, and no C<oneof> field
+
+=item C<key> is not a message or enum field
+
+=back
+
+will be marked as map entries. Those rules do not check all the
+restrictions that are in place for a C<proto3> map, and they might be
+made stricter in the future.
+
 =head2 use_bigints
 
 Enabled by default on Perls with 32-bit integers, disabled by default
