@@ -18,11 +18,15 @@
 
 #include "thx_member.h"
 
+#include <list>
+#include <vector>
+
 namespace gpd {
 
 class Dynamic;
 class MappingOptions;
 class MapperField;
+class WarnContext;
 
 class Mapper : public Refcounted {
 public:
@@ -189,6 +193,7 @@ private:
     upb::pb::Encoder *pb_encoder;
     upb::json::Printer *json_encoder;
     bool check_required_fields, decode_explicit_defaults, encode_defaults, check_enum_values;
+    WarnContext *warn_context;
 };
 
 class MapperField : public Refcounted {
@@ -256,6 +261,53 @@ private:
     DECL_THX_MEMBER;
     Dynamic *registry;
     const upb::EnumDef *enum_def;
+};
+
+class WarnContext {
+public:
+    enum Kind {
+        Array   = 1,
+        Hash    = 2,
+        Message = 3,
+    };
+
+    struct Item {
+        Kind kind;
+        union {
+            int index;
+            const Mapper::Field *field;
+            struct {
+                const char *key;
+                STRLEN keylen;
+            };
+        };
+
+        Item(Kind _kind) : kind(_kind) { }
+    };
+
+    static void setup(pTHX);
+    static WarnContext *get(pTHX);
+
+    void warn_with_context(pTHX_ SV *warning) const;
+
+    Item &push_level(Kind kind) {
+        levels.push_back(Item(kind));
+
+        return levels.back();
+    }
+
+    void pop_level() { levels.pop_back(); }
+    void clear() { levels.clear(); }
+    void localize_warning_handler(pTHX);
+
+private:
+    typedef std::list<Item> Levels;
+
+    WarnContext(pTHX);
+
+    Levels levels;
+    SV *chained_handler;
+    SV *warn_handler;
 };
 
 };

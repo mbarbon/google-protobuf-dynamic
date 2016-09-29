@@ -9,6 +9,13 @@
 
 %{
 
+void
+handle_warning(SV *text)
+  INIT:
+    gpd::WarnContext *cxt = (gpd::WarnContext *) CvXSUBANY(cv).any_ptr;
+  CODE:
+    cxt->warn_with_context(aTHX_ text);
+
 SV*
 new(SV *klass, SV *ref = NULL)
   INIT:
@@ -400,5 +407,8 @@ get_or_set_map(HV *self, SV *ref = NULL)
         PUSHs(field->get_map(self));
     else
         field->set_map(self, ref);
+
+BOOT:
+    gpd::WarnContext::setup(aTHX);
 
 %}

@@ -7,6 +7,7 @@ use parent 'Test::Builder::Module';
 use Test::More;
 use Test::Differences;
 use Test::Exception;
+use Test::Warn;
 
 use t::lib::DummyTiedScalar;
 use t::lib::DummyTiedArray;
@@ -19,6 +20,7 @@ our @EXPORT = (
     @Test::More::EXPORT,
     @Test::Differences::EXPORT,
     @Test::Exception::EXPORT,
+    @Test::Warn::EXPORT,
     qw(
           maybe_bigint
           tie_scalar

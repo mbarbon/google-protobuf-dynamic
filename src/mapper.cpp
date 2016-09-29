@@ -501,6 +501,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
     encode_defaults = message_def->syntax() == UPB_SYNTAX_PROTO2 &&
         options.encode_defaults;
     check_enum_values = options.check_enum_values;
+    warn_context = WarnContext::get(aTHX);
 
     if (!decoder_handlers->SetEndMessageHandler(UpbMakeHandler(DecoderHandlers::on_end_message)))
         croak("Unable to set upb end message handler for %s", message_def->full_name());
@@ -792,6 +793,8 @@ SV *Mapper::encode(SV *ref) {
         croak("It looks like resolve_references() was not called (and please use map() anyway)");
     status.Clear();
     output_buffer.clear();
+    warn_context->clear();
+    warn_context->localize_warning_handler(aTHX);
     SV *result = NULL;
     if (encode(pb_encoder->input(), &status, ref))
         result = newSVpvn(output_buffer.data(), output_buffer.size());
@@ -805,6 +808,8 @@ SV *Mapper::encode_json(SV *ref) {
         croak("It looks like resolve_references() was not called (and please use map() anyway)");
     status.Clear();
     output_buffer.clear();
+    warn_context->clear();
+    warn_context->localize_warning_handler(aTHX);
     SV *result = NULL;
     if (encode(json_encoder->input(), &status, ref))
         result = newSVpvn(output_buffer.data(), output_buffer.size());
@@ -1059,7 +1064,9 @@ bool Mapper::encode_from_array(Sink *sink, Status *status, const Mapper::Field &
         return false;
     int size = av_top_index(source) + 1;
 
+    WarnContext::Item &warn_cxt = warn_context->push_level(WarnContext::Array);
     for (int i = 0; i < size; ++i) {
+        warn_cxt.index = i;
         SV **item = av_fetch(source, i, 0);
         if (!item)
             return false;
@@ -1067,6 +1074,7 @@ bool Mapper::encode_from_array(Sink *sink, Status *status, const Mapper::Field &
         if (!setter(aTHX_ &sub, fd, getter(aTHX_ *item)))
             return false;
     }
+    warn_context->pop_level();
 
     return sink->EndSequence(fd.selector.seq_end);
 }
@@ -1078,7 +1086,9 @@ bool Mapper::encode_from_message_array(Sink *sink, Status *status, const Mapper:
     if (!sink->StartSequence(fd.selector.seq_start, &sub))
         return false;
 
+    WarnContext::Item &warn_cxt = warn_context->push_level(WarnContext::Array);
     for (int i = 0; i < size; ++i) {
+        warn_cxt.index = i;
         SV **item = av_fetch(source, i, 0);
         if (!item)
             return false;
@@ -1092,6 +1102,7 @@ bool Mapper::encode_from_message_array(Sink *sink, Status *status, const Mapper:
         if (!sub.EndSubMessage(fd.selector.msg_end))
             return false;
     }
+    warn_context->pop_level();
 
     return sink->EndSequence(fd.selector.seq_end);
 }
@@ -1117,7 +1128,9 @@ bool Mapper::encode(Sink *sink, Status *status, SV *ref) const {
     bool tied = SvTIED_mg((SV *) hv, PERL_MAGIC_tied);
     bool ok = true;
     int last_oneof = -1;
+    WarnContext::Item &warn_cxt = warn_context->push_level(WarnContext::Message);
     for (vector<Field>::const_iterator it = fields.begin(), en = fields.end(); it != en; ++it) {
+        warn_cxt.field = &*it;
         HE *he = tied ? hv_fetch_ent_tied(aTHX_ hv, it->name, 0, it->name_hash) :
                         hv_fetch_ent(hv, it->name, 0, it->name_hash);
 
@@ -1145,6 +1158,7 @@ bool Mapper::encode(Sink *sink, Status *status, SV *ref) const {
         else
             ok = ok && encode_nodefaults(sink, status, *it, HeVAL(he));
     }
+    warn_context->pop_level();
 
     if (!sink->EndMessage(status))
         return false;
@@ -1346,6 +1360,7 @@ bool Mapper::encode_from_perl_hash(Sink *sink, Status *status, const Field &fd, 
         return false;
 
     hv_iterinit(hash);
+    WarnContext::Item &warn_cxt = warn_context->push_level(WarnContext::Hash);
     while (HE *entry = hv_iternext(hash)) {
         Sink key_value;
         SV *value = HeVAL(entry);
@@ -1366,6 +1381,8 @@ bool Mapper::encode_from_perl_hash(Sink *sink, Status *status, const Field &fd, 
             }
         }
 
+        warn_cxt.key = key;
+        warn_cxt.keylen = keylen;
         if (!repeated.StartSubMessage(fd.selector.msg_start, &key_value))
             return false;
         if (!fd.mapper->encode_hash_kv(&key_value, status, key, keylen, value))
@@ -1373,6 +1390,7 @@ bool Mapper::encode_from_perl_hash(Sink *sink, Status *status, const Field &fd, 
         if (!repeated.EndSubMessage(fd.selector.msg_end))
             return false;
     }
+    warn_context->pop_level();
 
     return sink->EndSequence(fd.selector.seq_end);
 }
@@ -2007,4 +2025,62 @@ SV *EnumMapper::enum_descriptor() const {
     sv_setref_iv(ref, "Google::ProtocolBuffers::Dynamic::EnumDef", (IV) enum_def);
 
     return ref;
+}
+
+WarnContext::WarnContext(pTHX) : chained_handler(NULL) {
+    CV *handler = get_cv("Google::ProtocolBuffers::Dynamic::Mapper::handle_warning", 0);
+
+    warn_handler = (SV*) handler;
+}
+
+void WarnContext::setup(pTHX) {
+    CV *handler = get_cv("Google::ProtocolBuffers::Dynamic::Mapper::handle_warning", 0);
+
+    CvXSUBANY(handler).any_ptr = new WarnContext(aTHX);
+}
+
+WarnContext *WarnContext::get(pTHX) {
+    CV *handler = get_cv("Google::ProtocolBuffers::Dynamic::Mapper::handle_warning", 0);
+
+    return (WarnContext *) CvXSUBANY(handler).any_ptr;
+}
+
+void WarnContext::localize_warning_handler(pTHX) {
+    chained_handler = PL_warnhook;
+    SAVEGENERICSV(PL_warnhook);
+    PL_warnhook = SvREFCNT_inc_simple_NN(warn_handler);
+}
+
+void WarnContext::warn_with_context(pTHX_ SV *warning) const {
+    SV *cxt = sv_2mortal(newSVpvs("While encoding field '"));
+
+    for (Levels::const_iterator it = levels.begin(), en = levels.end(); it != en; ++it) {
+        switch (it->kind) {
+        case Array:
+            sv_catpvf(cxt, "[%d].", it->index);
+            break;
+        case Hash:
+            sv_catpvf(cxt, "{%" SVf "}.", it->index);
+            break;
+        case Message:
+            sv_catpvf(cxt, "%" SVf ".", it->field->name);
+            break;
+        }
+    }
+
+    SvCUR_set(cxt, SvCUR(cxt) - 1); // chop last '.'
+
+    sv_catpvs(cxt, "': ");
+    sv_catsv(cxt, warning);
+
+    if (chained_handler) {
+        dSP;
+
+        PUSHMARK(SP);
+        XPUSHs(cxt);
+        PUTBACK;
+
+        call_sv(chained_handler, G_DISCARD|G_VOID);
+    } else
+        warn_sv(cxt);
 }
