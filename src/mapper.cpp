@@ -1052,7 +1052,6 @@ bool Mapper::encode_from_array(Sink *sink, Status *status, const Mapper::Field &
     G getter;
     S setter(status);
     Sink sub;
-    bool packed = upb_fielddef_isprimitive(fd.field_def) && fd.field_def->packed();
 
     if (!sink->StartSequence(fd.selector.seq_start, &sub))
         return false;
