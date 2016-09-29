@@ -1105,6 +1105,7 @@ namespace {
 }
 
 bool Mapper::encode(Sink *sink, Status *status, SV *ref) const {
+    SvGETMAGIC(ref);
     if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVHV)
         croak("Not an hash reference when encoding a %s value", message_def->full_name());
     HV *hv = (HV *) SvRV(ref);
@@ -1334,6 +1335,7 @@ bool Mapper::encode_hash_kv(Sink *sink, Status *status, const char *key, STRLEN 
 }
 
 bool Mapper::encode_from_perl_hash(Sink *sink, Status *status, const Field &fd, SV *ref) const {
+    SvGETMAGIC(ref);
     if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVHV)
         croak("Not an hash reference when encoding field '%s'", fd.full_name().c_str());
     HV *hash = (HV *) SvRV(ref);
@@ -1375,6 +1377,7 @@ bool Mapper::encode_from_perl_hash(Sink *sink, Status *status, const Field &fd, 
 }
 
 bool Mapper::encode_from_perl_array(Sink *sink, Status *status, const Field &fd, SV *ref) const {
+    SvGETMAGIC(ref);
     if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVAV)
         croak("Not an array reference when encoding field '%s'", fd.full_name().c_str());
     AV *array = (AV *) SvRV(ref);
@@ -1455,6 +1458,7 @@ bool Mapper::check_from_enum_array(Status *status, const Mapper::Field &fd, AV *
 }
 
 bool Mapper::check(Status *status, SV *ref) const {
+    SvGETMAGIC(ref);
     if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVHV)
         croak("Not an hash reference when checking a %s value", message_def->full_name());
     HV *hv = (HV *) SvRV(ref);
@@ -1515,6 +1519,7 @@ bool Mapper::check(Status *status, const Field &fd, SV *ref) const {
 }
 
 bool Mapper::check_from_perl_array(Status *status, const Field &fd, SV *ref) const {
+    SvGETMAGIC(ref);
     if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVAV)
         croak("Not an array reference when encoding field '%s'", fd.full_name().c_str());
     AV *array = (AV *) SvRV(ref);

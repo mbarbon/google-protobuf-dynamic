@@ -19,7 +19,7 @@ $d->resolve_references();
             Inner->new({ value => 4, other => 0 }),
         ],
     });
-    my $for_encode = OuterWithMessage->new({
+    my $for_encode = {
         optional_inner => {
             value => 2,
         },
@@ -27,10 +27,33 @@ $d->resolve_references();
             { value => 3 },
             { value => 4 },
         ],
-    });
+    };
+
+    my $tied;
+    {
+        my ($v2, $v3, $v4) = (2, 3, 4);
+        my $value_2 = { value => undef };
+        my $value_3 = { value => undef };
+        my $value_4 = { value => undef };
+        my $repeated = [undef, undef];
+        my $value = {
+            optional_inner => undef,
+            repeated_inner => undef,
+        };
+
+        tie_scalar($value_2->{value}, $v2);
+        tie_scalar($value_3->{value}, $v3);
+        tie_scalar($value_4->{value}, $v4);
+        tie_scalar($repeated->[0], $value_3);
+        tie_scalar($repeated->[1], $value_4);
+        tie_scalar($value->{optional_inner}, $value_2);
+        tie_scalar($value->{repeated_inner}, $repeated);
+        tie_scalar($tied, $value);
+    };
 
     eq_or_diff(OuterWithMessage->decode($encoded), $decoded);
     eq_or_diff(OuterWithMessage->encode($for_encode), $encoded);
+    eq_or_diff(OuterWithMessage->encode($tied), $encoded);
 }
 
 {

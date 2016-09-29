@@ -8,6 +8,7 @@ use Test::More;
 use Test::Differences;
 use Test::Exception;
 
+use t::lib::DummyTiedScalar;
 use t::lib::DummyTiedArray;
 use t::lib::DummyTiedHash;
 
@@ -20,6 +21,7 @@ our @EXPORT = (
     @Test::Exception::EXPORT,
     qw(
           maybe_bigint
+          tie_scalar
           tied_array
           tied_hash
     )
@@ -48,6 +50,10 @@ sub maybe_bigint {
     my $bi = Math::BigInt->new($_[0]);
 
     return $bi > -2147483648 && $bi < 2147483647 ? 0 + $_[0] : $bi;
+}
+
+sub tie_scalar {
+    tie $_[0], 't::lib::DummyTiedScalar', \$_[1];
 }
 
 sub tied_array {

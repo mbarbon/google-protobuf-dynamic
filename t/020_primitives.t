@@ -52,8 +52,14 @@ for my $field (sort keys %values) {
     my $bytes = Basic->encode({ $field => $value });
     my $decoded = Basic->decode($bytes);
 
+    my $tied = { $field => undef };
+    tie_scalar($tied->{$field}, $value);
+    my $tied_bytes = Basic->encode($tied);
+
     eq_or_diff($bytes, $encoded,
                "$field - encoded value");
+    eq_or_diff($tied_bytes, $encoded,
+               "$field - encoded tied value");
     eq_or_diff($decoded, Basic->new({ %default_defaults, $field => $value }),
                "$field - round trip");
 }
