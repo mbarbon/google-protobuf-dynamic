@@ -185,11 +185,11 @@
 %{
 
 #define DESCRIPTOR_TYPE(name) \
-    gpd::define_constant("DESCRIPTOR_" #name, "descriptor", UPB_DESCRIPTOR_TYPE_##name);
+    gpd::define_constant(aTHX_ "DESCRIPTOR_" #name, "descriptor", UPB_DESCRIPTOR_TYPE_##name);
 #define VALUE_TYPE(name) \
-    gpd::define_constant("VALUE_" #name, "values", UPB_TYPE_##name);
+    gpd::define_constant(aTHX_ "VALUE_" #name, "values", UPB_TYPE_##name);
 #define LABEL_TYPE(name) \
-    gpd::define_constant("LABEL_" #name, "labels", UPB_LABEL_##name);
+    gpd::define_constant(aTHX_ "LABEL_" #name, "labels", UPB_LABEL_##name);
 
 BOOT:
     LABEL_TYPE(OPTIONAL);

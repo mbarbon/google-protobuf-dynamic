@@ -305,6 +305,8 @@ bool Mapper::DecoderHandlers::on_end_sub_message(DecoderHandlers *cxt, const int
 }
 
 bool Mapper::DecoderHandlers::on_end_map_entry(DecoderHandlers *cxt, const int *field_index) {
+    THX_DECLARE_AND_GET;
+
     size_t size = cxt->items.size();
     HV *hash = (HV *) cxt->items[size - 3];
     SV *key = (SV *) cxt->items[size - 2];
@@ -912,7 +914,7 @@ namespace {
             return SvIV(src);
     }
 
-    IV key_iv(const char *key, I32 keylen) {
+    IV key_iv(pTHX_ const char *key, I32 keylen) {
         UV value;
         int numtype = grok_number(key, keylen, &value);
 
@@ -929,7 +931,7 @@ namespace {
         return 0;
     }
 
-    UV key_uv(const char *key, I32 keylen) {
+    UV key_uv(pTHX_ const char *key, I32 keylen) {
         UV value;
         int numtype = grok_number(key, keylen, &value);
 
@@ -1302,13 +1304,13 @@ bool Mapper::encode_key(Sink *sink, Status *status, const Field &fd, const char 
         return sink->EndString(fd.selector.str_end);
     }
     case UPB_TYPE_INT32:
-        return sink->PutInt32(fd.selector.primitive, key_iv(key, keylen));
+        return sink->PutInt32(fd.selector.primitive, key_iv(aTHX_ key, keylen));
     case UPB_TYPE_UINT32:
-        return sink->PutUInt32(fd.selector.primitive, key_uv(key, keylen));
+        return sink->PutUInt32(fd.selector.primitive, key_uv(aTHX_ key, keylen));
     case UPB_TYPE_INT64:
-        return sink->PutInt64(fd.selector.primitive, key_iv(key, keylen));
+        return sink->PutInt64(fd.selector.primitive, key_iv(aTHX_ key, keylen));
     case UPB_TYPE_UINT64:
-        return sink->PutInt64(fd.selector.primitive, key_uv(key, keylen));
+        return sink->PutInt64(fd.selector.primitive, key_uv(aTHX_ key, keylen));
     default:
         return false; // just in case
     }
