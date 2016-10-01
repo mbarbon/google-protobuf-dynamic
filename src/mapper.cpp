@@ -69,6 +69,13 @@ namespace {
                                     : (*(s)++ + 9))))
 #endif
 
+#if PERL_VERSION < 14
+    inline void GPD_warn_sv(pTHX_ SV *mess) {
+        warn("%" SVf, mess);
+    }
+    #define warn_sv(sv) GPD_warn_sv(aTHX_ (sv))
+#endif
+
     inline void set_bool(pTHX_ SV *target, bool value) {
         if (value)
             sv_setiv(target, 1);
