@@ -3,6 +3,11 @@
 
 #undef New
 
+#if PERL_VERSION < 10
+    #undef  newCONSTSUB
+    #define newCONSTSUB(a, b,c) Perl_newCONSTSUB(aTHX_ a, const_cast<char *>(b), c)
+#endif
+
 #include <upb/def.h>
 
 namespace Google {

@@ -10,6 +10,14 @@ using namespace google::protobuf;
 using namespace upb;
 using namespace upb::googlepb;
 
+#if PERL_VERSION < 10
+    #undef  newCONSTSUB
+    #define newCONSTSUB(a, b,c) Perl_newCONSTSUB(aTHX_ a, const_cast<char *>(b), c)
+
+    #undef newXS
+    #define newXS(a, b, c) Perl_newXS(aTHX_ const_cast<char *>(a), b, const_cast<char *>(c))
+#endif
+
 void Dynamic::CollectErrors::AddError(const string &filename, int line, int column, const string &message) {
     croak("Error during protobuf parsing: %s:%d:%d: %s", filename.c_str(), line, column, message.c_str());
 }

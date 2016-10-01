@@ -9,7 +9,7 @@ our @ISA = qw(Tie::StdArray);
 sub TIEARRAY {
     my ($class, $init) = @_;
 
-    return bless [@{$init // []}], $class;
+    return bless [@{$init || []}], $class;
 }
 
 1;
