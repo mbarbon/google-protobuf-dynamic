@@ -2,6 +2,12 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.09      2016-10-01 20:23:03 CEST
+
+    - Decorate warnings happening during encoding with the key being
+      encoded when the warning happens
+    - Perl 5.8 compatibility
+
 0.08      2016-07-03 18:54:19 CEST
 
     - Fix JSON deserialization
