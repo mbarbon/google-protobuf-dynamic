@@ -2,6 +2,10 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.10      2016-11-07 17:59:12 CET
+
+    - Fix warning when encoding '' as a boolean
+
 0.09      2016-10-01 20:23:03 CEST
 
     - Decorate warnings happening during encoding with the key being
