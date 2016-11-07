@@ -1247,7 +1247,7 @@ bool Mapper::encode_nodefaults(Sink *sink, Status *status, const Field &fd, SV *
         return sink->PutDouble(fd.selector.primitive, value);
     }
     case UPB_TYPE_BOOL: {
-        bool value = SvNV(ref);
+        bool value = SvTRUE(ref);
         if (value == fd.default_bool)
             return true;
         return sink->PutBool(fd.selector.primitive, value);

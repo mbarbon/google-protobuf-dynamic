@@ -64,6 +64,8 @@ for my $field (sort keys %values) {
                "$field - round trip");
 }
 
+eq_or_diff(Basic->encode({bool_f => ''}), "", "bool false");
+eq_or_diff(Default->encode({bool_f => ''}), "\x38\x00", "bool false");
 eq_or_diff(Basic->decode(''), \%default_defaults, "implicit defaults");
 eq_or_diff(Default->decode(''), \%test_defaults, "explicit defaults");
 
