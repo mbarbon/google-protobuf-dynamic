@@ -6,7 +6,7 @@ use parent 'Module::Build::WithXSpp';
 
 use Alien::ProtoBuf;
 use Alien::uPB;
-use Getopt::Long;
+use Getopt::Long qw( :config pass_through );
 
 # yes, doing this in a module is ugly; OTOH it's a private module
 GetOptions(
