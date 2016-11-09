@@ -2,6 +2,10 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.11      2016-11-09 13:19:42 CET
+
+    - Allow passing options with "--" to Build.PL
+
 0.10      2016-11-07 17:59:12 CET
 
     - Fix warning when encoding '' as a boolean
