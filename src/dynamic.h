@@ -24,6 +24,7 @@ struct MappingOptions {
         GetAndSet = 1,
         PlainAndSet = 2,
         SingleAccessor = 3,
+        Plain = 4,
     };
 
     bool use_bigints;
