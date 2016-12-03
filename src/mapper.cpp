@@ -1134,8 +1134,9 @@ bool Mapper::encode(Sink *sink, Status *status, SV *ref) const {
 
     bool tied = SvTIED_mg((SV *) hv, PERL_MAGIC_tied);
     bool ok = true;
-    int last_oneof = -1;
     WarnContext::Item &warn_cxt = warn_context->push_level(WarnContext::Message);
+    vector<bool> seen_oneof;
+    seen_oneof.resize(message_def->oneof_count());
     for (vector<Field>::const_iterator it = fields.begin(), en = fields.end(); it != en; ++it) {
         warn_cxt.field = &*it;
         HE *he = tied ? hv_fetch_ent_tied(aTHX_ hv, it->name, 0, it->name_hash) :
@@ -1150,10 +1151,9 @@ bool Mapper::encode(Sink *sink, Status *status, SV *ref) const {
             } else
                 continue;
         } else if (it->oneof_index != -1) {
-            if (it->oneof_index == last_oneof)
+            if (seen_oneof[it->oneof_index])
                 continue;
-            else
-                last_oneof = it->oneof_index;
+            seen_oneof[it->oneof_index] = true;
         }
 
         if (it->is_map)

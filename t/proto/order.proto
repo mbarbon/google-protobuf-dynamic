@@ -1,0 +1,47 @@
+syntax = "proto2";
+
+package test;
+
+message OrderedFields {
+    optional Inner field_1 = 1;
+    optional int32 field_2 = 2;
+    optional int32 field_3 = 3;
+    optional Inner field_4 = 4;
+
+    message Inner {
+        optional int32 field = 1;
+    }
+}
+
+message DisorderedFields {
+    optional Inner field_4 = 4;
+    optional int32 field_3 = 3;
+    optional int32 field_2 = 2;
+    optional Inner field_1 = 1;
+
+    message Inner {
+        optional int32 field = 1;
+    }
+}
+
+message MixedOneof {
+    optional int32 field_2 = 2;
+    oneof oneof_1 {
+        int32 field_1 = 1;
+        int32 field_3 = 3;
+    }
+    optional int32 field_4 = 4;
+}
+
+message InterleavedOneof {
+    optional int32 field_2 = 2;
+    oneof oneof_1 {
+        int32 field_1 = 1;
+        int32 field_4 = 4;
+    }
+    oneof oneof_2 {
+        int32 field_3 = 3;
+        int32 field_5 = 5;
+    }
+    optional int32 field_6 = 6;
+}
