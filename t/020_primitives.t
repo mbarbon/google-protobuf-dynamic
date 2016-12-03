@@ -17,6 +17,12 @@ my %values = (
     string_f    => ["\x{101f}", "\x42\x03\xe1\x80\x9f"],
     bytes_f     => ["\xe1\x80\x9f", "\x4a\x03\xe1\x80\x9f"],
     enum_f      => [2, "\x50\x02"],
+    sint32_f    => [-6, "\x58\x0b"],
+    sint64_f    => [-5, "\x60\x09"],
+    fixed32_f   => [3, "\x6d\x03\x00\x00\x00"],
+    sfixed32_f  => [-3, "\x75\xfd\xff\xff\xff"],
+    fixed64_f   => [4, "\x79\x04\x00\x00\x00\x00\x00\x00\x00"],
+    sfixed64_f  => [-4, "\x81\x01\xfc\xff\xff\xff\xff\xff\xff\xff"],
 );
 
 my %default_defaults = (
@@ -30,6 +36,12 @@ my %default_defaults = (
     string_f    => '',
     bytes_f     => '',
     enum_f      => 1,
+    fixed32_f   => 0,
+    fixed64_f   => 0,
+    sfixed32_f  => 0,
+    sfixed64_f  => 0,
+    sint32_f    => 0,
+    sint64_f    => 0,
 );
 bless \%default_defaults, 'Basic';
 
@@ -44,6 +56,12 @@ my %test_defaults = (
     string_f    => "a string",
     bytes_f     => "some bytes",
     enum_f      => 3,
+    fixed32_f   => 9,
+    fixed64_f   => 11,
+    sfixed32_f  => -10,
+    sfixed64_f  => -12,
+    sint32_f    => -7,
+    sint64_f    => -8,
 );
 bless \%test_defaults, 'Default';
 

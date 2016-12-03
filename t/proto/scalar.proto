@@ -19,6 +19,12 @@ message Basic {
     optional string string_f = 8;
     optional bytes bytes_f = 9;
     optional Enum enum_f = 10;
+    optional sint32 sint32_f = 11;
+    optional sint64 sint64_f = 12;
+    optional fixed32 fixed32_f = 13;
+    optional sfixed32 sfixed32_f = 14;
+    optional fixed64 fixed64_f = 15;
+    optional sfixed64 sfixed64_f = 16;
 }
 
 message Default {
@@ -32,4 +38,10 @@ message Default {
     optional string string_f = 8 [default = "a string"];
     optional bytes bytes_f = 9 [default = "some bytes"];
     optional Enum enum_f = 10 [default = THIRD];
+    optional sint32 sint32_f = 11 [default = -7];
+    optional sint64 sint64_f = 12 [default = -8];
+    optional fixed32 fixed32_f = 13 [default = 9];
+    optional sfixed32 sfixed32_f = 14 [default = -10];
+    optional fixed64 fixed64_f = 15 [default = 11];
+    optional sfixed64 sfixed64_f = 16 [default = -12];
 }

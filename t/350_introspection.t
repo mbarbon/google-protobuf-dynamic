@@ -13,15 +13,21 @@ my $enum_f = $basic->find_field_by_name('enum_f');
 
 is($basic->full_name, 'test.Basic');
 
-is(scalar @$fields, 10);
+is(scalar @$fields, 16);
 eq_or_diff([sort map $_->full_name, @$fields], [qw(
     bool_f
     bytes_f
     double_f
     enum_f
+    fixed32_f
+    fixed64_f
     float_f
     int32_f
     int64_f
+    sfixed32_f
+    sfixed64_f
+    sint32_f
+    sint64_f
     string_f
     uint32_f
     uint64_f
