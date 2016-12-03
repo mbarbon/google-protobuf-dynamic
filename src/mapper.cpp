@@ -2067,7 +2067,9 @@ void WarnContext::warn_with_context(pTHX_ SV *warning) const {
             sv_catpvf(cxt, "[%d].", it->index);
             break;
         case Hash:
-            sv_catpvf(cxt, "{%" SVf "}.", it->index);
+            sv_catpvs(cxt, "{");
+            sv_catpvn(cxt, it->key, it->keylen);
+            sv_catpvs(cxt, "}");
             break;
         case Message:
             sv_catpvf(cxt, "%" SVf ".", it->field->name);
