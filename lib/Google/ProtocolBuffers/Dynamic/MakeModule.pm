@@ -101,6 +101,10 @@ my %boolean_options = map +($_ => [$_, 1], "no_$_" => [$_, 0]), qw(
 sub _to_option {
     my ($options, $key, $value) = @_;
 
+    if ($key eq 'accessor_style') {
+        $options->{accessor_style} = $value;
+        return 1;
+    }
     return 0 unless my $boolean = $boolean_options{$key};
     $options->{$boolean->[0]} = $boolean->[1];
 
