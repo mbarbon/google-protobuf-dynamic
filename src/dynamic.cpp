@@ -60,6 +60,8 @@ MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
             accessor_style = PlainAndSet;
         else if (strEQ(buf, "single_accessor"))
             accessor_style = SingleAccessor;
+        else if (strEQ(buf, "plain"))
+            accessor_style = Plain;
         else
             croak("Invalid value '%s' for 'accessor_style' option", buf);
     }
@@ -301,9 +303,13 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
         upb_msgdef_setmapentry(const_cast<MessageDef *>(message_def), true);
     Mapper *mapper = new Mapper(aTHX_ this, message_def, stash, options);
     const char *getter_prefix, *setter_prefix;
+    bool plain_accessor = false;
 
     if (options.accessor_style == MappingOptions::SingleAccessor) {
         getter_prefix = setter_prefix = NULL;
+    } else if (options.accessor_style == MappingOptions::Plain) {
+        getter_prefix = setter_prefix = NULL;
+        plain_accessor = true;
     } else {
         getter_prefix = options.accessor_style == MappingOptions::GetAndSet ?
             "get_" : "";
@@ -364,7 +370,9 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
 
         copy_and_bind_field(aTHX_ "clear_field", "clear_", "", perl_package, mapperfield);
         if (mapperfield->is_map()) {
-            if (getter_prefix) {
+            if (plain_accessor) {
+                copy_and_bind_field(aTHX_ "get_or_set_map", "", "", perl_package, mapperfield);
+            } else if (getter_prefix) {
                 copy_and_bind_field(aTHX_ "get_map_item", getter_prefix, "", perl_package, mapperfield);
                 copy_and_bind_field(aTHX_ "set_map_item", setter_prefix, "", perl_package, mapperfield);
                 copy_and_bind_field(aTHX_ "get_map", getter_prefix, "_map", perl_package, mapperfield);
@@ -376,7 +384,9 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
         } else if (mapperfield->is_repeated()) {
             copy_and_bind_field(aTHX_ "add_item", "add_", "", perl_package, mapperfield);
             copy_and_bind_field(aTHX_ "list_size", "", "_size", perl_package, mapperfield);
-            if (getter_prefix) {
+            if (plain_accessor) {
+                copy_and_bind_field(aTHX_ "get_or_set_list", "", "", perl_package, mapperfield);
+            } else if (getter_prefix) {
                 copy_and_bind_field(aTHX_ "get_list_item", getter_prefix, "", perl_package, mapperfield);
                 copy_and_bind_field(aTHX_ "set_list_item", setter_prefix, "", perl_package, mapperfield);
                 copy_and_bind_field(aTHX_ "get_list", getter_prefix, "_list", perl_package, mapperfield);

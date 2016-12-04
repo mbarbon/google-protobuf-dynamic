@@ -108,4 +108,40 @@ use t::lib::Test;
     is($map->string_int32_map('b'), 14);
 }
 
+{
+    my $d = Google::ProtocolBuffers::Dynamic->new('t/proto');
+    $d->load_file("scalar.proto");
+    $d->load_file("repeated.proto");
+    $d->load_file("extensions.proto");
+    $d->load_file("map_proto2.proto");
+    $d->map({ package => 'test', prefix => 'Test4', options => { accessor_style => 'plain', implicit_maps => 1 } });
+
+    my $scalar = Test4::Basic->new;
+    my $repeated = Test4::Repeated->new;
+    my $extensions = Test4::Message1->new;
+    my $map = Test4::Maps->new;
+
+    is($scalar->int32_f, 0);
+    $scalar->int32_f(2);
+    is($scalar->int32_f, 2);
+
+    $repeated->double_f([2]);
+    is($repeated->double_f->[0], 2);
+    eq_or_diff($repeated->double_f, [2]);
+    $repeated->double_f([7]);
+    eq_or_diff($repeated->double_f, [7]);
+    $repeated->double_f->[0] = 4;
+    eq_or_diff($repeated->double_f, [4]);
+
+    is($extensions->extension('test.value'), 0);
+    $extensions->extension('test.value', 7);
+    is($extensions->extension('test.value'), 7);
+
+    $map->string_int32_map({"a" => 7});
+    eq_or_diff($map->string_int32_map, { a => 7 });
+    $map->string_int32_map->{b} = 14;
+    eq_or_diff($map->string_int32_map, { a => 7, b => 14 });
+    is($map->string_int32_map->{b}, 14);
+}
+
 done_testing();
