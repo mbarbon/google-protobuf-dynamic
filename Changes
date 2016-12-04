@@ -2,6 +2,11 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.12      2016-12-04 22:03:19 CET
+
+    - Add 'plain' accessor style, for compatibility with
+      Google::ProtocolBuffers (patch by Pavel Shaydo)
+
 0.11      2016-11-09 13:19:42 CET
 
     - Allow passing options with "--" to Build.PL
