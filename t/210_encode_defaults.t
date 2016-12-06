@@ -57,6 +57,17 @@ use t::lib::Test;
 
 {
     my $d = Google::ProtocolBuffers::Dynamic->new('t/proto');
+    $d->load_file("scalar.proto");
+    $d->map({ package => 'test', prefix => 'Test4', options => { encode_defaults => 1 } });
+
+    my $ref = bless { string_f => '' }, 'Test4::Basic';
+    my $decoded = Test4::Basic->decode(Test4::Basic->encode($ref));
+    eq_or_diff $decoded, $ref, "got the same structure back";
+    is $decoded->get_string_f, '', "empty string";
+}
+
+{
+    my $d = Google::ProtocolBuffers::Dynamic->new('t/proto');
     $d->load_file("options.proto");
     $d->map({ package => 'test', prefix => 'Test2', options => { encode_defaults => 0 } });
 
