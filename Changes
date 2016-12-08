@@ -2,6 +2,10 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.13      2016-12-08 12:00:11 CET
+
+    - Fix bug in decoding of empty strings (patch by Pavel Shaydo)
+
 0.12      2016-12-04 22:03:19 CET
 
     - Add 'plain' accessor style, for compatibility with
