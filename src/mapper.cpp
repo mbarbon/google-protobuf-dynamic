@@ -184,8 +184,13 @@ bool Mapper::DecoderHandlers::on_end_message(DecoderHandlers *cxt, upb::Status *
 }
 
 Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_string(DecoderHandlers *cxt, const int *field_index, size_t size_hint) {
+    THX_DECLARE_AND_GET;
+
     cxt->mark_seen(field_index);
     cxt->string = cxt->get_target(field_index);
+    // if length of the string is zero initialize it with empty string
+    if (size_hint == 0)
+        sv_setpvn(cxt->string, "", 0);
 
     return cxt;
 }
