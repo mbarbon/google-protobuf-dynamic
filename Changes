@@ -2,6 +2,10 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.14      2016-12-12 19:10:35 CET
+
+    - Don't produce invalid Perl hashes for incorrectly encoded maps
+
 0.13      2016-12-08 12:00:11 CET
 
     - Fix bug in decoding of empty strings (patch by Pavel Shaydo)
