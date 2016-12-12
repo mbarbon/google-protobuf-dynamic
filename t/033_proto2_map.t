@@ -111,4 +111,31 @@ eq_or_diff(Maps->encode({ string_int32_map => { $string => 1 } }), $encoded,
 eq_or_diff(NoMaps->encode({ string_int32_map => [{ key => $string, value => 1 }] }), $encoded,
        "UTF-8 string (pair array)");
 
+{
+    # warnings are tested separately
+    local $SIG{__WARN__} = sub { };
+
+    my $broken1 = Maps->decode(NoMaps->encode({
+        string_int32_map => [
+            { key => 'a' },
+            { key => 'b', value => 1 },
+            { key => 'c' },
+        ],
+    }));
+
+    eq_or_diff([sort keys %{$broken1->{string_int32_map}}], [qw(b)]);
+    eq_or_diff($broken1->{string_int32_map}{b}, 1);
+
+    my $broken2 = Maps->decode(NoMaps->encode({
+        string_int32_map => [
+            {             value => 2 },
+            { key => 'b', value => 1 },
+            {             value => 4 },
+        ],
+    }));
+
+    eq_or_diff([sort keys %{$broken2->{string_int32_map}}], [qw(b)]);
+    eq_or_diff($broken2->{string_int32_map}{b}, 1);
+}
+
 done_testing();

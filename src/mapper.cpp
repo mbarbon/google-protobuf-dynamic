@@ -324,12 +324,22 @@ bool Mapper::DecoderHandlers::on_end_map_entry(DecoderHandlers *cxt, const int *
     SV *key = (SV *) cxt->items[size - 2];
     SV *value = (SV *) cxt->items[size - 1];
 
-    SvREFCNT_inc(value);
-    hv_store_ent(hash, key, value, 0);
+    if (SvOK(key) && value) {
+        SvREFCNT_inc(value);
+        hv_store_ent(hash, key, value, 0);
 
-    if (SvPOK(key))
-        SvLEN_set(key, 0);
+        if (SvPOK(key))
+            SvLEN_set(key, 0);
+    } else {
+        // having decoding of broken maps succeed is debatable
+        warn("Incomplete map entry: missing %s",
+             (!SvOK(key) && !value) ? "both key and value" :
+             !SvOK(key)             ? "key" :
+                                      "value");
+    }
+
     SvOK_off(key);
+    cxt->items[size - 1] = NULL;
 
     return true;
 }
