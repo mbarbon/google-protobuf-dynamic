@@ -182,16 +182,11 @@ private:
     std::vector<Field> fields;
     std::vector<MapperField *> extension_mapper_fields;
     STD_TR1::unordered_map<std::string, Field *> field_map;
-    upb::Environment env;
     upb::Status status;
     DecoderHandlers decoder_callbacks;
     upb::Sink encoder_sink, decoder_sink;
-    upb::pb::Decoder *pb_decoder;
-    upb::json::Parser *json_decoder;
     std::string output_buffer;
     upb::StringSink string_sink;
-    upb::pb::Encoder *pb_encoder;
-    upb::json::Printer *json_encoder;
     bool check_required_fields, decode_explicit_defaults, encode_defaults, check_enum_values;
     WarnContext *warn_context;
 };

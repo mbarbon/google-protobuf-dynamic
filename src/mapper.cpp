@@ -26,6 +26,15 @@ namespace {
     void refcounted_mortalize(pTHX_ const Refcounted *ref) {
         SAVEDESTRUCTOR(unref_on_scope_leave, ref);
     }
+
+    upb::Environment *make_localized_environment(upb::Status *report_errors_to) {
+        upb::Environment *env = new upb::Environment();
+
+        env->ReportErrorsTo(report_errors_to);
+        SAVEDESTRUCTOR(upb_env_uninit, env);
+
+        return env;
+    }
 }
 
 Mapper::DecoderHandlers::DecoderHandlers(pTHX_ const Mapper *mapper) {
@@ -510,12 +519,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
 
     SvREFCNT_inc(stash);
 
-    env.ReportErrorsTo(&status);
     registry->ref();
-    pb_encoder = NULL;
-    pb_decoder = NULL;
-    json_encoder = NULL;
-    json_decoder = NULL;
     pb_encoder_handlers = Encoder::NewHandlers(message_def);
     json_encoder_handlers = Printer::NewHandlers(message_def, false /* XXX option */);
     decoder_handlers = Handlers::New(message_def);
@@ -710,12 +714,6 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
 }
 
 Mapper::~Mapper() {
-    if (json_decoder)
-        upb_env_free(&env, json_decoder);
-    upb_env_free(&env, json_encoder);
-    upb_env_free(&env, pb_decoder);
-    upb_env_free(&env, pb_encoder);
-
     for (vector<Field>::iterator it = fields.begin(), en = fields.end(); it != en; ++it)
         if (it->mapper)
             it->mapper->unref();
@@ -804,15 +802,13 @@ void Mapper::create_encoder_decoder() {
     pb_decoder_method = DecoderMethod::New(DecoderMethodOptions(decoder_handlers.get()));
     json_decoder_method = ParserMethod::New(message_def);
     decoder_sink.Reset(decoder_handlers.get(), &decoder_callbacks);
-    pb_decoder = upb::pb::Decoder::Create(&env, pb_decoder_method.get(), &decoder_sink);
-    json_decoder = NULL;
-    pb_encoder = upb::pb::Encoder::Create(&env, pb_encoder_handlers.get(), string_sink.input());
-    json_encoder = upb::json::Printer::Create(&env, json_encoder_handlers.get(), string_sink.input());
 }
 
 SV *Mapper::encode(SV *ref) {
-    if (pb_encoder == NULL)
+    if (pb_decoder_method.get() == NULL)
         croak("It looks like resolve_references() was not called (and please use map() anyway)");
+    upb::Environment *env = make_localized_environment(&status);
+    upb::pb::Encoder *pb_encoder = upb::pb::Encoder::Create(env, pb_encoder_handlers.get(), string_sink.input());
     status.Clear();
     output_buffer.clear();
     warn_context->clear();
@@ -826,8 +822,10 @@ SV *Mapper::encode(SV *ref) {
 }
 
 SV *Mapper::encode_json(SV *ref) {
-    if (json_encoder == NULL)
+    if (json_decoder_method.get() == NULL)
         croak("It looks like resolve_references() was not called (and please use map() anyway)");
+    upb::Environment *env = make_localized_environment(&status);
+    upb::json::Printer *json_encoder = upb::json::Printer::Create(env, json_encoder_handlers.get(), string_sink.input());
     status.Clear();
     output_buffer.clear();
     warn_context->clear();
@@ -841,8 +839,10 @@ SV *Mapper::encode_json(SV *ref) {
 }
 
 SV *Mapper::decode(const char *buffer, STRLEN bufsize) {
-    if (pb_decoder == NULL)
+    if (pb_decoder_method.get() == NULL)
         croak("It looks like resolve_references() was not called (and please use map() anyway)");
+    upb::Environment *env = make_localized_environment(&status);
+    upb::pb::Decoder *pb_decoder = upb::pb::Decoder::Create(env, pb_decoder_method.get(), &decoder_sink);
     status.Clear();
     pb_decoder->Reset();
     decoder_callbacks.prepare(newHV());
@@ -856,29 +856,23 @@ SV *Mapper::decode(const char *buffer, STRLEN bufsize) {
 }
 
 SV *Mapper::decode_json(const char *buffer, STRLEN bufsize) {
-    if (pb_decoder == NULL)
+    if (json_decoder_method.get() == NULL)
         croak("It looks like resolve_references() was not called (and please use map() anyway)");
+    upb::Environment *env = make_localized_environment(&status);
+    upb::json::Parser *json_decoder = upb::json::Parser::Create(env, json_decoder_method.get(), &decoder_sink);
     status.Clear();
     decoder_callbacks.prepare(newHV());
-    // if an exception was thrown
-    if (json_decoder != NULL)
-        upb_env_free(&env, json_decoder);
-    // at the moment, the JSON parser can't be reused, and it's unclear whether
-    // this is a bug or a feature, so just create a new one every time
-    json_decoder = upb::json::Parser::Create(&env, json_decoder_method.get(), &decoder_sink);
 
     SV *result = NULL;
     if (BufferSource::PutBuffer(buffer, bufsize, json_decoder->input()))
         result = sv_bless(newRV_inc(decoder_callbacks.get_target()), stash);
     decoder_callbacks.clear();
-    upb_env_free(&env, json_decoder);
-    json_decoder = NULL;
 
     return result;
 }
 
 bool Mapper::check(SV *ref) {
-    if (pb_encoder == NULL)
+    if (pb_decoder_method.get() == NULL)
         croak("It looks like resolve_references() was not called (and please use map() anyway)");
     status.Clear();
     return check(&status, ref);
