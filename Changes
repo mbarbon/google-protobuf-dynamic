@@ -2,6 +2,11 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.15      2016-12-22 15:31:34 CET
+
+    - Fix protobuf encoder being broken after some encoding errors
+      (and probably other latent bugs)
+
 0.14      2016-12-12 19:10:35 CET
 
     - Don't produce invalid Perl hashes for incorrectly encoded maps
