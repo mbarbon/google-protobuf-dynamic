@@ -27,7 +27,7 @@ namespace {
         SAVEDESTRUCTOR(unref_on_scope_leave, ref);
     }
 
-    upb::Environment *make_localized_environment(upb::Status *report_errors_to) {
+    upb::Environment *make_localized_environment(pTHX_ upb::Status *report_errors_to) {
         upb::Environment *env = new upb::Environment();
 
         env->ReportErrorsTo(report_errors_to);
@@ -807,7 +807,7 @@ void Mapper::create_encoder_decoder() {
 SV *Mapper::encode(SV *ref) {
     if (pb_decoder_method.get() == NULL)
         croak("It looks like resolve_references() was not called (and please use map() anyway)");
-    upb::Environment *env = make_localized_environment(&status);
+    upb::Environment *env = make_localized_environment(aTHX_ &status);
     upb::pb::Encoder *pb_encoder = upb::pb::Encoder::Create(env, pb_encoder_handlers.get(), string_sink.input());
     status.Clear();
     output_buffer.clear();
@@ -824,7 +824,7 @@ SV *Mapper::encode(SV *ref) {
 SV *Mapper::encode_json(SV *ref) {
     if (json_decoder_method.get() == NULL)
         croak("It looks like resolve_references() was not called (and please use map() anyway)");
-    upb::Environment *env = make_localized_environment(&status);
+    upb::Environment *env = make_localized_environment(aTHX_ &status);
     upb::json::Printer *json_encoder = upb::json::Printer::Create(env, json_encoder_handlers.get(), string_sink.input());
     status.Clear();
     output_buffer.clear();
@@ -841,7 +841,7 @@ SV *Mapper::encode_json(SV *ref) {
 SV *Mapper::decode(const char *buffer, STRLEN bufsize) {
     if (pb_decoder_method.get() == NULL)
         croak("It looks like resolve_references() was not called (and please use map() anyway)");
-    upb::Environment *env = make_localized_environment(&status);
+    upb::Environment *env = make_localized_environment(aTHX_ &status);
     upb::pb::Decoder *pb_decoder = upb::pb::Decoder::Create(env, pb_decoder_method.get(), &decoder_sink);
     status.Clear();
     pb_decoder->Reset();
@@ -858,7 +858,7 @@ SV *Mapper::decode(const char *buffer, STRLEN bufsize) {
 SV *Mapper::decode_json(const char *buffer, STRLEN bufsize) {
     if (json_decoder_method.get() == NULL)
         croak("It looks like resolve_references() was not called (and please use map() anyway)");
-    upb::Environment *env = make_localized_environment(&status);
+    upb::Environment *env = make_localized_environment(aTHX_ &status);
     upb::json::Parser *json_decoder = upb::json::Parser::Create(env, json_decoder_method.get(), &decoder_sink);
     status.Clear();
     decoder_callbacks.prepare(newHV());
