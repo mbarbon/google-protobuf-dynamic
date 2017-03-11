@@ -2,6 +2,10 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.16      2017-03-11 14:30:57 CET
+
+    - Compilation fix for threaded Perl
+
 0.15      2016-12-22 15:31:34 CET
 
     - Fix protobuf encoder being broken after some encoding errors
