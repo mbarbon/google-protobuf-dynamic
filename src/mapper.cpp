@@ -27,11 +27,16 @@ namespace {
         SAVEDESTRUCTOR(unref_on_scope_leave, ref);
     }
 
+    void delete_upb_env(upb::Environment *env) {
+        upb_env_uninit(env);
+        delete env;
+    }
+
     upb::Environment *make_localized_environment(pTHX_ upb::Status *report_errors_to) {
         upb::Environment *env = new upb::Environment();
 
         env->ReportErrorsTo(report_errors_to);
-        SAVEDESTRUCTOR(upb_env_uninit, env);
+        SAVEDESTRUCTOR(delete_upb_env, env);
 
         return env;
     }
