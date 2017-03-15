@@ -1,6 +1,7 @@
 #include "dynamic.h"
 #include "mapper.h"
 
+#include <sstream>
 #include <google/protobuf/dynamic_message.h>
 
 using namespace gpd;
@@ -431,6 +432,13 @@ void Dynamic::map_enum(pTHX_ const EnumDescriptor *descriptor, const string &per
 
         newCONSTSUB(stash, value->name().c_str(),
                     newSVuv(value->number()));
+
+        stringstream en;
+        en << value->number();
+        en << "_ENUM";
+        const std::string tmp = en.str();
+        newCONSTSUB(stash, tmp.c_str(),
+                    newSVpv(value->name().c_str(),0));
     }
 }
 
