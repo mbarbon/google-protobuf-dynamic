@@ -28,7 +28,6 @@ namespace {
     }
 
     void delete_upb_env(upb::Environment *env) {
-        upb_env_uninit(env);
         delete env;
     }
 
