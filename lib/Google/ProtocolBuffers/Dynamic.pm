@@ -13,26 +13,56 @@ use Exporter ();
 
 XSLoader::load(__PACKAGE__);
 
+my $REQUIRED_MAP_PACKAGE_PREFIX = [qw(pb_prefix prefix)];
+my $REQUIRED_MAP_PACKAGE = [qw(package prefix)];
+my $REQUIRED_MAP_MESSAGE = [qw(message to)];
+my $REQUIRED_MAP_ENUM = [qw(enum to)];
+
 sub map {
     my ($self, @mappings) = @_;
 
     for my $mapping (@mappings) {
         if (exists $mapping->{pb_prefix}) {
+            _check_keys($mapping, $REQUIRED_MAP_PACKAGE_PREFIX);
             $self->map_package_prefix($mapping->{pb_prefix}, $mapping->{prefix}, $mapping->{options});
         } elsif (exists $mapping->{package}) {
+            _check_keys($mapping, $REQUIRED_MAP_PACKAGE);
             $self->map_package($mapping->{package}, $mapping->{prefix}, $mapping->{options});
         } elsif (exists $mapping->{message}) {
+            _check_keys($mapping, $REQUIRED_MAP_MESSAGE);
             $self->map_message($mapping->{message}, $mapping->{to}, $mapping->{options});
         } elsif (exists $mapping->{enum}) {
+            _check_keys($mapping, $REQUIRED_MAP_ENUM);
             $self->map_enum($mapping->{enum}, $mapping->{to}, $mapping->{options});
         } else {
-            require Data::Dumper;
-
-            die "Unrecognized mapping ", Data::Dumper::Dumper($mapping);
+            die "Unrecognized mapping ", _dump($mapping);
         }
     }
 
     $self->resolve_references;
+}
+
+sub _check_keys {
+    my ($mapping, $required_keys) = @_;
+    my %keys; @keys{keys %$mapping} = ();
+
+    delete $keys{options};
+    for my $required_key (@$required_keys) {
+        if (!exists $keys{$required_key}) {
+            die "Missing required key '$required_key' in mapping ", _dump($mapping);
+        }
+        delete $keys{$required_key};
+    }
+
+    die "Unknown keys in mapping: ", join(", ", map "'$_'", keys %keys), " ", _dump($mapping)
+        if %keys;
+}
+
+sub _dump {
+    require Data::Dumper;
+
+    local $Data::Dumper::Terse = 1;
+    Data::Dumper::Dumper(@_)
 }
 
 1;
