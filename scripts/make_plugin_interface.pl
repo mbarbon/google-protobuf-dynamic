@@ -10,12 +10,12 @@ Google::ProtocolBuffers::Dynamic::MakeModule->generate_to(
         {
             package => 'google.protobuf',
             prefix  => 'Google::ProtocolBuffers::Dynamic::ProtocInterface',
-            options => { generic_extension_methods => 0 },
+            options => { encode_defaults => 1 },
         },
         {
             package => 'google.protobuf.compiler',
             prefix  => 'Google::ProtocolBuffers::Dynamic::ProtocInterface',
-            options => { generic_extension_methods => 0 },
+            options => { encode_defaults => 1 },
         },
     ],
     descriptor_files    => [qw(scripts/protoc/descriptor.pb scripts/protoc/plugin.pb)],
