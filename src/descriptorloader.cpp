@@ -9,7 +9,14 @@ using namespace gpd;
 using namespace std;
 
 void DescriptorLoader::ErrorCollector::AddError(const string &filename, const string &element_name, const Message *descriptor, DescriptorPool::ErrorCollector::ErrorLocation location, const string &message) {
-    croak("Error processing serialized protobuf descriptor: %s: %s", filename.c_str(), message.c_str());
+    if (!errors.empty())
+        errors += "\n";
+
+    errors +=
+        "Error processing serialized protobuf descriptor: " +
+        filename +
+        ": " +
+        message;
 }
 
 void DescriptorLoader::ErrorCollector::AddWarning(const string &filename, const string &element_name, const Message *descriptor, DescriptorPool::ErrorCollector::ErrorLocation location, const string &message) {
@@ -42,6 +49,9 @@ const vector<const FileDescriptor *> DescriptorLoader::load_serialized(const cha
 
     for (int i = 0, max = fds.file_size(); i < max; ++i)
         result.push_back(binary_pool.BuildFileCollectingErrors(fds.file(i), &collector));
+
+    if (!collector.errors.empty())
+        croak(collector.errors.c_str());
 
     return result;
 }

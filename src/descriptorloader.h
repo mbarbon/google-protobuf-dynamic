@@ -13,6 +13,8 @@ class DescriptorLoader {
     public:
         virtual void AddError(const std::string &filename, const std::string &element_name, const google::protobuf::Message *descriptor, google::protobuf::DescriptorPool::ErrorCollector::ErrorLocation location, const std::string &message);
         virtual void AddWarning(const std::string &filename, const std::string &element_name, const google::protobuf::Message *descriptor, google::protobuf::DescriptorPool::ErrorCollector::ErrorLocation location, const std::string &message);
+
+        std::string errors;
     };
 
 public:
