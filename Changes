@@ -2,6 +2,13 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.18      2017-06-14 13:35:12 CEST
+
+    - Fix handling of oneof fields in the protoc plugin
+    - Report deserialization errors instead of hitting an assert
+    - Don't generate generic extension methods for messages that do not have
+      any extension fields
+
 0.17      2017-05-21 15:56:01 CEST
 
     - Fix leaking environment (thanks to Pavel Shaydo)
