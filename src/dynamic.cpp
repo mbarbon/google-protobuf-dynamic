@@ -328,28 +328,13 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
     copy_and_bind(aTHX_ "new_and_check", perl_package, mapper);
     copy_and_bind(aTHX_ "message_descriptor", perl_package, mapper);
 
-    if (options.generic_extension_methods) {
-        copy_and_bind(aTHX_ "has_extension_field", "has_extension", perl_package, mapper);
-        copy_and_bind(aTHX_ "clear_extension_field", "clear_extension", perl_package, mapper);
-        copy_and_bind(aTHX_ "add_extension_item", perl_package, mapper);
-        copy_and_bind(aTHX_ "extension_list_size", "extension_size", perl_package, mapper);
-        if (getter_prefix) {
-            copy_and_bind(aTHX_ "get_extension_scalar", getter_prefix, "extension", perl_package, mapper);
-            copy_and_bind(aTHX_ "set_extension_scalar", setter_prefix, "extension", perl_package, mapper);
-            copy_and_bind(aTHX_ "get_extension_item", getter_prefix, "extension_item", perl_package, mapper);
-            copy_and_bind(aTHX_ "set_extension_item", setter_prefix, "extension_item", perl_package, mapper);
-            copy_and_bind(aTHX_ "get_extension_list", getter_prefix, "extension_list", perl_package, mapper);
-            copy_and_bind(aTHX_ "set_extension_list", setter_prefix, "extension_list", perl_package, mapper);
-        } else {
-            copy_and_bind(aTHX_ "get_or_set_extension_scalar", "extension", perl_package, mapper);
-            copy_and_bind(aTHX_ "get_or_set_extension_item", "extension_item", perl_package, mapper);
-            copy_and_bind(aTHX_ "get_or_set_extension_list", "extension_list", perl_package, mapper);
-        }
-    }
-
+    bool has_extensions = false;
     for (int i = 0, max = mapper->field_count(); i < max; ++i) {
         const Mapper::Field *field = mapper->get_field(i);
         MapperField *mapperfield = new MapperField(aTHX_ mapper, field);
+
+        if (field->field_def->is_extension())
+            has_extensions = true;
 
         {
             string upper_field;
@@ -406,6 +391,25 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
         }
 
         mapperfield->unref();
+    }
+
+    if (options.generic_extension_methods && has_extensions) {
+        copy_and_bind(aTHX_ "has_extension_field", "has_extension", perl_package, mapper);
+        copy_and_bind(aTHX_ "clear_extension_field", "clear_extension", perl_package, mapper);
+        copy_and_bind(aTHX_ "add_extension_item", perl_package, mapper);
+        copy_and_bind(aTHX_ "extension_list_size", "extension_size", perl_package, mapper);
+        if (getter_prefix) {
+            copy_and_bind(aTHX_ "get_extension_scalar", getter_prefix, "extension", perl_package, mapper);
+            copy_and_bind(aTHX_ "set_extension_scalar", setter_prefix, "extension", perl_package, mapper);
+            copy_and_bind(aTHX_ "get_extension_item", getter_prefix, "extension_item", perl_package, mapper);
+            copy_and_bind(aTHX_ "set_extension_item", setter_prefix, "extension_item", perl_package, mapper);
+            copy_and_bind(aTHX_ "get_extension_list", getter_prefix, "extension_list", perl_package, mapper);
+            copy_and_bind(aTHX_ "set_extension_list", setter_prefix, "extension_list", perl_package, mapper);
+        } else {
+            copy_and_bind(aTHX_ "get_or_set_extension_scalar", "extension", perl_package, mapper);
+            copy_and_bind(aTHX_ "get_or_set_extension_item", "extension_item", perl_package, mapper);
+            copy_and_bind(aTHX_ "get_or_set_extension_list", "extension_list", perl_package, mapper);
+        }
     }
 
     mapper->unref(); // reference from constructor
