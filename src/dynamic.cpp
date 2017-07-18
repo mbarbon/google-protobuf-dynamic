@@ -346,7 +346,7 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
     if (descriptor_map.find(descriptor->full_name()) != descriptor_map.end())
         croak("Message '%s' has already been mapped", descriptor->full_name().c_str());
     if (options.use_bigints)
-        eval_pv("require Math::BigInt", 1);
+        load_module(PERL_LOADMOD_NOIMPORT, newSVpvs("Math::BigInt"), NULL);
     HV *stash = gv_stashpvn(perl_package.data(), perl_package.size(), GV_ADD);
     const MessageDef *message_def = def_builder.GetMessageDef(descriptor);
     if (is_map_entry(message_def, options.implicit_maps))
