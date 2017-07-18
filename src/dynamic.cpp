@@ -504,7 +504,6 @@ void Dynamic::map_service(pTHX_ const ServiceDescriptor *descriptor, const strin
     mapped_services.insert(descriptor->full_name());
     used_packages.insert(perl_package);
 
-    HV *stash = gv_stashpvn(perl_package.data(), perl_package.size(), GV_ADD);
     ServiceDef *service_def = new ServiceDef(descriptor->full_name());
 
     switch (options.client_services) {
