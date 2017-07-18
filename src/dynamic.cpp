@@ -75,6 +75,8 @@ MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
             client_services = Disable;
         else if (strEQ(buf, "noop"))
             client_services = Noop;
+        else if (strEQ(buf, "grpc_xs"))
+            client_services = GrpcXS;
         else
             croak("Invalid value '%s' for 'client_services' option", buf);
     }
@@ -363,6 +365,10 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
     copy_and_bind(aTHX_ "new_and_check", perl_package, mapper);
     copy_and_bind(aTHX_ "message_descriptor", perl_package, mapper);
 
+    // for Grpc::Client
+    copy_and_bind(aTHX_ "static_decode", "_static_decode", perl_package, mapper);
+    copy_and_bind(aTHX_ "static_encode", "_static_encode", perl_package, mapper);
+
     bool has_extensions = false;
     for (int i = 0, max = mapper->field_count(); i < max; ++i) {
         const Mapper::Field *field = mapper->get_field(i);
@@ -491,6 +497,9 @@ void Dynamic::map_service(pTHX_ const ServiceDescriptor *descriptor, const strin
     case MappingOptions::Noop:
         map_service_noop(aTHX_ descriptor, perl_package, options, service_def);
         break;
+    case MappingOptions::GrpcXS:
+        map_service_grpc_xs(aTHX_ descriptor, perl_package, options, service_def);
+        break;
     default:
         croak("Unhandled client_service option %d", options.client_services);
     }
@@ -511,12 +520,34 @@ void Dynamic::map_service_noop(pTHX_ const ServiceDescriptor *descriptor, const 
     }
 }
 
+void Dynamic::map_service_grpc_xs(pTHX_ const ServiceDescriptor *descriptor, const string &perl_package, const MappingOptions &options, ServiceDef *service_def) {
+    eval_pv(("package " + perl_package + ";\n" +
+             "use Grpc::Client::BaseStub;\n" +
+             "@ISA = qw(Grpc::Client::BaseStub);").c_str(), 1);
+
+    for (int i = 0, max = descriptor->method_count(); i < max; ++i) {
+        const MethodDescriptor *method = descriptor->method(i);
+        string full_method = "/" + descriptor->full_name() + "/" + method->name().c_str();
+        const Descriptor *input = method->input_type(), *output = method->output_type();
+        const MessageDef *input_def = def_builder.GetMessageDef(input);
+        const MessageDef *output_def = def_builder.GetMessageDef(output);
+        MethodMapper *mapper = new MethodMapper(aTHX_ this, full_method, input_def, output_def, method->client_streaming(), method->server_streaming());
+
+        copy_and_bind(aTHX_ "grpc_xs_call_service_passthrough", method->name().c_str(), perl_package, mapper);
+
+        pending_methods.push_back(mapper);
+        push_method_def(service_def, method, input_def, output_def);
+    }
+}
+
 void Dynamic::resolve_references() {
     for (std::vector<Mapper *>::iterator it = pending.begin(), en = pending.end(); it != en; ++it)
         (*it)->resolve_mappers();
     for (std::vector<Mapper *>::iterator it = pending.begin(), en = pending.end(); it != en; ++it)
         (*it)->create_encoder_decoder();
     pending.clear();
+    for (std::vector<MethodMapper *>::iterator it = pending_methods.begin(), en = pending_methods.end(); it != en; ++it)
+        (*it)->resolve_input_output();
 }
 
 const Mapper *Dynamic::find_mapper(const MessageDef *message_def) const {

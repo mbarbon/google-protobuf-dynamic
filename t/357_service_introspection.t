@@ -12,6 +12,16 @@ use Google::ProtocolBuffers::Dynamic qw(:descriptor :values);
     check_mapping('TestNoop::Greeter', 'noop');
 }
 
+if (eval { require Grpc::XS }) {
+    my $d = Google::ProtocolBuffers::Dynamic->new('t/proto');
+    $d->load_file("grpc/greeter.proto");
+    $d->map({ package => 'helloworld', prefix => 'TestGrpcXS', options => {
+        client_services => 'noop'
+    } });
+
+    check_mapping('TestGrpcXS::Greeter', 'grpc_xs');
+}
+
 done_testing();
 
 sub check_mapping {

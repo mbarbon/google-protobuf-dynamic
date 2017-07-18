@@ -128,6 +128,7 @@ public:
     ~Mapper();
 
     const char *full_name() const;
+    const char *package_name() const;
 
     void resolve_mappers();
     void create_encoder_decoder();
@@ -271,6 +272,31 @@ private:
     DECL_THX_MEMBER;
     Dynamic *registry;
     const gpd::ServiceDef *service_def;
+};
+
+class MethodMapper : public Refcounted {
+public:
+    MethodMapper(pTHX_ Dynamic *registry, const std::string &method, const upb::MessageDef *input_def, const upb::MessageDef *output_def, bool client_streaming, bool server_streaming);
+    ~MethodMapper();
+
+    SV *method_name_key() const { return method_name_key_sv; }
+    SV *serialize_key() const { return serialize_key_sv; }
+    SV *deserialize_key() const { return deserialize_key_sv; }
+
+    SV *method_name() const { return method_name_sv; }
+    SV *serialize() const { return serialize_sv; }
+    SV *deserialize() const { return deserialize_sv; }
+    SV *grpc_call() const { return (SV *) grpc_call_sv; }
+
+    void resolve_input_output();
+
+private:
+    DECL_THX_MEMBER;
+    Dynamic *registry;
+    const upb::MessageDef *input_def, *output_def;
+    SV *method_name_key_sv, *serialize_key_sv, *deserialize_key_sv;
+    SV *method_name_sv, *serialize_sv, *deserialize_sv;
+    CV *grpc_call_sv;
 };
 
 class WarnContext {
