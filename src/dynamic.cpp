@@ -418,7 +418,7 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
 void Dynamic::map_enum(pTHX_ const EnumDescriptor *descriptor, const string &perl_package, const MappingOptions &options) {
     check_package(aTHX_ perl_package, descriptor->full_name());
     if (mapped_enums.find(descriptor->full_name()) != mapped_enums.end())
-        croak("Message '%s' has already been mapped", descriptor->full_name().c_str());
+        croak("Enum '%s' has already been mapped", descriptor->full_name().c_str());
 
     const EnumDef *enum_def = def_builder.GetEnumDef(descriptor);
     EnumMapper *mapper = new EnumMapper(aTHX_ this, enum_def);
