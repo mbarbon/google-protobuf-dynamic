@@ -242,6 +242,66 @@ Returns the name of the enum entry with the given value, or C<undef>.
 Returns an hash reference containig all name/value pairs for this
 enum.
 
+=head1 Google::ProtocolBuffers::Dynamic::ServiceDef
+
+=head2 full_name
+
+    $name = $service_def->full_name;
+
+The fully-qualified name of this service (including package).
+
+=head2 methods
+
+    $method_defs = $service_def->methods;
+
+Returns all methods as an array reference.
+
+=head1 Google::ProtocolBuffers::Dynamic::MethodDef
+
+=head2 name
+
+    $name = $method_def->name;
+
+The short name of this method (the one used in the service definition).
+
+=head2 full_name
+
+    $name = $method_def->full_name;
+
+The fully-qualified name of this method (including package and service name).
+
+=head2 containing_service
+
+    $service_def = $method_def->containing_service;
+
+Containing service definition.
+
+=head2 input_type
+
+    $message_def = $method_def->input_type;
+
+Input type for the method.
+
+=head2 output_type
+
+    $message_def = $method_def->output_type;
+
+Output type for the method.
+
+=head2 client_streaming
+
+    $is_streaming_client = $method_def->client_streaming.
+
+True if the service accepts streaming input (i.e. the input type has
+the C<stream> annotation in the method definition).
+
+=head2 server_streaming
+
+    $is_streaming_server = $method_def->server_streaming.
+
+True if the service produces streaming output (i.e. the output type has
+the C<stream> annotation in the method definition).
+
 =head1 CONSTANTS
 
 All the constants below are available as
