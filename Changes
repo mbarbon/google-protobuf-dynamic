@@ -2,6 +2,10 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.20      2017-07-18 15:18:20 CEST
+
+    - Avoid using eval_pv() in the implementation
+
 0.19      2017-07-18 13:29:12 CEST
 
     - Add introspection support for service definitions
