@@ -17,6 +17,8 @@ namespace Google {
             typedef upb::FieldDef FieldDef;
             typedef upb::OneofDef OneofDef;
             typedef upb::EnumDef EnumDef;
+            typedef gpd::ServiceDef ServiceDef;
+            typedef gpd::MethodDef MethodDef;
         }
     }
 }

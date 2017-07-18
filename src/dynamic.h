@@ -18,6 +18,7 @@
 namespace gpd {
 
 class Mapper;
+class ServiceDef;
 
 struct MappingOptions {
     enum AccessorStyle {
@@ -25,6 +26,11 @@ struct MappingOptions {
         PlainAndSet = 2,
         SingleAccessor = 3,
         Plain = 4,
+    };
+
+    enum ClientService {
+        Disable = 0,
+        Noop = 1,
     };
 
     bool use_bigints;
@@ -35,6 +41,7 @@ struct MappingOptions {
     bool generic_extension_methods;
     bool implicit_maps;
     AccessorStyle accessor_style;
+    ClientService client_services;
 
     MappingOptions(pTHX_ SV *options_ref);
 };
@@ -69,6 +76,8 @@ private:
     void map_message_recursive(pTHX_ const google::protobuf::Descriptor *descriptor, const std::string &perl_package, const MappingOptions &options);
     void map_message(pTHX_ const google::protobuf::Descriptor *descriptor, const std::string &perl_package, const MappingOptions &options);
     void map_enum(pTHX_ const google::protobuf::EnumDescriptor *descriptor, const std::string &perl_package, const MappingOptions &options);
+    void map_service(pTHX_ const google::protobuf::ServiceDescriptor *descriptor, const std::string &perl_package, const MappingOptions &options);
+    void map_service_noop(pTHX_ const google::protobuf::ServiceDescriptor *descriptor, const std::string &perl_package, const MappingOptions &options, ServiceDef *service_def);
     void check_package(pTHX_ const std::string &perl_package, const std::string &pb_name);
 
     OverlaySourceTree overlay_source_tree;
@@ -80,6 +89,7 @@ private:
     STD_TR1::unordered_map<std::string, const Mapper *> descriptor_map;
     STD_TR1::unordered_set<std::string> used_packages;
     STD_TR1::unordered_set<std::string> mapped_enums;
+    STD_TR1::unordered_set<std::string> mapped_services;
     STD_TR1::unordered_set<const google::protobuf::FileDescriptor *> files;
     std::vector<Mapper *> pending;
 };

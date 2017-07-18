@@ -1,5 +1,6 @@
 #include "dynamic.h"
 #include "mapper.h"
+#include "servicedef.h"
 
 #include <google/protobuf/dynamic_message.h>
 
@@ -30,7 +31,8 @@ MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
         check_enum_values(true),
         generic_extension_methods(true),
         implicit_maps(false),
-        accessor_style(GetAndSet) {
+        accessor_style(GetAndSet),
+        client_services(Disable) {
     if (options_ref == NULL || !SvOK(options_ref))
         return;
     if (!SvROK(options_ref) || SvTYPE(SvRV(options_ref)) != SVt_PVHV)
@@ -64,6 +66,17 @@ MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
             accessor_style = Plain;
         else
             croak("Invalid value '%s' for 'accessor_style' option", buf);
+    }
+
+    if (SV **value = hv_fetchs(options, "client_services", 0)) {
+        const char *buf = SvPV_nolen(*value);
+
+        if (strEQ(buf, "disable"))
+            client_services = Disable;
+        else if (strEQ(buf, "noop"))
+            client_services = Noop;
+        else
+            croak("Invalid value '%s' for 'client_services' option", buf);
     }
 
 #undef BOOLEAN_OPTION
@@ -182,6 +195,20 @@ namespace {
             return false;
         return true;
     }
+
+    void push_method_def(ServiceDef *service_def, const MethodDescriptor *descriptor, const MessageDef *input_message, const MessageDef *output_message) {
+        service_def->methods.push_back(
+            MethodDef(
+                descriptor->name(),
+                descriptor->full_name(),
+                service_def,
+                input_message,
+                output_message,
+                descriptor->client_streaming(),
+                descriptor->server_streaming()
+            )
+        );
+    }
 }
 
 void Dynamic::map_message(pTHX_ const string &message, const string &perl_package, const MappingOptions &options) {
@@ -248,6 +275,14 @@ void Dynamic::map_package_or_prefix(pTHX_ const string &pb_package_or_prefix, bo
                 continue;
 
             map_enum(aTHX_ descriptor, perl_package + "::" + descriptor->name(), options);
+        }
+
+        for (int i = 0, max = file->service_count(); i < max; ++i) {
+            const ServiceDescriptor *descriptor = file->service(i);
+            if (mapped_services.find(descriptor->full_name()) != mapped_services.end())
+                continue;
+
+            map_service(aTHX_ descriptor, perl_package + "::" + descriptor->name(), options);
         }
     }
 }
@@ -435,6 +470,44 @@ void Dynamic::map_enum(pTHX_ const EnumDescriptor *descriptor, const string &per
 
         newCONSTSUB(stash, value->name().c_str(),
                     newSVuv(value->number()));
+    }
+}
+
+void Dynamic::map_service(pTHX_ const ServiceDescriptor *descriptor, const string &perl_package, const MappingOptions &options) {
+    if (options.client_services == MappingOptions::Disable)
+        return;
+
+    check_package(aTHX_ perl_package, descriptor->full_name());
+    if (mapped_services.find(descriptor->full_name()) != mapped_services.end())
+        croak("Service '%s' has already been mapped", descriptor->full_name().c_str());
+
+    mapped_services.insert(descriptor->full_name());
+    used_packages.insert(perl_package);
+
+    HV *stash = gv_stashpvn(perl_package.data(), perl_package.size(), GV_ADD);
+    ServiceDef *service_def = new ServiceDef(descriptor->full_name());
+
+    switch (options.client_services) {
+    case MappingOptions::Noop:
+        map_service_noop(aTHX_ descriptor, perl_package, options, service_def);
+        break;
+    default:
+        croak("Unhandled client_service option %d", options.client_services);
+    }
+
+    ServiceMapper *mapper = new ServiceMapper(aTHX_ this, service_def);
+
+    copy_and_bind(aTHX_ "service_descriptor", perl_package, mapper);
+}
+
+void Dynamic::map_service_noop(pTHX_ const ServiceDescriptor *descriptor, const string &perl_package, const MappingOptions &options, ServiceDef *service_def) {
+    for (int i = 0, max = descriptor->method_count(); i < max; ++i) {
+        const MethodDescriptor *method = descriptor->method(i);
+        const Descriptor *input = method->input_type(), *output = method->output_type();
+        const MessageDef *input_def = def_builder.GetMessageDef(input);
+        const MessageDef *output_def = def_builder.GetMessageDef(output);
+
+        push_method_def(service_def, method, input_def, output_def);
     }
 }
 

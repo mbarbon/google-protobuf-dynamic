@@ -1,5 +1,6 @@
 %module{Google::ProtocolBuffers::Dynamic};
 
+#include "servicedef.h"
 #include "upbwrapper.h"
 
 %typemap{const Google::ProtocolBuffers::Dynamic::MessageDef *}{simple}{
@@ -12,6 +13,12 @@
     %xs_type{O_OBJECT};
 };
 %typemap{const Google::ProtocolBuffers::Dynamic::EnumDef *}{simple}{
+    %xs_type{O_OBJECT};
+};
+%typemap{const Google::ProtocolBuffers::Dynamic::ServiceDef *}{simple}{
+    %xs_type{O_OBJECT};
+};
+%typemap{const Google::ProtocolBuffers::Dynamic::MethodDef *}{simple}{
     %xs_type{O_OBJECT};
 };
 
@@ -180,6 +187,43 @@
 
         RETVAL = newRV_noinc((SV *) values);
     %};
+};
+
+%name{Google::ProtocolBuffers::Dynamic::ServiceDef} class gpd::ServiceDef {
+    %accessors{
+        %get_style{no_prefix};
+    };
+
+    std::string full_name %get;
+
+    SV* methods() const %code{%
+        AV *methods = newAV();
+
+        for (std::vector<gpd::MethodDef>::const_iterator it = THIS->methods.begin(), en = THIS->methods.end(); it != en; ++it) {
+            SV *method = newSV(0);
+
+            sv_setref_iv(method, "Google::ProtocolBuffers::Dynamic::MethodDef", (IV) &*it);
+            av_push(methods, method);
+        }
+
+        RETVAL = newRV_noinc((SV*) methods);
+    %};
+};
+
+%name{Google::ProtocolBuffers::Dynamic::MethodDef} class gpd::MethodDef {
+    %accessors{
+        %get_style{no_prefix};
+    };
+
+    std::string name %get;
+    std::string full_name %get;
+
+    const Google::ProtocolBuffers::Dynamic::ServiceDef *containing_service %get;
+    const Google::ProtocolBuffers::Dynamic::MessageDef *input_type %get;
+    const Google::ProtocolBuffers::Dynamic::MessageDef *output_type %get;
+
+    bool client_streaming %get;
+    bool server_streaming %get;
 };
 
 %{

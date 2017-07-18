@@ -52,6 +52,14 @@ enum_descriptor(SV *klass)
   OUTPUT: RETVAL
 
 SV*
+service_descriptor(SV *klass)
+  INIT:
+    gpd::ServiceMapper *mapper = (gpd::ServiceMapper *) CvXSUBANY(cv).any_ptr;
+  CODE:
+    RETVAL = mapper->service_descriptor();
+  OUTPUT: RETVAL
+
+SV*
 decode(SV *klass, SV *scalar)
   INIT:
     gpd::Mapper *mapper = (gpd::Mapper *) CvXSUBANY(cv).any_ptr;

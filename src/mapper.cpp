@@ -1,5 +1,6 @@
 #include "mapper.h"
 #include "dynamic.h"
+#include "servicedef.h"
 
 #undef New
 
@@ -2043,6 +2044,28 @@ SV *EnumMapper::enum_descriptor() const {
     SV *ref = newSV(0);
 
     sv_setref_iv(ref, "Google::ProtocolBuffers::Dynamic::EnumDef", (IV) enum_def);
+
+    return ref;
+}
+
+ServiceMapper::ServiceMapper(pTHX_ Dynamic *_registry, const gpd::ServiceDef *_service_def) :
+        registry(_registry),
+        service_def(_service_def) {
+    SET_THX_MEMBER;
+
+    registry->ref();
+}
+
+ServiceMapper::~ServiceMapper() {
+    delete service_def;
+    // make sure this only goes away after inner destructors have completed
+    refcounted_mortalize(aTHX_ registry);
+}
+
+SV *ServiceMapper::service_descriptor() const {
+    SV *ref = newSV(0);
+
+    sv_setref_iv(ref, "Google::ProtocolBuffers::Dynamic::ServiceDef", (IV) service_def);
 
     return ref;
 }
