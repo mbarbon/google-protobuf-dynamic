@@ -307,6 +307,9 @@ void Dynamic::map_service(pTHX_ const string &service_name, const string &perl_p
     if (descriptor == NULL) {
         croak("Unable to find a descriptor for service '%s'", service_name.c_str());
     }
+    if (options.client_services == MappingOptions::Disable) {
+        croak("Explicit service mapping for '%s' with mapping type 'disable'", service_name.c_str());
+    }
 
     map_service(aTHX_ descriptor, perl_package, options);
 }
