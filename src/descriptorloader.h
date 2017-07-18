@@ -7,7 +7,7 @@
 
 namespace gpd {
 
-// a reimplementation of Imprter, with a different DescriptorPool
+// a reimplementation of Importer, with a different DescriptorPool
 class DescriptorLoader {
     class ErrorCollector : public google::protobuf::DescriptorPool::ErrorCollector {
     public:
