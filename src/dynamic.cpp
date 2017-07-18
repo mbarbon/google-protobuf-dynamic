@@ -300,6 +300,17 @@ void Dynamic::map_enum(pTHX_ const string &enum_name, const string &perl_package
     map_enum(aTHX_ descriptor, perl_package, options);
 }
 
+void Dynamic::map_service(pTHX_ const string &service_name, const string &perl_package, const MappingOptions &options) {
+    const DescriptorPool *pool = descriptor_loader.pool();
+    const ServiceDescriptor *descriptor = pool->FindServiceByName(service_name);
+
+    if (descriptor == NULL) {
+        croak("Unable to find a descriptor for service '%s'", service_name.c_str());
+    }
+
+    map_service(aTHX_ descriptor, perl_package, options);
+}
+
 void Dynamic::map_message_recursive(pTHX_ const Descriptor *descriptor, const string &perl_package, const MappingOptions &options) {
     for (int i = 0, max = descriptor->nested_type_count(); i < max; ++i) {
         const Descriptor *inner = descriptor->nested_type(i);

@@ -1,0 +1,14 @@
+syntax = "proto2";
+
+package test3;
+
+import "test1.proto";
+import "test2.proto";
+
+service Service1 {
+    rpc Method (test1.Message1) returns (test2.Message1);
+}
+
+service Service2 {
+    rpc Method (test1.Message2) returns (test2.Message3);
+}

@@ -17,6 +17,7 @@ my $REQUIRED_MAP_PACKAGE_PREFIX = [qw(pb_prefix prefix)];
 my $REQUIRED_MAP_PACKAGE = [qw(package prefix)];
 my $REQUIRED_MAP_MESSAGE = [qw(message to)];
 my $REQUIRED_MAP_ENUM = [qw(enum to)];
+my $REQUIRED_MAP_SERVICE = [qw(service to)];
 
 sub map {
     my ($self, @mappings) = @_;
@@ -34,6 +35,9 @@ sub map {
         } elsif (exists $mapping->{enum}) {
             _check_keys($mapping, $REQUIRED_MAP_ENUM);
             $self->map_enum($mapping->{enum}, $mapping->{to}, $mapping->{options});
+        } elsif (exists $mapping->{service}) {
+            _check_keys($mapping, $REQUIRED_MAP_SERVICE);
+            $self->map_service($mapping->{service}, $mapping->{to}, $mapping->{options});
         } else {
             die "Unrecognized mapping ", _dump($mapping);
         }
