@@ -2085,7 +2085,7 @@ MethodMapper::MethodMapper(pTHX_ Dynamic *_registry, const string &method, const
     method_name_key_sv = newSVpvs_share("method");
     serialize_key_sv = newSVpvs_share("serialize");
     deserialize_key_sv = newSVpvs_share("deserialize");
-    method_name_sv = newSVpv_share(method.c_str(), 0);
+    method_name_sv = newSVpvn_share(method.data(), method.length(), 0);
     serialize_sv = NULL;
     deserialize_sv = NULL;
 
