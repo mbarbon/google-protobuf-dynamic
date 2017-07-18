@@ -534,9 +534,13 @@ void Dynamic::map_service_noop(pTHX_ const ServiceDescriptor *descriptor, const 
 }
 
 void Dynamic::map_service_grpc_xs(pTHX_ const ServiceDescriptor *descriptor, const string &perl_package, const MappingOptions &options, ServiceDef *service_def) {
-    eval_pv(("package " + perl_package + ";\n" +
-             "use Grpc::Client::BaseStub;\n" +
-             "@ISA = qw(Grpc::Client::BaseStub);").c_str(), 1);
+    string isa_name = perl_package + "::ISA";
+    AV *isa = get_av(isa_name.c_str(), 1);
+    SV *base_stub_package = newSVpvs("Grpc::Client::BaseStub");
+
+    SvREFCNT_inc(base_stub_package);
+    av_push(isa, base_stub_package);
+    load_module(PERL_LOADMOD_NOIMPORT, base_stub_package, NULL);
 
     for (int i = 0, max = descriptor->method_count(); i < max; ++i) {
         const MethodDescriptor *method = descriptor->method(i);
