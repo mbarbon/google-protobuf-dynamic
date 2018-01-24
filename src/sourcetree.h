@@ -2,6 +2,7 @@
 #define _GPD_XS_SOURCETREE_INCLUDED
 
 #undef New
+#undef Move
 
 #include <google/protobuf/compiler/importer.h>
 

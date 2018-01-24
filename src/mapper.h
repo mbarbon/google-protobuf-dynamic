@@ -2,6 +2,7 @@
 #define _GPD_XS_MAPPER_INCLUDED
 
 #undef New
+#undef Move
 
 #include "ref.h"
 

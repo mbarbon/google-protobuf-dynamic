@@ -2,6 +2,7 @@
 #define _GPD_XS_DYNAMIC_SERVICE_DESC
 
 #undef New
+#undef Move
 
 #include <upb/def.h>
 

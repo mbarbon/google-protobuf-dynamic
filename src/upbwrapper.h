@@ -2,6 +2,7 @@
 #define _GPD_XS_DYNAMIC_UPBWRAPPER
 
 #undef New
+#undef Move
 
 #if PERL_VERSION < 10
     #undef  newCONSTSUB
