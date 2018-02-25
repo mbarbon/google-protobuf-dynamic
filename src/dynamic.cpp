@@ -198,7 +198,7 @@ namespace {
     }
 
     void push_method_def(ServiceDef *service_def, const MethodDescriptor *descriptor, const MessageDef *input_message, const MessageDef *output_message) {
-        service_def->methods.push_back(
+        service_def->add_method(
             MethodDef(
                 descriptor->name(),
                 descriptor->full_name(),
