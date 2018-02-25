@@ -2,6 +2,11 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.21      2018-02-25 22:33:32 CET
+
+    - Compilation fixes for C++ pre-11 (e.g. GCC 4.9)
+    - Compilation fixes for newer protobuf releases
+
 0.20      2017-07-18 15:18:20 CEST
 
     - Avoid using eval_pv() in the implementation
