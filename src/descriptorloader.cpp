@@ -51,7 +51,7 @@ const vector<const FileDescriptor *> DescriptorLoader::load_serialized(const cha
         result.push_back(binary_pool.BuildFileCollectingErrors(fds.file(i), &collector));
 
     if (!collector.errors.empty())
-        croak(collector.errors.c_str());
+        croak("%s", collector.errors.c_str());
 
     return result;
 }

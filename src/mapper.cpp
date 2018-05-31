@@ -1332,7 +1332,7 @@ bool Mapper::encode_key(Sink *sink, Status *status, const Field &fd, const char 
     switch (fd.field_def->type()) {
     case UPB_TYPE_BOOL: {
         // follows what SvTRUE() does for strings
-        bool bval = keylen > 1 || keylen == 1 && key[0] != '0';
+        bool bval = keylen > 1 || (keylen == 1 && key[0] != '0');
         return sink->PutBool(fd.selector.primitive, bval);
     }
     case UPB_TYPE_STRING: {
