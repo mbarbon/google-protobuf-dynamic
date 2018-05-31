@@ -3,6 +3,8 @@
 
 #undef New
 #undef Move
+#undef do_open
+#undef do_close
 
 #if PERL_VERSION < 10
     #undef  newCONSTSUB

@@ -3,6 +3,8 @@
 
 #undef New
 #undef Move
+#undef do_open
+#undef do_close
 
 #include <google/protobuf/compiler/importer.h>
 
