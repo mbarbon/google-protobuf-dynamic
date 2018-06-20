@@ -90,6 +90,7 @@ sub _to_perl_package {
 }
 
 my %boolean_options = map +($_ => [$_, 1], "no_$_" => [$_, 0]), qw(
+    implicit_maps
     use_bigints
     check_required_fields
     explicit_defaults
