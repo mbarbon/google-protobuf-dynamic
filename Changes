@@ -2,6 +2,11 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.22      2018-06-26 21:03:55 CEST
+
+    - Accept implicit_maps option in the protoc plugin
+    - Compilation fixes for Mac OS X
+
 0.21      2018-02-25 22:33:32 CET
 
     - Compilation fixes for C++ pre-11 (e.g. GCC 4.9)
