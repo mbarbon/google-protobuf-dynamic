@@ -2,7 +2,7 @@
 #include "dynamic.h"
 #include "servicedef.h"
 
-#undef New
+#include "perl_unpollute.h"
 
 #include <upb/pb/encoder.h>
 #include <upb/pb/decoder.h>

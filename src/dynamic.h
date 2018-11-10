@@ -1,10 +1,7 @@
 #ifndef _GPD_XS_DYNAMIC_INCLUDED
 #define _GPD_XS_DYNAMIC_INCLUDED
 
-#undef New
-#undef Move
-#undef do_open
-#undef do_close
+#include "perl_unpollute.h"
 
 #include <google/protobuf/compiler/importer.h>
 #include <upb/bindings/googlepb/bridge.h>

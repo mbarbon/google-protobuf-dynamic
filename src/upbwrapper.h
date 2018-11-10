@@ -1,10 +1,7 @@
 #ifndef _GPD_XS_DYNAMIC_UPBWRAPPER
 #define _GPD_XS_DYNAMIC_UPBWRAPPER
 
-#undef New
-#undef Move
-#undef do_open
-#undef do_close
+#include "perl_unpollute.h"
 
 #if PERL_VERSION < 10
     #undef  newCONSTSUB

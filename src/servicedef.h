@@ -1,10 +1,7 @@
 #ifndef _GPD_XS_DYNAMIC_SERVICE_DESC
 #define _GPD_XS_DYNAMIC_SERVICE_DESC
 
-#undef New
-#undef Move
-#undef do_open
-#undef do_close
+#include "perl_unpollute.h"
 
 #include <upb/def.h>
 

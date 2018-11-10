@@ -1,10 +1,7 @@
 #ifndef _GPD_XS_MAPPER_INCLUDED
 #define _GPD_XS_MAPPER_INCLUDED
 
-#undef New
-#undef Move
-#undef do_open
-#undef do_close
+#include "perl_unpollute.h"
 
 #include "ref.h"
 
