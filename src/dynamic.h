@@ -42,6 +42,7 @@ struct MappingOptions {
     bool check_enum_values;
     bool generic_extension_methods;
     bool implicit_maps;
+    bool decode_unblessed;
     AccessorStyle accessor_style;
     ClientService client_services;
 

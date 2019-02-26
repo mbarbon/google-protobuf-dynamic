@@ -30,6 +30,7 @@ MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
         check_enum_values(true),
         generic_extension_methods(true),
         implicit_maps(false),
+        decode_unblessed(false),
         accessor_style(GetAndSet),
         client_services(Disable) {
     if (options_ref == NULL || !SvOK(options_ref))
@@ -51,6 +52,7 @@ MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
     BOOLEAN_OPTION(check_enum_values, check_enum_values);
     BOOLEAN_OPTION(generic_extension_methods, generic_extension_methods);
     BOOLEAN_OPTION(implicit_maps, implicit_maps);
+    BOOLEAN_OPTION(decode_unblessed, decode_unblessed);
 
     if (SV **value = hv_fetchs(options, "accessor_style", 0)) {
         const char *buf = SvPV_nolen(*value);
