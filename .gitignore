@@ -11,3 +11,6 @@
 /pod2htm?.tmp
 *.o
 *.obj
+GPATH
+GRTAGS
+GTAGS
