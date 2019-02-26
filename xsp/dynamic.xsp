@@ -30,6 +30,9 @@
     void map_package_prefix(const std::string &pb_package, const std::string &perl_package, SV *options = NULL)
         %code{% THIS->map_package_prefix(aTHX_ *pb_package, *perl_package, gpd::MappingOptions(aTHX_ options)); %};
 
+    void map_message_prefix(const std::string &pb_message, const std::string &perl_package_prefix, SV *options = NULL)
+        %code{% THIS->map_message_prefix(aTHX_ *pb_message, *perl_package_prefix, gpd::MappingOptions(aTHX_ options)); %};
+
     void resolve_references();
 
     static bool is_proto3();

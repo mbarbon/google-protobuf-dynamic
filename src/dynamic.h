@@ -64,6 +64,7 @@ public:
     void map_message(pTHX_ const std::string &message, const std::string &perl_package, const MappingOptions &options);
     void map_package(pTHX_ const std::string &pb_package, const std::string &perl_package_prefix, const MappingOptions &options);
     void map_package_prefix(pTHX_ const std::string &pb_prefix, const std::string &perl_package_prefix, const MappingOptions &options);
+    void map_message_prefix(pTHX_ const std::string &message, const std::string &perl_package_prefix, const MappingOptions &options);
     void map_enum(pTHX_ const std::string &enum_name, const std::string &perl_package, const MappingOptions &options);
     void map_service(pTHX_ const std::string &service_name, const std::string &perl_package, const MappingOptions &options);
     void resolve_references();
@@ -77,12 +78,14 @@ public:
 private:
     void map_package_or_prefix(pTHX_ const std::string &pb_package, bool is_prefix, const std::string &perl_package_prefix, const MappingOptions &options);
     void map_message_recursive(pTHX_ const google::protobuf::Descriptor *descriptor, const std::string &perl_package, const MappingOptions &options);
+    void map_message_prefix_recursive(pTHX_ const google::protobuf::Descriptor *descriptor, const std::string &perl_package_prefix, const MappingOptions &options);
     void map_message(pTHX_ const google::protobuf::Descriptor *descriptor, const std::string &perl_package, const MappingOptions &options);
     void map_enum(pTHX_ const google::protobuf::EnumDescriptor *descriptor, const std::string &perl_package, const MappingOptions &options);
     void map_service(pTHX_ const google::protobuf::ServiceDescriptor *descriptor, const std::string &perl_package, const MappingOptions &options);
     void map_service_noop(pTHX_ const google::protobuf::ServiceDescriptor *descriptor, const std::string &perl_package, const MappingOptions &options, ServiceDef *service_def);
     void map_service_grpc_xs(pTHX_ const google::protobuf::ServiceDescriptor *descriptor, const std::string &perl_package, const MappingOptions &options, ServiceDef *service_def);
     void check_package(pTHX_ const std::string &perl_package, const std::string &pb_name);
+	std::string pbname_to_package(const std::string &pb_name, const std::string &perl_package_prefix);
 
     OverlaySourceTree overlay_source_tree;
     DescriptorLoader descriptor_loader;
