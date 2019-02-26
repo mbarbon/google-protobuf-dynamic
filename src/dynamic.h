@@ -85,7 +85,7 @@ private:
     void map_service_noop(pTHX_ const google::protobuf::ServiceDescriptor *descriptor, const std::string &perl_package, const MappingOptions &options, ServiceDef *service_def);
     void map_service_grpc_xs(pTHX_ const google::protobuf::ServiceDescriptor *descriptor, const std::string &perl_package, const MappingOptions &options, ServiceDef *service_def);
     void check_package(pTHX_ const std::string &perl_package, const std::string &pb_name);
-	std::string pbname_to_package(const std::string &pb_name, const std::string &perl_package_prefix);
+    std::string pbname_to_package(pTHX_ const std::string &pb_name, const std::string &perl_package_prefix);
 
     OverlaySourceTree overlay_source_tree;
     DescriptorLoader descriptor_loader;
@@ -98,6 +98,7 @@ private:
     STD_TR1::unordered_set<std::string> mapped_enums;
     STD_TR1::unordered_set<std::string> mapped_services;
     STD_TR1::unordered_set<const google::protobuf::FileDescriptor *> files;
+    STD_TR1::unordered_set<std::string> recursed_names;
     std::vector<Mapper *> pending;
     std::vector<MethodMapper *> pending_methods;
 };
