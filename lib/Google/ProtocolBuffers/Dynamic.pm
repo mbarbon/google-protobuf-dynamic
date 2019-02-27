@@ -325,7 +325,10 @@ directly.
 =head2 new
 
     $dynamic = Google::ProtocolBuffers::Dynamic->new;
-    $dynamic = Google::ProtocolBuffers::Dynamic->new($search_path);
+    $dynamic = Google::ProtocolBuffers::Dynamic->new($root_directory);
+
+When specified, C<$root_directory> is used as base for relative paths in
+C<load_file>.
 
 =head2 load_file
 
