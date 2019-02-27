@@ -2,6 +2,10 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.23      2018-11-10 22:47:32 CET
+
+    - Compilation fixes for protobuf 3.6
+
 0.22      2018-06-26 21:03:55 CEST
 
     - Accept implicit_maps option in the protoc plugin
