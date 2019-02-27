@@ -821,7 +821,6 @@ bool Mapper::get_decode_blessed() const {
     return decode_blessed;
 }
 
-
 SV *Mapper::encode(SV *ref) {
     if (pb_decoder_method.get() == NULL)
         croak("It looks like resolve_references() was not called (and please use map() anyway)");
@@ -867,10 +866,9 @@ SV *Mapper::decode(const char *buffer, STRLEN bufsize) {
 
     SV *result = NULL;
     if (BufferSource::PutBuffer(buffer, bufsize, pb_decoder->input())) {
+        result = newRV_inc(decoder_callbacks.get_target());
         if (decode_blessed)
-            result = sv_bless(newRV_inc(decoder_callbacks.get_target()), stash);
-        else
-            result = newRV_inc(decoder_callbacks.get_target());
+            sv_bless(result, stash);
     }
     decoder_callbacks.clear();
 
@@ -887,10 +885,9 @@ SV *Mapper::decode_json(const char *buffer, STRLEN bufsize) {
 
     SV *result = NULL;
     if (BufferSource::PutBuffer(buffer, bufsize, json_decoder->input())) {
+        result = newRV_inc(decoder_callbacks.get_target());
         if (decode_blessed)
-            result = sv_bless(newRV_inc(decoder_callbacks.get_target()), stash);
-        else
-            result = newRV_inc(decoder_callbacks.get_target());
+            sv_bless(result, stash);
     }
     decoder_callbacks.clear();
 
