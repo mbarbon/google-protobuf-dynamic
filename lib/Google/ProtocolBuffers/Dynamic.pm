@@ -586,6 +586,13 @@ Generate a client implementation using L<Grpc::XS>.
 
 =back
 
+=head2 decode_blessed
+
+Enabled by default.
+
+Return blessed objects when decoding. When disabled, plain hashes are
+returned.
+
 =head1 KNOWN BUGS
 
 When a field has the incorrect value, sometimes serialization performs
