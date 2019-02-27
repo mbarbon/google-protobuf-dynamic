@@ -336,9 +336,10 @@ constructor.
 
 =head2 load_string
 
-    $dynamic->load_string($string);
+    $dynamic->load_string($file_name, $string);
 
-Parses message definitions from a string.
+Parses message definitions from a string. The C<$file_name> parameter
+is only used to report errors, and can be the empty string.
 
 =head2 load_serialized_string
 
