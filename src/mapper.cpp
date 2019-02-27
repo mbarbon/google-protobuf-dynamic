@@ -321,11 +321,11 @@ Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_sub_message(DecoderHa
 }
 
 bool Mapper::DecoderHandlers::on_end_sub_message(DecoderHandlers *cxt, const int *field_index) {
-    cxt->items.pop_back();
-    cxt->mappers.pop_back();
-    cxt->seen_fields.pop_back();
     if (cxt->mappers.back()->message_def->oneof_count())
         cxt->seen_oneof.pop_back();
+    cxt->seen_fields.pop_back();
+    cxt->mappers.pop_back();
+    cxt->items.pop_back();
 
     return true;
 }
