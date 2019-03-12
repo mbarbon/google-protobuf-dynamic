@@ -295,13 +295,13 @@ void Dynamic::map_package_or_prefix(pTHX_ const string &pb_package_or_prefix, bo
 void Dynamic::map_message_prefix(pTHX_ const string &message, const string &perl_package_prefix, const MappingOptions &options) {
     const DescriptorPool *pool = descriptor_loader.pool();
     const Descriptor *descriptor = pool->FindMessageTypeByName(message);
+    STD_TR1::unordered_set<std::string> recursed_names;
 
     if (descriptor == NULL) {
         croak("Unable to find a descriptor for message '%s'", message.c_str());
     }
 
-    map_message_prefix_recursive(aTHX_ descriptor, perl_package_prefix, options);
-    recursed_names.clear();
+    map_message_prefix_recursive(aTHX_ descriptor, perl_package_prefix, options, recursed_names);
 }
 
 void Dynamic::map_enum(pTHX_ const string &enum_name, const string &perl_package, const MappingOptions &options) {
@@ -361,7 +361,7 @@ std::string Dynamic::pbname_to_package(pTHX_ const std::string &pb_name, const s
     return oss.str();
 }
 
-void Dynamic::map_message_prefix_recursive(pTHX_ const Descriptor *descriptor, const string &perl_package_prefix, const MappingOptions &options) {
+void Dynamic::map_message_prefix_recursive(pTHX_ const Descriptor *descriptor, const string &perl_package_prefix, const MappingOptions &options, STD_TR1::unordered_set<std::string> &recursed_names) {
 	// avoid recursion loop
 	if (recursed_names.find(descriptor->full_name()) != recursed_names.end())
 		return;
@@ -372,7 +372,7 @@ void Dynamic::map_message_prefix_recursive(pTHX_ const Descriptor *descriptor, c
 		switch( field->type() ) {
 		case FieldDescriptor::Type::TYPE_MESSAGE: {
 			const Descriptor *message = field->message_type();
-			map_message_prefix_recursive(aTHX_ message, perl_package_prefix, options);
+			map_message_prefix_recursive(aTHX_ message, perl_package_prefix, options, recursed_names);
 			break;
 		}
 		case FieldDescriptor::Type::TYPE_ENUM:
