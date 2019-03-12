@@ -14,6 +14,7 @@ use Exporter ();
 XSLoader::load(__PACKAGE__);
 
 my $REQUIRED_MAP_PACKAGE_PREFIX = [qw(pb_prefix prefix)];
+my $REQUIRED_MAP_MESSAGE_PREFIX = [qw(message prefix)];
 my $REQUIRED_MAP_PACKAGE = [qw(package prefix)];
 my $REQUIRED_MAP_MESSAGE = [qw(message to)];
 my $REQUIRED_MAP_ENUM = [qw(enum to)];
@@ -26,6 +27,9 @@ sub map {
         if (exists $mapping->{pb_prefix}) {
             _check_keys($mapping, $REQUIRED_MAP_PACKAGE_PREFIX);
             $self->map_package_prefix($mapping->{pb_prefix}, $mapping->{prefix}, $mapping->{options});
+        } elsif (exists $mapping->{message} && exists $mapping->{prefix}) {
+            _check_keys($mapping, $REQUIRED_MAP_MESSAGE_PREFIX);
+            $self->map_message_prefix($mapping->{message}, $mapping->{prefix}, $mapping->{options});
         } elsif (exists $mapping->{package}) {
             _check_keys($mapping, $REQUIRED_MAP_PACKAGE);
             $self->map_package($mapping->{package}, $mapping->{prefix}, $mapping->{options});
@@ -357,6 +361,8 @@ format produced by C<protoc> C<--descriptor_set_out> option.
     $dynamic->map(
         # uses map_package_prefix
         { pb_prefix => $pb_prefix,prefix => $perl_prefix, options => $options },
+        # uses map_message_prefix
+        { message => $pb_message, prefix => $perl_prefix, options => $options },
         # uses map_package
         { package => $pb_package, prefix => $perl_prefix, options => $options },
         # uses map_message
@@ -408,6 +414,23 @@ C<OtherPackage::Foo>) by the first mapping.
 Finds all types contained in ProtocolBuffers packages having the given
 prefix and (recursively) maps them under the specified Perl package
 prefix. It silently skips any already mapped types.
+
+=head2 map_message_prefix
+
+    $dynamic->map_message_prefix($pb_message, $perl_prefix);
+    $dynamic->map_message_prefix($pb_message, $perl_prefix, $options);
+
+Maps the specified message (recursively) under the Perl package prefix,
+using the full package name of the message.  It silently skips any
+already mapped types (although it will still recurse in to them).
+
+In particular, this is quite usefull to automatically map a message
+that uses messages types defined in other packages.
+
+You might also want to map a required message to a specified package
+and then make sure other messages used by that message are mapped
+elsewhere.  This can be achieved by mapping with a prefix after mapping
+the message (since L</map_message_prefix> skips already-mapped stuff).
 
 =head2 map_package
 

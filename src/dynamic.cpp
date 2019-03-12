@@ -4,6 +4,8 @@
 
 #include <google/protobuf/dynamic_message.h>
 
+#include <sstream>
+
 using namespace gpd;
 using namespace std;
 using namespace google::protobuf;
@@ -290,6 +292,18 @@ void Dynamic::map_package_or_prefix(pTHX_ const string &pb_package_or_prefix, bo
     }
 }
 
+void Dynamic::map_message_prefix(pTHX_ const string &message, const string &perl_package_prefix, const MappingOptions &options) {
+    const DescriptorPool *pool = descriptor_loader.pool();
+    const Descriptor *descriptor = pool->FindMessageTypeByName(message);
+
+    if (descriptor == NULL) {
+        croak("Unable to find a descriptor for message '%s'", message.c_str());
+    }
+
+    map_message_prefix_recursive(aTHX_ descriptor, perl_package_prefix, options);
+    recursed_names.clear();
+}
+
 void Dynamic::map_enum(pTHX_ const string &enum_name, const string &perl_package, const MappingOptions &options) {
     const DescriptorPool *pool = descriptor_loader.pool();
     const EnumDescriptor *descriptor = pool->FindEnumTypeByName(enum_name);
@@ -333,6 +347,51 @@ void Dynamic::map_message_recursive(pTHX_ const Descriptor *descriptor, const st
     }
 
     map_message(aTHX_ descriptor, perl_package, options);
+}
+
+std::string Dynamic::pbname_to_package(pTHX_ const std::string &pb_name, const std::string &perl_package_prefix) {
+    std::ostringstream oss;
+    oss << perl_package_prefix << "::";
+    size_t last = 0, next = 0;
+    while ((next = pb_name.find('.', last)) != string::npos) {
+        oss << pb_name.substr(last, next-last) << "::";
+        last = next + 1;
+    }
+    oss << pb_name.substr(last);
+    return oss.str();
+}
+
+void Dynamic::map_message_prefix_recursive(pTHX_ const Descriptor *descriptor, const string &perl_package_prefix, const MappingOptions &options) {
+	// avoid recursion loop
+	if (recursed_names.find(descriptor->full_name()) != recursed_names.end())
+		return;
+	recursed_names.insert(descriptor->full_name());
+
+	for (int i = 0, max = descriptor->field_count(); i < max; ++i) {
+		const FieldDescriptor *field = descriptor->field(i);
+		switch( field->type() ) {
+		case FieldDescriptor::Type::TYPE_MESSAGE: {
+			const Descriptor *message = field->message_type();
+			map_message_prefix_recursive(aTHX_ message, perl_package_prefix, options);
+			break;
+		}
+		case FieldDescriptor::Type::TYPE_ENUM:
+			const EnumDescriptor *enumm = field->enum_type();
+			if (mapped_enums.find(enumm->full_name()) == mapped_enums.end()) {
+				std::string perl_package =
+					pbname_to_package(aTHX_ enumm->full_name(), perl_package_prefix);
+				map_enum(aTHX_ enumm, perl_package, options);
+			}
+			break;
+		}
+
+	}
+
+	if (descriptor_map.find(descriptor->full_name()) == descriptor_map.end()) {
+		std::string perl_package =
+			pbname_to_package(aTHX_ descriptor->full_name(), perl_package_prefix);
+		map_message(aTHX_ descriptor, perl_package, options);
+	}
 }
 
 void Dynamic::check_package(pTHX_ const string &perl_package, const string &pb_name) {

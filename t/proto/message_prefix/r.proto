@@ -1,0 +1,15 @@
+syntax = "proto3";
+package r;
+
+message Foo {
+	oneof optional_bar {
+		r.Bar bar = 1;
+	}
+	int32 x = 2;
+}
+
+message Bar {
+	oneof optional_foo {
+		r.Foo foo = 1;
+	}
+}
