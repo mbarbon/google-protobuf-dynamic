@@ -539,6 +539,10 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
     if (!decoder_handlers->SetEndMessageHandler(UpbMakeHandler(DecoderHandlers::on_end_message)))
         croak("Unable to set upb end message handler for %s", message_def->full_name());
 
+    std::vector<Field*> fields_by_field_def_index;
+    fields.reserve(message_def->field_count());
+    fields_by_field_def_index.resize(message_def->field_count());
+
     bool map_entry = message_def->mapentry();
     bool has_required = false;
     for (MessageDef::const_field_iterator it = message_def->field_begin(), en = message_def->field_end(); it != en; ++it) {
@@ -549,6 +553,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
         const FieldDef *field_def = *it;
         const OneofDef *oneof_def = field_def->containing_oneof();
 
+        fields_by_field_def_index[field_def->index()] = &fields.back();
         has_required = has_required || field_def->label() == UPB_LABEL_REQUIRED;
         field.field_def = field_def;
         if (field_def->is_extension()) {
@@ -711,9 +716,9 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
 
         for (OneofDef::const_iterator it = oneof_def->begin(), en = oneof_def->end(); it != en; ++it) {
             const FieldDef *field_def = *it;
-            Field &field = fields[field_def->index()];
+            Field *field = fields_by_field_def_index[field_def->index()];
 
-            field.oneof_index = oneof_index;
+            field->oneof_index = oneof_index;
         }
     }
 
