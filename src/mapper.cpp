@@ -1847,7 +1847,7 @@ void MapperField::clear_oneof(HV *self) {
     for (int i = 0, max = mapper->field_count(); i < max; ++i) {
         const Mapper::Field *other = mapper->get_field(i);
 
-        if (other == field)
+        if (other->oneof_index != field->oneof_index || other == field)
             continue;
         hv_delete_ent(self, other->name, G_DISCARD, other->name_hash);
     }

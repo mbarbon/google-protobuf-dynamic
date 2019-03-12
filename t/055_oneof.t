@@ -6,7 +6,7 @@ $d->map_message("test.OneOf1", "OneOf1");
 $d->resolve_references();
 
 {
-    my $encoded = "\x08\x03\x12\x03foo";
+    my $encoded = "\x10\x03\x1a\x03foo";
     my $decoded = OneOf1->new({
         value1 => 3,
         value2 => 'foo',
@@ -17,7 +17,7 @@ $d->resolve_references();
 }
 
 {
-    my $encoded = "\x08\x03\x18\x04";
+    my $encoded = "\x08\x04\x10\x03";
     my $decoded = OneOf1->new({
         value1 => 3,
         value3 => 4,
@@ -28,7 +28,7 @@ $d->resolve_references();
 }
 
 {
-    my $encoded = "\x08\x03\x12\x03foo\x18\x04";
+    my $encoded = "\x10\x03\x1a\x03foo\x08\x04";
     my $decoded = OneOf1->new({
         value1 => 3,
         value3 => 4,
@@ -38,7 +38,7 @@ $d->resolve_references();
 }
 
 {
-    my $encoded = "\x08\x03\x18\x04\x12\x03foo";
+    my $encoded = "\x10\x03\x08\x04\x1a\x03foo";
     my $decoded = OneOf1->new({
         value1 => 3,
         value2 => 'foo',
@@ -48,7 +48,7 @@ $d->resolve_references();
 }
 
 {
-    my $encoded = "\x08\x03\x12\x03foo";
+    my $encoded = "\x08\x04\x10\x03";
     my $decoded = OneOf1->new({
         value1 => 3,
         value2 => 'foo',
