@@ -80,6 +80,7 @@ for my $field (sort keys %values) {
                "$field - encoded tied value");
     eq_or_diff($decoded, Basic->new({ %default_defaults, $field => $value }),
                "$field - round trip");
+    eq_or_diff(tied_fetch_count($tied), { $field => 1 }, "$field - tied fetch count");
 }
 
 eq_or_diff(Basic->encode({bool_f => ''}), "", "bool false");

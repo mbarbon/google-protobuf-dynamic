@@ -24,8 +24,11 @@ our @EXPORT = (
     qw(
           maybe_bigint
           tie_scalar
+          tie_array
           tied_array
           tied_hash
+
+          tied_fetch_count
     )
 );
 
@@ -58,6 +61,10 @@ sub tie_scalar {
     tie $_[0], 't::lib::DummyTiedScalar', \$_[1];
 }
 
+sub tie_array {
+    tie @{$_[0]}, 't::lib::DummyTiedArray', $_[1];
+}
+
 sub tied_array {
     my @result;
 
@@ -72,6 +79,14 @@ sub tied_hash {
     tie %result, 't::lib::DummyTiedHash', {@_};
 
     return \%result;
+}
+
+sub tied_fetch_count {
+    if (tied $_[0]) {
+        return tied($_[0])->fetch_count;
+    } else {
+        return t::lib::DummyTiedScalar::inner_fetch_count($_[0]);
+    }
 }
 
 1;

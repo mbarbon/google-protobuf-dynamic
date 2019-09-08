@@ -35,8 +35,10 @@ for my $field (sort keys %values) {
     my $bytes = Repeated->encode({ $field => $values });
     my $decoded = Repeated->decode($bytes);
 
-    my $tied = { $field => [(undef) x @$values] };
-    tie_scalar($tied->{$field}[$_], $values->[$_]) for 0 .. $#{$tied->{$field}};
+    my $array = [(undef) x @$values];
+    my $tied = { $field => [] };
+    tie_scalar($array->[$_], $values->[$_]) for 0 .. $#$array;
+    tie_array($tied->{$field}, $array);
     my $tied_bytes = Repeated->encode($tied);
 
     eq_or_diff($bytes, $encoded,
@@ -45,6 +47,13 @@ for my $field (sort keys %values) {
                "$field - encoded value with tied elements");
     eq_or_diff($decoded, Repeated->new({ $field => $values }),
                "$field - round trip");
+    eq_or_diff(tied_fetch_count($tied), { $field => {
+        count => 2,
+        inner => [
+            1,
+            1,
+        ],
+    } }, "$field - tied fetch count");
 }
 
 for my $field (sort keys %packed_values) {

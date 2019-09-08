@@ -10,24 +10,83 @@ $d->map_message("test.Inner", "Inner");
 $d->map_message("test.OuterWithMessage", "OuterWithMessage");
 $d->resolve_references();
 
-eq_or_diff(Basic->encode(tied_hash(
-)), "");
+{
+    my $tied = tied_hash();
 
-eq_or_diff(Basic->encode(tied_hash(
-    bool_f => 1,
-)), "\x38\x01");
+    eq_or_diff(Basic->encode($tied), "");
+    eq_or_diff(tied_fetch_count($tied), {
+        count => 0,
+        inner => {},
+    });
+}
 
-eq_or_diff(Repeated->encode({
-    bool_f => tied_array(0, 1, 1),
-}), "\x38\x00\x38\x01\x38\x01");
+{
+    my $tied = tied_hash(
+        bool_f  => 1,
+        int32_f => 2,
+    );
 
-eq_or_diff(OuterWithMessage->encode({
-    optional_inner => tied_hash(value => 3),
-    repeated_inner => tied_array(
-        tied_hash(value => 4),
-        tied_hash(value => 5),
-    ),
-}), "\x0a\x02\x08\x03\x12\x02\x08\x04\x12\x02\x08\x05");
+    eq_or_diff(Basic->encode($tied), "\x18\x02\x38\x01");
+    eq_or_diff(tied_fetch_count($tied), {
+        count => 2,
+        inner => {
+            bool_f  => -1,
+            int32_f => -1,
+        },
+    });
+}
+
+{
+    my $tied = {
+        bool_f => tied_array(0, 1, 1),
+    };
+
+    eq_or_diff(Repeated->encode($tied), "\x38\x00\x38\x01\x38\x01");
+    eq_or_diff(tied_fetch_count($tied), {
+        bool_f => {
+            count => 3,
+            inner => [-1, -1, -1],
+        },
+    });
+}
+
+{
+    my $tied = {
+        optional_inner => tied_hash(value => 3),
+        repeated_inner => tied_array(
+            tied_hash(value => 4),
+            tied_hash(value => 5),
+        ),
+    };
+
+    eq_or_diff(OuterWithMessage->encode($tied),
+               "\x0a\x02\x08\x03\x12\x02\x08\x04\x12\x02\x08\x05");
+    eq_or_diff(tied_fetch_count($tied), {
+        optional_inner => {
+            count => 1,
+            inner => {
+                value => -1,
+            },
+        },
+        repeated_inner => {
+            count => 2,
+            inner => [
+                {
+                    count => 1,
+                    inner => {
+                        value => -1,
+                    },
+                },
+                {
+                    count => 1,
+                    inner => {
+                        value => -1,
+                    },
+                },
+            ],
+        },
+    });
+}
 
 done_testing();
 

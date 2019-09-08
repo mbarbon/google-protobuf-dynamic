@@ -1138,7 +1138,6 @@ bool Mapper::encode_from_message_array(Sink *sink, Status *status, const Mapper:
             return false;
         Sink submsg;
 
-        SvGETMAGIC(*item);
         if (!sub.StartSubMessage(fd.selector.msg_start, &submsg))
             return false;
         if (!encode(&submsg, status, *item))

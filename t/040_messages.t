@@ -54,6 +54,34 @@ $d->resolve_references();
     eq_or_diff(OuterWithMessage->decode($encoded), $decoded);
     eq_or_diff(OuterWithMessage->encode($for_encode), $encoded);
     eq_or_diff(OuterWithMessage->encode($tied), $encoded);
+    eq_or_diff(tied_fetch_count($tied), {
+        count => 1,
+        inner => {
+            optional_inner => {
+                count => 1,
+                inner => {
+                    value => 1,
+                },
+            },
+            repeated_inner => {
+                count => 1,
+                inner => [
+                    {
+                        count => 1,
+                        inner => {
+                            value => 1,
+                        },
+                    },
+                    {
+                        count => 1,
+                        inner => {
+                            value => 1,
+                        },
+                    },
+                ],
+            },
+        },
+    });
 }
 
 {
