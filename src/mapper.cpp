@@ -1446,36 +1446,36 @@ bool Mapper::encode_from_perl_array(Sink *sink, Status *status, const Field &fd,
 
     switch (fd.field_def->type()) {
     case UPB_TYPE_FLOAT:
-        return encode_from_array<NVGetter, FloatEmitter>(sink, fd, array);
+        return encode_from_array<NVGetter, FloatEmitter>(sink, status, fd, array);
     case UPB_TYPE_DOUBLE:
-        return encode_from_array<NVGetter, DoubleEmitter>(sink, fd, array);
+        return encode_from_array<NVGetter, DoubleEmitter>(sink, status, fd, array);
     case UPB_TYPE_BOOL:
-        return encode_from_array<BoolGetter, BoolEmitter>(sink, fd, array);
+        return encode_from_array<BoolGetter, BoolEmitter>(sink, status, fd, array);
     case UPB_TYPE_STRING:
-        return encode_from_array<SVGetter, StringEmitter>(sink, fd, array);
+        return encode_from_array<SVGetter, StringEmitter>(sink, status, fd, array);
     case UPB_TYPE_BYTES:
-        return encode_from_array<SVGetter, StringEmitter>(sink, fd, array);
+        return encode_from_array<SVGetter, StringEmitter>(sink, status, fd, array);
     case UPB_TYPE_MESSAGE:
         return fd.mapper->encode_from_message_array(sink, status, fd, array);
     case UPB_TYPE_ENUM:
         if (check_enum_values)
             return encode_from_array<IVGetter, EnumEmitter>(sink, status, fd, array);
         else
-            return encode_from_array<IVGetter, Int32Emitter>(sink, fd, array);
+            return encode_from_array<IVGetter, Int32Emitter>(sink, status, fd, array);
     case UPB_TYPE_INT32:
-        return encode_from_array<IVGetter, Int32Emitter>(sink, fd, array);
+        return encode_from_array<IVGetter, Int32Emitter>(sink, status, fd, array);
     case UPB_TYPE_UINT32:
-        return encode_from_array<UVGetter, UInt32Emitter>(sink, fd, array);
+        return encode_from_array<UVGetter, UInt32Emitter>(sink, status, fd, array);
     case UPB_TYPE_INT64:
         if (sizeof(IV) >= sizeof(int64_t))
-            return encode_from_array<IVGetter, Int64Emitter>(sink, fd, array);
+            return encode_from_array<IVGetter, Int64Emitter>(sink, status, fd, array);
         else
-            return encode_from_array<I64Getter, Int64Emitter>(sink, fd, array);
+            return encode_from_array<I64Getter, Int64Emitter>(sink, status, fd, array);
     case UPB_TYPE_UINT64:
         if (sizeof(IV) >= sizeof(int64_t))
-            return encode_from_array<UVGetter, UInt64Emitter>(sink, fd, array);
+            return encode_from_array<UVGetter, UInt64Emitter>(sink, status, fd, array);
         else
-            return encode_from_array<U64Getter, UInt64Emitter>(sink, fd, array);
+            return encode_from_array<U64Getter, UInt64Emitter>(sink, status, fd, array);
     default:
         return false; // just in case
     }

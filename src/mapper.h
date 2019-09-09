@@ -163,11 +163,6 @@ private:
     template<class G, class S>
     bool encode_from_array(upb::Sink *sink, upb::Status *status, const Mapper::Field &fd, AV *source) const;
 
-    template<class G, class S>
-    bool encode_from_array(upb::Sink *sink, const Mapper::Field &fd, AV *source) const {
-        return encode_from_array<G, S>(sink, NULL, fd, source);
-    }
-
     bool check(upb::Status *status, SV *ref) const;
     bool check(upb::Status *status, const Field &fd, SV *ref) const;
     bool check_from_perl_array(upb::Status *status, const Field &fd, SV *ref) const;
