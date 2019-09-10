@@ -836,7 +836,7 @@ SV *Mapper::encode(SV *ref) {
     warn_context->clear();
     warn_context->localize_warning_handler(aTHX);
     SV *result = NULL;
-    if (encode(pb_encoder->input(), &status, ref))
+    if (encode_value(pb_encoder->input(), &status, ref))
         result = newSVpvn(output_buffer.data(), output_buffer.size());
     output_buffer.clear();
 
@@ -853,7 +853,7 @@ SV *Mapper::encode_json(SV *ref) {
     warn_context->clear();
     warn_context->localize_warning_handler(aTHX);
     SV *result = NULL;
-    if (encode(json_encoder->input(), &status, ref))
+    if (encode_value(json_encoder->input(), &status, ref))
         result = newSVpvn(output_buffer.data(), output_buffer.size());
     output_buffer.clear();
 
@@ -1140,7 +1140,7 @@ bool Mapper::encode_from_message_array(Sink *sink, Status *status, const Mapper:
 
         if (!sub.StartSubMessage(fd.selector.msg_start, &submsg))
             return false;
-        if (!encode(&submsg, status, *item))
+        if (!encode_value(&submsg, status, *item))
             return false;
         if (!sub.EndSubMessage(fd.selector.msg_end))
             return false;
@@ -1159,7 +1159,7 @@ namespace {
     }
 }
 
-bool Mapper::encode(Sink *sink, Status *status, SV *ref) const {
+bool Mapper::encode_value(Sink *sink, Status *status, SV *ref) const {
     SvGETMAGIC(ref);
     if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVHV)
         croak("Not an hash reference when encoding a %s value", message_def->full_name());
@@ -1197,9 +1197,9 @@ bool Mapper::encode(Sink *sink, Status *status, SV *ref) const {
         else if (it->field_def->label() == UPB_LABEL_REPEATED)
             ok = ok && encode_from_perl_array(sink, status, *it, HeVAL(he));
         else if (encode_defaults || !it->has_default)
-            ok = ok && encode(sink, status, *it, HeVAL(he));
+            ok = ok && encode_field(sink, status, *it, HeVAL(he));
         else
-            ok = ok && encode_nodefaults(sink, status, *it, HeVAL(he));
+            ok = ok && encode_field_nodefaults(sink, status, *it, HeVAL(he));
     }
     warn_context->pop_level();
 
@@ -1209,7 +1209,7 @@ bool Mapper::encode(Sink *sink, Status *status, SV *ref) const {
     return ok;
 }
 
-bool Mapper::encode(Sink *sink, Status *status, const Field &fd, SV *ref) const {
+bool Mapper::encode_field(Sink *sink, Status *status, const Field &fd, SV *ref) const {
     switch (fd.field_def->type()) {
     case UPB_TYPE_FLOAT:
         return sink->PutFloat(fd.selector.primitive, SvNV(ref));
@@ -1231,7 +1231,7 @@ bool Mapper::encode(Sink *sink, Status *status, const Field &fd, SV *ref) const 
         Sink sub;
         if (!sink->StartSubMessage(fd.selector.msg_start, &sub))
             return false;
-        if (!fd.mapper->encode(&sub, status, ref))
+        if (!fd.mapper->encode_value(&sub, status, ref))
             return false;
         return sink->EndSubMessage(fd.selector.msg_end);
     }
@@ -1268,7 +1268,7 @@ bool Mapper::encode(Sink *sink, Status *status, const Field &fd, SV *ref) const 
     }
 }
 
-bool Mapper::encode_nodefaults(Sink *sink, Status *status, const Field &fd, SV *ref) const {
+bool Mapper::encode_field_nodefaults(Sink *sink, Status *status, const Field &fd, SV *ref) const {
     switch (fd.field_def->type()) {
     case UPB_TYPE_FLOAT: {
         NV value = SvNV(ref);
@@ -1379,12 +1379,12 @@ bool Mapper::encode_hash_kv(Sink *sink, Status *status, const char *key, STRLEN 
     if (fields[0].is_key) {
         if (!encode_key(sink, status, fields[0], key, keylen))
             return false;
-        if (!encode(sink, status, fields[1], value))
+        if (!encode_field(sink, status, fields[1], value))
             return false;
     } else {
         if (!encode_key(sink, status, fields[1], key, keylen))
             return false;
-        if (!encode(sink, status, fields[0], value))
+        if (!encode_field(sink, status, fields[0], value))
             return false;
     }
     if (!sink->EndMessage(status))

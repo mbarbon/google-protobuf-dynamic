@@ -151,9 +151,9 @@ public:
     bool get_decode_blessed() const;
 
 private:
-    bool encode(upb::Sink *sink, upb::Status *status, SV *ref) const;
-    bool encode(upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;
-    bool encode_nodefaults(upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;
+    bool encode_value(upb::Sink *sink, upb::Status *status, SV *ref) const;
+    bool encode_field(upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;
+    bool encode_field_nodefaults(upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;
     bool encode_key(upb::Sink *sink, upb::Status *status, const Field &fd, const char *key, I32 keylen) const;
     bool encode_hash_kv(upb::Sink *sink, upb::Status *status, const char *key, STRLEN keylen, SV *value) const;
     bool encode_from_perl_array(upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;
