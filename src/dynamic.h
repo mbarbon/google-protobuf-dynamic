@@ -5,8 +5,7 @@
 
 #include <google/protobuf/compiler/importer.h>
 
-#include "upb/bridge.h"
-
+#include "defbuilder.h"
 #include "descriptorloader.h"
 #include "sourcetree.h"
 #include "ref.h"
@@ -104,7 +103,7 @@ private:
     DescriptorLoader descriptor_loader;
     google::protobuf::compiler::DiskSourceTree disk_source_tree;
     MemorySourceTree memory_source_tree;
-    upb::googlepb::DefBuilder def_builder;
+    DefBuilder def_builder;
     CollectErrors die_on_error;
     STD_TR1::unordered_map<std::string, const Mapper *> descriptor_map;
     STD_TR1::unordered_set<std::string> used_packages;

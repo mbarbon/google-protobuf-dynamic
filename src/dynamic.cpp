@@ -10,7 +10,6 @@ using namespace gpd;
 using namespace std;
 using namespace google::protobuf;
 using namespace upb;
-using namespace upb::googlepb;
 
 #if PERL_VERSION < 10
     #undef  newCONSTSUB
