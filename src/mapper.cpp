@@ -536,6 +536,9 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
         options.encode_defaults;
     check_enum_values = options.check_enum_values;
     decode_blessed = options.decode_blessed;
+    // on older Perls it is not fully reliable because the check is performed before
+    // the SetMAGIC() call, so it is better to disable it entirely
+    fail_ref_coercion = HAS_FULL_NOMG ? options.fail_ref_coercion : false;
     warn_context = WarnContext::get(aTHX);
 
     if (!decoder_handlers->SetEndMessageHandler(UpbMakeHandler(DecoderHandlers::on_end_message)))
@@ -955,6 +958,24 @@ namespace {
         return integer;
     }
 
+    bool is_coerced_ref(pTHX_ Status *status, const Mapper::Field &fd, SV *sv) {
+        // for overloaded values, we have no easy way to check if a specific
+        // overload method has been defined, so just pass the values through
+        //
+        // the call to Gv_AMG is necessary because SVf_AMAGIC is set on all stashes
+        // on modify, and only reset by Gv_AMG() if the stash does not have overload
+        // magic
+        if (!SvROK(sv) || (SvAMAGIC(sv) && Gv_AMG(SvSTASH(SvRV(sv)))))
+            return false;
+
+        status->SetFormattedErrorMessage(
+            "Reference used when a scalar value is expected for field '%s'",
+            fd.full_name().c_str()
+        );
+
+        return true;
+    }
+
     inline bool SvPOK_utf8(SV *sv) {
         return ((SvFLAGS(sv) & (SVf_POK|SVf_UTF8)) == (SVf_POK|SVf_UTF8));
     }
@@ -1191,6 +1212,8 @@ bool Mapper::encode_from_array(Sink *sink, Status *status, const Mapper::Field &
         SvGETMAGIC(*item);
 #endif
 
+        if (fail_ref_coercion && is_coerced_ref(aTHX_ status, fd, *item))
+            return false;
         if (!setter(aTHX_ &sub, fd, getter(aTHX_ *item)))
             return false;
     }
@@ -1298,7 +1321,12 @@ bool Mapper::encode_value(Sink *sink, Status *status, SV *ref) const {
 }
 
 bool Mapper::encode_field(Sink *sink, Status *status, const Field &fd, SV *ref) const {
-    switch (fd.field_def->type()) {
+    int field_type = fd.field_def->type();
+
+    if (fail_ref_coercion && field_type != UPB_TYPE_MESSAGE && is_coerced_ref(aTHX_ status, fd, ref))
+        return false;
+
+    switch (field_type) {
     case UPB_TYPE_FLOAT:
         return sink->PutFloat(fd.selector.primitive, SvNV_enc(ref));
     case UPB_TYPE_DOUBLE:
@@ -1357,6 +1385,9 @@ bool Mapper::encode_field(Sink *sink, Status *status, const Field &fd, SV *ref) 
 }
 
 bool Mapper::encode_field_nodefaults(Sink *sink, Status *status, const Field &fd, SV *ref) const {
+    if (fail_ref_coercion && is_coerced_ref(aTHX_ status, fd, ref))
+        return false;
+
     switch (fd.field_def->type()) {
     case UPB_TYPE_FLOAT: {
         NV value = SvNV_enc(ref);

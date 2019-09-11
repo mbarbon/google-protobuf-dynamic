@@ -55,6 +55,7 @@ MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
     BOOLEAN_OPTION(generic_extension_methods, generic_extension_methods);
     BOOLEAN_OPTION(implicit_maps, implicit_maps);
     BOOLEAN_OPTION(decode_blessed, decode_blessed);
+    BOOLEAN_OPTION(fail_ref_coercion, fail_ref_coercion);
 
     if (SV **value = hv_fetchs(options, "accessor_style", 0)) {
         const char *buf = SvPV_nolen(*value);

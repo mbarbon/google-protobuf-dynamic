@@ -15,6 +15,7 @@
 
 #include "EXTERN.h"
 #include "perl.h"
+#include "ppport.h"
 
 #include "thx_member.h"
 
@@ -185,7 +186,7 @@ private:
     upb::Sink encoder_sink, decoder_sink;
     std::string output_buffer;
     upb::StringSink string_sink;
-    bool check_required_fields, decode_explicit_defaults, encode_defaults, check_enum_values, decode_blessed;
+    bool check_required_fields, decode_explicit_defaults, encode_defaults, check_enum_values, decode_blessed, fail_ref_coercion;
     WarnContext *warn_context;
 };
 

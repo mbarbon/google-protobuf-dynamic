@@ -620,6 +620,13 @@ Enabled by default.
 Return blessed objects when decoding. When disabled, plain hashes are
 returned.
 
+=head2 fail_ref_coercion
+
+Throws an error when a non-overloaded reference is passsed as the value
+of a non-message field.
+
+Not available for Perl 5.12 or older.
+
 =head1 KNOWN BUGS
 
 When a field has the incorrect value, sometimes serialization performs

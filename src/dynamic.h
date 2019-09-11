@@ -43,6 +43,7 @@ struct MappingOptions {
     bool generic_extension_methods;
     bool implicit_maps;
     bool decode_blessed;
+    bool fail_ref_coercion;
     AccessorStyle accessor_style;
     ClientService client_services;
 
