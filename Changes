@@ -2,6 +2,11 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.26      2019-09-11 20:50:29 CEST
+
+    - Add option to check cases when a reference is passed
+      as the value for a scalar field
+
 0.25      2019-03-12 22:58:50 CET
 
     - Add new mapping mode to recursively map a message and all
