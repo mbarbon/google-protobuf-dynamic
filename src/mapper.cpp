@@ -29,19 +29,6 @@ namespace {
     void refcounted_mortalize(pTHX_ const Refcounted *ref) {
         SAVEDESTRUCTOR(unref_on_scope_leave, ref);
     }
-
-    void delete_upb_env(upb::Environment *env) {
-        delete env;
-    }
-
-    upb::Environment *make_localized_environment(pTHX_ upb::Status *report_errors_to) {
-        upb::Environment *env = new upb::Environment();
-
-        env->ReportErrorsTo(report_errors_to);
-        SAVEDESTRUCTOR(delete_upb_env, env);
-
-        return env;
-    }
 }
 
 Mapper::DecoderHandlers::DecoderHandlers(pTHX_ const Mapper *mapper) {
@@ -54,7 +41,7 @@ void Mapper::DecoderHandlers::prepare(HV *target) {
     seen_fields.resize(1);
     seen_fields.back().clear();
     seen_fields.back().resize(mappers.back()->fields.size());
-    if (int oneof_count = mappers.back()->message_def->oneof_count()) {
+    if (int oneof_count = mappers.back()->message_def.oneof_count()) {
         seen_oneof.resize(1);
         seen_oneof.back().clear();
         seen_oneof.back().resize(oneof_count, -1);
@@ -105,20 +92,20 @@ namespace {
 }
 
 string Mapper::Field::full_name() const {
-    if (field_def->is_extension())
-        return field_def->full_name();
+    if (field_def.is_extension())
+        return field_def.full_name();
     else
-        return string(field_def->containing_type()->full_name()) +
+        return string(field_def.containing_type().full_name()) +
                '.' +
-               field_def->name();
+               field_def.name();
 }
 
-FieldDef::Type Mapper::Field::map_value_type() const {
+FieldDefPtr::Type Mapper::Field::map_value_type() const {
     const vector<Field> &map_fields = mapper->fields;
 
     return map_fields[1].is_value ?
-        map_fields[1].field_def->type() :
-        map_fields[0].field_def->type();
+        map_fields[1].field_def.type() :
+        map_fields[0].field_def.type();
 }
 
 const STD_TR1::unordered_set<int32_t> &Mapper::Field::map_enum_values() const {
@@ -148,45 +135,45 @@ bool Mapper::DecoderHandlers::apply_defaults_and_check() {
             if (SvOK(target))
                 continue;
 
-            switch (field.field_def->type()) {
+            switch (field.field_def.type()) {
             case UPB_TYPE_FLOAT:
-                sv_setnv(target, field.field_def->default_float());
+                sv_setnv(target, field.field_def.default_float());
                 break;
             case UPB_TYPE_DOUBLE:
-                sv_setnv(target, field.field_def->default_double());
+                sv_setnv(target, field.field_def.default_double());
                 break;
             case UPB_TYPE_BOOL:
-                mapper->set_bool(target, field.field_def->default_bool());
+                mapper->set_bool(target, field.field_def.default_bool());
                 break;
             case UPB_TYPE_BYTES:
             case UPB_TYPE_STRING: {
                 size_t len;
-                const char *val = field.field_def->default_string(&len);
+                const char *val = field.field_def.default_string(&len);
                 if (!val) {
                     val = "";
                     len = 0;
                 }
 
                 sv_setpvn(target, val, len);
-                if (field.field_def->type() == UPB_TYPE_STRING)
+                if (field.field_def.type() == UPB_TYPE_STRING)
                     SvUTF8_on(target);
             }
                 break;
             case UPB_TYPE_ENUM:
             case UPB_TYPE_INT32:
-                sv_setiv(target, field.field_def->default_int32());
+                sv_setiv(target, field.field_def.default_int32());
                 break;
             case UPB_TYPE_UINT32:
-                sv_setuv(target, field.field_def->default_uint32());
+                sv_setuv(target, field.field_def.default_uint32());
                 break;
             case UPB_TYPE_INT64:
-                sv_setiv(target, field.field_def->default_int64());
+                sv_setiv(target, field.field_def.default_int64());
                 break;
             case UPB_TYPE_UINT64:
-                sv_setuv(target, field.field_def->default_uint64());
+                sv_setuv(target, field.field_def.default_uint64());
                 break;
             }
-        } else if (!field_seen && check_required_fields && field.field_def->label() == UPB_LABEL_REQUIRED) {
+        } else if (!field_seen && check_required_fields && field.field_def.label() == UPB_LABEL_REQUIRED) {
             error = "Missing required field " + field.full_name();
 
             return false;
@@ -196,8 +183,8 @@ bool Mapper::DecoderHandlers::apply_defaults_and_check() {
     return true;
 }
 
-bool Mapper::DecoderHandlers::on_end_message(DecoderHandlers *cxt, upb::Status *status) {
-    if (!status || status->ok()) {
+bool Mapper::DecoderHandlers::on_end_message(DecoderHandlers *cxt, upb_status *status) {
+    if (!status || upb_ok(status)) {
         return cxt->apply_defaults_and_check();
     } else
         return false;
@@ -228,7 +215,7 @@ size_t Mapper::DecoderHandlers::on_string(DecoderHandlers *cxt, const int *field
 
 bool Mapper::DecoderHandlers::on_end_string(DecoderHandlers *cxt, const int *field_index) {
     const Mapper *mapper = cxt->mappers.back();
-    if (mapper->fields[*field_index].field_def->type() == UPB_TYPE_STRING)
+    if (mapper->fields[*field_index].field_def.type() == UPB_TYPE_STRING)
         SvUTF8_on(cxt->string);
     cxt->string = NULL;
 
@@ -322,7 +309,7 @@ Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_sub_message(DecoderHa
     cxt->mappers.push_back(message_mapper);
     cxt->seen_fields.resize(cxt->seen_fields.size() + 1);
     cxt->seen_fields.back().resize(cxt->mappers.back()->fields.size());
-    if (int oneof_count = cxt->mappers.back()->message_def->oneof_count()) {
+    if (int oneof_count = cxt->mappers.back()->message_def.oneof_count()) {
         cxt->seen_oneof.resize(cxt->seen_oneof.size() + 1);
         cxt->seen_oneof.back().resize(oneof_count, -1);
     }
@@ -333,7 +320,7 @@ Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_sub_message(DecoderHa
 }
 
 bool Mapper::DecoderHandlers::on_end_sub_message(DecoderHandlers *cxt, const int *field_index) {
-    if (cxt->mappers.back()->message_def->oneof_count())
+    if (cxt->mappers.back()->message_def.oneof_count())
         cxt->seen_oneof.pop_back();
     cxt->seen_fields.pop_back();
     cxt->mappers.pop_back();
@@ -406,7 +393,7 @@ bool Mapper::DecoderHandlers::on_enum(DecoderHandlers *cxt, const int *field_ind
         // this will use the default value later, it's intentional
         // mark_seen is not called
         if (SvTYPE(cxt->items.back()) == SVt_PVAV)
-            sv_setiv(cxt->get_target(field_index), field.field_def->default_int32());
+            sv_setiv(cxt->get_target(field_index), field.field_def.default_int32());
         return true;
     }
 
@@ -533,7 +520,10 @@ void Mapper::DecoderHandlers::mark_seen(const int *field_index) {
     seen_fields.back()[*field_index] = true;
 }
 
-Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_stash, const MappingOptions &options) :
+Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDefPtr _message_def, HV *_stash, const MappingOptions &options) :
+        pb_encoder_handlers(_registry->pb_encoder_handlers(message_def)),
+        json_encoder_handlers(_registry->json_encoder_handlers(message_def)),
+        decoder_handlers(_registry->decoder_handlers(message_def)),
         registry(_registry),
         message_def(_message_def),
         stash(_stash),
@@ -553,6 +543,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
          options.encode_defaults) ||
         (message_def->syntax() == UPB_SYNTAX_PROTO3 &&
          options.encode_defaults_proto3);
+
     check_enum_values = options.check_enum_values;
     decode_blessed = options.decode_blessed;
     numeric_bool = options.numeric_bool;
@@ -561,32 +552,32 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
     fail_ref_coercion = HAS_FULL_NOMG ? options.fail_ref_coercion : false;
     warn_context = WarnContext::get(aTHX);
 
-    if (!decoder_handlers->SetEndMessageHandler(UpbMakeHandler(DecoderHandlers::on_end_message)))
-        croak("Unable to set upb end message handler for %s", message_def->full_name());
+    if (!decoder_handlers.SetEndMessageHandler(UpbMakeHandler(DecoderHandlers::on_end_message)))
+        croak("Unable to set upb end message handler for %s", message_def.full_name());
 
     std::vector<Field*> fields_by_field_def_index;
-    fields.reserve(message_def->field_count());
-    fields_by_field_def_index.resize(message_def->field_count());
+    fields.reserve(message_def.field_count());
+    fields_by_field_def_index.resize(message_def.field_count());
 
-    bool map_entry = message_def->mapentry();
+    bool map_entry = message_def.mapentry();
     bool has_required = false;
-    for (MessageDef::const_field_iterator it = message_def->field_begin(), en = message_def->field_end(); it != en; ++it) {
+    for (MessageDefPtr::const_field_iterator it = message_def.field_begin(), en = message_def.field_end(); it != en; ++it) {
         int index = fields.size();
         fields.push_back(Field());
 
         Field &field = fields.back();;
-        const FieldDef *field_def = *it;
-        const OneofDef *oneof_def = field_def->containing_oneof();
+        FieldDefPtr field_def = *it;
+        const OneofDefPtr oneof_def = field_def.containing_oneof();
 
-        fields_by_field_def_index[field_def->index()] = &fields.back();
-        has_required = has_required || field_def->label() == UPB_LABEL_REQUIRED;
+        fields_by_field_def_index[field_def.index()] = &fields.back();
+        has_required = has_required || field_def.label() == UPB_LABEL_REQUIRED;
         field.field_def = field_def;
-        if (field_def->is_extension()) {
-            string temp = string() + "[" + field_def->full_name() + "]";
+        if (field_def.is_extension()) {
+            string temp = string() + "[" + field_def.full_name() + "]";
 
             field.name = newSVpvn_share(temp.data(), temp.size(), 0);
         } else {
-            string temp = string(field_def->name());
+            string temp = string(field_def.name());
 
             field.name = newSVpvn_share(temp.data(), temp.size(), 0);
         }
@@ -596,37 +587,37 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
         field.oneof_index = -1;
 
         if (map_entry) {
-            field.is_key = field_def->number() == 1;
-            field.is_value = field_def->number() == 2;
+            field.is_key = field_def.number() == 1;
+            field.is_value = field_def.number() == 2;
         }
 
-        if (field_def->label() == UPB_LABEL_REPEATED &&
-                field_def->type() == UPB_TYPE_MESSAGE &&
-                field_def->message_subdef()->mapentry()) {
+        if (field_def.label() == UPB_LABEL_REPEATED &&
+                field_def.type() == UPB_TYPE_MESSAGE &&
+                field_def.message_subdef().mapentry()) {
             field.is_map = true;
         }
 
 #define GET_SELECTOR(KIND, TO) \
-    ok = ok && pb_encoder_handlers->GetSelector(field_def, UPB_HANDLER_##KIND, &field.selector.TO)
+    ok = ok && upb_handlers_getselector(field_def.ptr(), UPB_HANDLER_##KIND, &field.selector.TO)
 
 #define SET_VALUE_HANDLER(TYPE, FUNCTION) \
-    ok = ok && decoder_handlers->SetValueHandler<TYPE>(field_def, UpbBind(DecoderHandlers::FUNCTION, new int(index)))
+    ok = ok && decoder_handlers.SetValueHandler<TYPE>(field_def, UpbBind(DecoderHandlers::FUNCTION, new int(index)))
 
 #define SET_HANDLER(KIND, FUNCTION) \
-    ok = ok && decoder_handlers->Set##KIND##Handler(field_def, UpbBind(DecoderHandlers::FUNCTION, new int(index)))
+    ok = ok && decoder_handlers.Set##KIND##Handler(field_def, UpbBind(DecoderHandlers::FUNCTION, new int(index)))
 
         bool ok = true;
         bool has_default = true;
-        switch (field_def->type()) {
+        switch (field_def.type()) {
         case UPB_TYPE_FLOAT:
             GET_SELECTOR(FLOAT, primitive);
             SET_VALUE_HANDLER(float, on_nv<float>);
-            field.default_nv = field_def->default_float();
+            field.default_nv = field_def.default_float();
             break;
         case UPB_TYPE_DOUBLE:
             GET_SELECTOR(DOUBLE, primitive);
             SET_VALUE_HANDLER(double, on_nv<double>);
-            field.default_nv = field_def->default_double();
+            field.default_nv = field_def.default_double();
             break;
         case UPB_TYPE_BOOL:
             GET_SELECTOR(BOOL, primitive);
@@ -634,7 +625,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
                 SET_VALUE_HANDLER(bool, on_numeric_bool);
             else
                 SET_VALUE_HANDLER(bool, on_perl_bool);
-            field.default_bool = field_def->default_bool();
+            field.default_bool = field_def.default_bool();
             break;
         case UPB_TYPE_STRING:
         case UPB_TYPE_BYTES:
@@ -644,7 +635,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
             SET_HANDLER(StartString, on_start_string);
             SET_HANDLER(String, on_string);
             SET_HANDLER(EndString, on_end_string);
-            field.default_str = field_def->default_string(&field.default_str_len);
+            field.default_str = field_def.default_string(&field.default_str_len);
             break;
         case UPB_TYPE_MESSAGE:
             GET_SELECTOR(STARTSUBMSG, msg_start);
@@ -663,12 +654,12 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
                 SET_VALUE_HANDLER(int32_t, on_enum);
             else
                 SET_VALUE_HANDLER(int32_t, on_iv<int32_t>);
-            field.default_iv = field_def->default_int32();
+            field.default_iv = field_def.default_int32();
 
             if (check_enum_values) {
-                const EnumDef *enumdef = field_def->enum_subdef();
+                const EnumDefPtr enumdef = field_def.enum_subdef();
                 upb_enum_iter i;
-                for (upb_enum_begin(&i, enumdef); !upb_enum_done(&i); upb_enum_next(&i))
+                for (upb_enum_begin(&i, enumdef.ptr()); !upb_enum_done(&i); upb_enum_next(&i))
                     field.enum_values.insert(upb_enum_iter_number(&i));
             }
         }
@@ -676,12 +667,12 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
         case UPB_TYPE_INT32:
             GET_SELECTOR(INT32, primitive);
             SET_VALUE_HANDLER(int32_t, on_iv<int32_t>);
-            field.default_iv = field_def->default_int32();
+            field.default_iv = field_def.default_int32();
             break;
         case UPB_TYPE_UINT32:
             GET_SELECTOR(UINT32, primitive);
             SET_VALUE_HANDLER(uint32_t, on_uv<uint32_t>);
-            field.default_uv = field_def->default_uint32();
+            field.default_uv = field_def.default_uint32();
             break;
         case UPB_TYPE_INT64:
             GET_SELECTOR(INT64, primitive);
@@ -689,7 +680,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
                 SET_VALUE_HANDLER(int64_t, on_bigiv);
             else
                 SET_VALUE_HANDLER(int64_t, on_iv<int64_t>);
-            field.default_i64 = field_def->default_int64();
+            field.default_i64 = field_def.default_int64();
             break;
         case UPB_TYPE_UINT64:
             GET_SELECTOR(UINT64, primitive);
@@ -697,19 +688,19 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
                 SET_VALUE_HANDLER(uint64_t, on_biguv);
             else
                 SET_VALUE_HANDLER(uint64_t, on_uv<uint64_t>);
-            field.default_u64 = field_def->default_uint64();
+            field.default_u64 = field_def.default_uint64();
             break;
         default:
-            croak("Unhandled field type %d for field '%s'", field_def->type(), field.full_name().c_str());
+            croak("Unhandled field type %d for field '%s'", field_def.type(), field.full_name().c_str());
         }
 
         if (has_default &&
-                field_def->label() == UPB_LABEL_OPTIONAL &&
-                !oneof_def) {
+                field_def.label() == UPB_LABEL_OPTIONAL &&
+                oneof_def.ptr() != NULL) {
             field.has_default = true;
         }
 
-        if (field_def->label() == UPB_LABEL_REPEATED) {
+        if (field_def.label() == UPB_LABEL_REPEATED) {
             GET_SELECTOR(STARTSEQ, seq_start);
             GET_SELECTOR(ENDSEQ, seq_end);
             if (field.is_map) {
@@ -731,7 +722,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
     }
 
     for (vector<Field>::iterator it = fields.begin(), en = fields.end(); it != en; ++it) {
-        if (it->field_def->is_extension()) {
+        if (it->field_def.is_extension()) {
             extension_mapper_fields.push_back(new MapperField(aTHX_ this, &*it));
             unref(); // to avoid ref loop
         }
@@ -739,12 +730,12 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
     }
 
     int oneof_index = 0;
-    for (MessageDef::const_oneof_iterator it = message_def->oneof_begin(), en = message_def->oneof_end(); it != en; ++it, ++oneof_index) {
-        const OneofDef *oneof_def = *it;
+    for (MessageDefPtr::const_oneof_iterator it = message_def.oneof_begin(), en = message_def.oneof_end(); it != en; ++it, ++oneof_index) {
+        const OneofDefPtr oneof_def = *it;
 
-        for (OneofDef::const_iterator it = oneof_def->begin(), en = oneof_def->end(); it != en; ++it) {
-            const FieldDef *field_def = *it;
-            Field *field = fields_by_field_def_index[field_def->index()];
+        for (OneofDefPtr::const_iterator it = oneof_def.begin(), en = oneof_def.end(); it != en; ++it) {
+            const FieldDefPtr field_def = *it;
+            Field *field = fields_by_field_def_index[field_def.index()];
 
             field->oneof_index = oneof_index;
         }
@@ -767,7 +758,7 @@ Mapper::~Mapper() {
 }
 
 const char *Mapper::full_name() const {
-    return message_def->full_name();
+    return message_def.full_name();
 }
 
 const char *Mapper::package_name() const {
@@ -794,7 +785,7 @@ const Mapper::Field *Mapper::get_field(int index) const {
 SV *Mapper::message_descriptor() const {
     SV *ref = newSV(0);
 
-    sv_setref_iv(ref, "Google::ProtocolBuffers::Dynamic::MessageDef", (IV) message_def);
+    sv_setref_iv(ref, "Google::ProtocolBuffers::Dynamic::MessageDef", (IV) message_def.ptr());
 
     return ref;
 }
@@ -833,21 +824,23 @@ SV *Mapper::make_object(SV *data) const {
 }
 
 void Mapper::resolve_mappers() {
+    /*
     for (vector<Field>::iterator it = fields.begin(), en = fields.end(); it != en; ++it) {
-        const FieldDef *field = it->field_def;
+        const FieldDefPtr field = it->field_def;
 
-        if (field->type() != UPB_TYPE_MESSAGE)
+        if (field.type() != UPB_TYPE_MESSAGE)
             continue;
-        it->mapper = registry->find_mapper(field->message_subdef());
+        it->mapper = registry->find_mapper(field.message_subdef());
         it->mapper->ref();
-        decoder_handlers->SetSubHandlers(it->field_def, it->mapper->decoder_handlers.get());
+        decoder_handlers.SetSubHandlers(it->field_def, it->mapper->decoder_handlers.ptr());
     }
+    */
 }
 
 void Mapper::create_encoder_decoder() {
-    pb_decoder_method = DecoderMethod::New(DecoderMethodOptions(decoder_handlers.get()));
-    json_decoder_method = ParserMethod::New(message_def);
-    decoder_sink.Reset(decoder_handlers.get(), &decoder_callbacks);
+    pb_decoder_method = registry->pb_decoder_method(message_def);
+    json_decoder_method = registry->json_decoder_method(message_def);
+    decoder_sink.Reset(decoder_handlers.ptr(), &decoder_callbacks);
 }
 
 bool Mapper::get_decode_blessed() const {
@@ -862,10 +855,10 @@ void Mapper::set_bool(SV *target, bool value) const {
 }
 
 SV *Mapper::encode(SV *ref) {
-    if (pb_decoder_method.get() == NULL)
+    if (pb_decoder_method.ptr() == NULL)
         croak("It looks like resolve_references() was not called (and please use map() anyway)");
-    upb::Environment *env = make_localized_environment(aTHX_ &status);
-    upb::pb::Encoder *pb_encoder = upb::pb::Encoder::Create(env, pb_encoder_handlers.get(), string_sink.input());
+    upb::Arena arena;
+    upb::pb::EncoderPtr pb_encoder = upb::pb::EncoderPtr::Create(&arena, pb_encoder_handlers.ptr(), string_sink.input());
     status.Clear();
     output_buffer.clear();
     warn_context->clear();
@@ -876,7 +869,7 @@ SV *Mapper::encode(SV *ref) {
     SvGETMAGIC(ref);
 #endif
 
-    if (encode_value(pb_encoder->input(), &status, ref))
+    if (encode_value(pb_encoder.input(), &status, ref))
         result = newSVpvn(output_buffer.data(), output_buffer.size());
     output_buffer.clear();
 
@@ -884,10 +877,10 @@ SV *Mapper::encode(SV *ref) {
 }
 
 SV *Mapper::encode_json(SV *ref) {
-    if (json_decoder_method.get() == NULL)
+    if (json_decoder_method.ptr() == NULL)
         croak("It looks like resolve_references() was not called (and please use map() anyway)");
-    upb::Environment *env = make_localized_environment(aTHX_ &status);
-    upb::json::Printer *json_encoder = upb::json::Printer::Create(env, json_encoder_handlers.get(), string_sink.input());
+    upb::Arena arena;
+    upb::json::PrinterPtr json_encoder = upb::json::PrinterPtr::Create(&arena, json_encoder_handlers.ptr(), string_sink.input());
     status.Clear();
     output_buffer.clear();
     warn_context->clear();
@@ -898,7 +891,7 @@ SV *Mapper::encode_json(SV *ref) {
     SvGETMAGIC(ref);
 #endif
 
-    if (encode_value(json_encoder->input(), &status, ref))
+    if (encode_value(json_encoder.input(), &status, ref))
         result = newSVpvn(output_buffer.data(), output_buffer.size());
     output_buffer.clear();
 
@@ -906,16 +899,16 @@ SV *Mapper::encode_json(SV *ref) {
 }
 
 SV *Mapper::decode(const char *buffer, STRLEN bufsize) {
-    if (pb_decoder_method.get() == NULL)
+    if (pb_decoder_method.ptr() == NULL)
         croak("It looks like resolve_references() was not called (and please use map() anyway)");
-    upb::Environment *env = make_localized_environment(aTHX_ &status);
-    upb::pb::Decoder *pb_decoder = upb::pb::Decoder::Create(env, pb_decoder_method.get(), &decoder_sink);
+    upb::Arena arena;
+    upb::pb::DecoderPtr pb_decoder = upb::pb::DecoderPtr::Create(&arena, pb_decoder_method, decoder_sink, &status);
     status.Clear();
-    pb_decoder->Reset();
+    pb_decoder.Reset();
     decoder_callbacks.prepare(newHV());
 
     SV *result = NULL;
-    if (BufferSource::PutBuffer(buffer, bufsize, pb_decoder->input())) {
+    if (upb_bufsrc_putbuf(buffer, bufsize, pb_decoder.input().sink())) {
         result = newRV_inc(decoder_callbacks.get_target());
         if (decode_blessed)
             sv_bless(result, stash);
@@ -926,15 +919,15 @@ SV *Mapper::decode(const char *buffer, STRLEN bufsize) {
 }
 
 SV *Mapper::decode_json(const char *buffer, STRLEN bufsize) {
-    if (json_decoder_method.get() == NULL)
+    if (json_decoder_method.ptr() == NULL)
         croak("It looks like resolve_references() was not called (and please use map() anyway)");
-    upb::Environment *env = make_localized_environment(aTHX_ &status);
-    upb::json::Parser *json_decoder = upb::json::Parser::Create(env, json_decoder_method.get(), NULL, &decoder_sink, true);
+    upb::Arena arena;
+    upb::json::ParserPtr json_decoder = upb::json::ParserPtr::Create(&arena, json_decoder_method, NULL, decoder_sink, &status, true);
     status.Clear();
     decoder_callbacks.prepare(newHV());
 
     SV *result = NULL;
-    if (BufferSource::PutBuffer(buffer, bufsize, json_decoder->input())) {
+    if (upb_bufsrc_putbuf(buffer, bufsize, json_decoder.input().sink())) {
         result = newRV_inc(decoder_callbacks.get_target());
         if (decode_blessed)
             sv_bless(result, stash);
@@ -945,7 +938,7 @@ SV *Mapper::decode_json(const char *buffer, STRLEN bufsize) {
 }
 
 bool Mapper::check(SV *ref) {
-    if (pb_decoder_method.get() == NULL)
+    if (pb_decoder_method.ptr() == NULL)
         croak("It looks like resolve_references() was not called (and please use map() anyway)");
     status.Clear();
     return check(&status, ref);
@@ -1211,7 +1204,7 @@ namespace {
 
         bool operator()(pTHX_ Sink *sink, const Mapper::Field &fd, SV *value) {
             STRLEN len;
-            const char *str = fd.field_def->type() == UPB_TYPE_STRING ? SvPVutf8(value, len) : SvPV(value, len);
+            const char *str = fd.field_def.type() == UPB_TYPE_STRING ? SvPVutf8(value, len) : SvPV(value, len);
             Sink sub;
             if (!sink->StartString(fd.selector.str_start, len, &sub))
                 return false;
@@ -1222,7 +1215,7 @@ namespace {
 }
 
 template<class G, class S>
-bool Mapper::encode_from_array(Sink *sink, Status *status, const Mapper::Field &fd, AV *source) const {
+bool Mapper::encode_from_array(Sink sink, Status *status, const Mapper::Field &fd, AV *source) const {
     G getter;
     S setter(status);
     Sink sub;
@@ -1237,7 +1230,7 @@ bool Mapper::encode_from_array(Sink *sink, Status *status, const Mapper::Field &
         return true;
     }
 
-    if (!sink->StartSequence(fd.selector.seq_start, &sub))
+    if (!sink.StartSequence(fd.selector.seq_start, &sub))
         return false;
 
     WarnContext::Item &warn_cxt = warn_context->push_level(WarnContext::Array);
@@ -1258,14 +1251,14 @@ bool Mapper::encode_from_array(Sink *sink, Status *status, const Mapper::Field &
     }
     warn_context->pop_level();
 
-    return sink->EndSequence(fd.selector.seq_end);
+    return sink.EndSequence(fd.selector.seq_end);
 }
 
-bool Mapper::encode_from_message_array(Sink *sink, Status *status, const Mapper::Field &fd, AV *source) const {
+bool Mapper::encode_from_message_array(Sink sink, Status *status, const Mapper::Field &fd, AV *source) const {
     int size = av_top_index(source) + 1;
     Sink sub;
 
-    if (!sink->StartSequence(fd.selector.seq_start, &sub))
+    if (!sink.StartSequence(fd.selector.seq_start, &sub))
         return false;
 
     WarnContext::Item &warn_cxt = warn_context->push_level(WarnContext::Array);
@@ -1282,14 +1275,14 @@ bool Mapper::encode_from_message_array(Sink *sink, Status *status, const Mapper:
 
         if (!sub.StartSubMessage(fd.selector.msg_start, &submsg))
             return false;
-        if (!encode_value(&submsg, status, *item))
+        if (!encode_value(submsg, status, *item))
             return false;
         if (!sub.EndSubMessage(fd.selector.msg_end))
             return false;
     }
     warn_context->pop_level();
 
-    return sink->EndSequence(fd.selector.seq_end);
+    return sink.EndSequence(fd.selector.seq_end);
 }
 
 namespace {
@@ -1301,30 +1294,30 @@ namespace {
     }
 }
 
-bool Mapper::encode_value(Sink *sink, Status *status, SV *ref) const {
+bool Mapper::encode_value(Sink sink, Status *status, SV *ref) const {
 #if !HAS_FULL_NOMG
     SvGETMAGIC(ref);
 #endif
 
     if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVHV)
-        croak("Not a hash reference when encoding a %s value", message_def->full_name());
+        croak("Not a hash reference when encoding a %s value", message_def.full_name());
     HV *hv = (HV *) SvRV(ref);
 
-    if (!sink->StartMessage())
+    if (!sink.StartMessage())
         return false;
 
     bool tied = SvTIED_mg((SV *) hv, PERL_MAGIC_tied);
     bool ok = true;
     WarnContext::Item &warn_cxt = warn_context->push_level(WarnContext::Message);
     vector<bool> seen_oneof;
-    seen_oneof.resize(message_def->oneof_count());
+    seen_oneof.resize(message_def.oneof_count());
     for (vector<Field>::const_iterator it = fields.begin(), en = fields.end(); it != en; ++it) {
         warn_cxt.field = &*it;
         HE *he = tied ? hv_fetch_ent_tied(aTHX_ hv, it->name, 0, it->name_hash) :
                         hv_fetch_ent(hv, it->name, 0, it->name_hash);
 
         if (!he) {
-            if (it->field_def->label() == UPB_LABEL_REQUIRED) {
+            if (it->field_def.label() == UPB_LABEL_REQUIRED) {
                 status->SetFormattedErrorMessage(
                     "Missing required field '%s'",
                     it->full_name().c_str());
@@ -1344,7 +1337,7 @@ bool Mapper::encode_value(Sink *sink, Status *status, SV *ref) const {
 
         if (it->is_map)
             ok = ok && encode_from_perl_hash(sink, status, *it, value);
-        else if (it->field_def->label() == UPB_LABEL_REPEATED)
+        else if (it->field_def.label() == UPB_LABEL_REPEATED)
             ok = ok && encode_from_perl_array(sink, status, *it, value);
         else if (encode_defaults || !it->has_default)
             ok = ok && encode_field(sink, status, *it, value);
@@ -1353,42 +1346,42 @@ bool Mapper::encode_value(Sink *sink, Status *status, SV *ref) const {
     }
     warn_context->pop_level();
 
-    if (!sink->EndMessage(status))
+    if (!sink.EndMessage(status->ptr()))
         return false;
 
     return ok;
 }
 
-bool Mapper::encode_field(Sink *sink, Status *status, const Field &fd, SV *ref) const {
-    int field_type = fd.field_def->type();
+bool Mapper::encode_field(Sink sink, Status *status, const Field &fd, SV *ref) const {
+    int field_type = fd.field_def.type();
 
     if (fail_ref_coercion && field_type != UPB_TYPE_MESSAGE && is_coerced_ref(aTHX_ status, fd, ref))
         return false;
 
     switch (field_type) {
     case UPB_TYPE_FLOAT:
-        return sink->PutFloat(fd.selector.primitive, SvNV_enc(ref));
+        return sink.PutFloat(fd.selector.primitive, SvNV_enc(ref));
     case UPB_TYPE_DOUBLE:
-        return sink->PutDouble(fd.selector.primitive, SvNV_enc(ref));
+        return sink.PutDouble(fd.selector.primitive, SvNV_enc(ref));
     case UPB_TYPE_BOOL:
-        return sink->PutBool(fd.selector.primitive, SvTRUE_enc(ref));
+        return sink.PutBool(fd.selector.primitive, SvTRUE_enc(ref));
     case UPB_TYPE_STRING:
     case UPB_TYPE_BYTES: {
         STRLEN len;
-        const char *str = fd.field_def->type() == UPB_TYPE_STRING ? SvPVutf8_enc(ref, len) : SvPV_enc(ref, len);
+        const char *str = fd.field_def.type() == UPB_TYPE_STRING ? SvPVutf8_enc(ref, len) : SvPV_enc(ref, len);
         Sink sub;
-        if (!sink->StartString(fd.selector.str_start, len, &sub))
+        if (!sink.StartString(fd.selector.str_start, len, &sub))
             return false;
         sub.PutStringBuffer(fd.selector.str_cont, str, len, NULL);
-        return sink->EndString(fd.selector.str_end);
+        return sink.EndString(fd.selector.str_end);
     }
     case UPB_TYPE_MESSAGE: {
         Sink sub;
-        if (!sink->StartSubMessage(fd.selector.msg_start, &sub))
+        if (!sink.StartSubMessage(fd.selector.msg_start, &sub))
             return false;
-        if (!fd.mapper->encode_value(&sub, status, ref))
+        if (!fd.mapper->encode_value(sub, status, ref))
             return false;
-        return sink->EndSubMessage(fd.selector.msg_end);
+        return sink.EndSubMessage(fd.selector.msg_end);
     }
     case UPB_TYPE_ENUM: {
         IV value = SvIV_enc(ref);
@@ -1402,62 +1395,62 @@ bool Mapper::encode_field(Sink *sink, Status *status, const Field &fd, SV *ref) 
             return false;
         }
 
-        return sink->PutInt32(fd.selector.primitive, value);
+        return sink.PutInt32(fd.selector.primitive, value);
     }
     case UPB_TYPE_INT32:
-        return sink->PutInt32(fd.selector.primitive, SvIV_enc(ref));
+        return sink.PutInt32(fd.selector.primitive, SvIV_enc(ref));
     case UPB_TYPE_UINT32:
-        return sink->PutUInt32(fd.selector.primitive, SvUV_enc(ref));
+        return sink.PutUInt32(fd.selector.primitive, SvUV_enc(ref));
     case UPB_TYPE_INT64:
         if (sizeof(IV) >= sizeof(int64_t))
-            return sink->PutInt64(fd.selector.primitive, SvIV_enc(ref));
+            return sink.PutInt64(fd.selector.primitive, SvIV_enc(ref));
         else
-            return sink->PutInt64(fd.selector.primitive, SvIV64_enc(ref));
+            return sink.PutInt64(fd.selector.primitive, SvIV64_enc(ref));
     case UPB_TYPE_UINT64:
         if (sizeof(UV) >= sizeof(int64_t))
-            return sink->PutInt64(fd.selector.primitive, SvUV_enc(ref));
+            return sink.PutInt64(fd.selector.primitive, SvUV_enc(ref));
         else
-            return sink->PutUInt64(fd.selector.primitive, SvUV64_enc(ref));
+            return sink.PutUInt64(fd.selector.primitive, SvUV64_enc(ref));
     default:
         return false; // just in case
     }
 }
 
-bool Mapper::encode_field_nodefaults(Sink *sink, Status *status, const Field &fd, SV *ref) const {
+bool Mapper::encode_field_nodefaults(Sink sink, Status *status, const Field &fd, SV *ref) const {
     if (fail_ref_coercion && is_coerced_ref(aTHX_ status, fd, ref))
         return false;
 
-    switch (fd.field_def->type()) {
+    switch (fd.field_def.type()) {
     case UPB_TYPE_FLOAT: {
         NV value = SvNV_enc(ref);
         if (value == fd.default_nv)
             return true;
-        return sink->PutFloat(fd.selector.primitive, value);
+        return sink.PutFloat(fd.selector.primitive, value);
     }
     case UPB_TYPE_DOUBLE: {
         NV value = SvNV_enc(ref);
         if (value == fd.default_nv)
             return true;
-        return sink->PutDouble(fd.selector.primitive, value);
+        return sink.PutDouble(fd.selector.primitive, value);
     }
     case UPB_TYPE_BOOL: {
         bool value = SvTRUE_enc(ref);
         if (value == fd.default_bool)
             return true;
-        return sink->PutBool(fd.selector.primitive, value);
+        return sink.PutBool(fd.selector.primitive, value);
     }
     case UPB_TYPE_STRING:
     case UPB_TYPE_BYTES: {
         STRLEN len;
-        const char *str = fd.field_def->type() == UPB_TYPE_STRING ? SvPVutf8_enc(ref, len) : SvPV_enc(ref, len);
+        const char *str = fd.field_def.type() == UPB_TYPE_STRING ? SvPVutf8_enc(ref, len) : SvPV_enc(ref, len);
         if (len == fd.default_str_len &&
                 (len == 0 || memcmp(str, fd.default_str, len) == 0))
             return true;
         Sink sub;
-        if (!sink->StartString(fd.selector.str_start, len, &sub))
+        if (!sink.StartString(fd.selector.str_start, len, &sub))
             return false;
         sub.PutStringBuffer(fd.selector.str_cont, str, len, NULL);
-        return sink->EndString(fd.selector.str_end);
+        return sink.EndString(fd.selector.str_end);
     }
     case UPB_TYPE_ENUM: {
         IV value = SvIV_enc(ref);
@@ -1473,66 +1466,66 @@ bool Mapper::encode_field_nodefaults(Sink *sink, Status *status, const Field &fd
             return false;
         }
 
-        return sink->PutInt32(fd.selector.primitive, value);
+        return sink.PutInt32(fd.selector.primitive, value);
     }
     case UPB_TYPE_INT32: {
         IV value = SvIV_enc(ref);
         if (value == fd.default_iv)
             return true;
-        return sink->PutInt32(fd.selector.primitive, value);
+        return sink.PutInt32(fd.selector.primitive, value);
     }
     case UPB_TYPE_UINT32: {
         UV value = SvUV_enc(ref);
         if (value == fd.default_uv)
             return true;
-        return sink->PutUInt32(fd.selector.primitive, value);
+        return sink.PutUInt32(fd.selector.primitive, value);
     }
     case UPB_TYPE_INT64: {
         int64_t value = sizeof(IV) >= sizeof(int64_t) ? SvIV_enc(ref) : SvIV64_enc(ref);
         if (value == fd.default_i64)
             return true;
-        return sink->PutInt64(fd.selector.primitive, value);
+        return sink.PutInt64(fd.selector.primitive, value);
     }
     case UPB_TYPE_UINT64: {
         uint64_t value = sizeof(UV) >= sizeof(int64_t) ? SvUV_enc(ref) : SvUV64_enc(ref);
         if (value == fd.default_u64)
             return true;
-        return sink->PutUInt64(fd.selector.primitive, value);
+        return sink.PutUInt64(fd.selector.primitive, value);
     }
     default:
         return false; // just in case
     }
 }
 
-bool Mapper::encode_key(Sink *sink, Status *status, const Field &fd, const char *key, I32 keylen) const {
-    switch (fd.field_def->type()) {
+bool Mapper::encode_key(Sink sink, Status *status, const Field &fd, const char *key, I32 keylen) const {
+    switch (fd.field_def.type()) {
     case UPB_TYPE_BOOL: {
         // follows what SvTRUE() does for strings
         bool bval = keylen > 1 || (keylen == 1 && key[0] != '0');
-        return sink->PutBool(fd.selector.primitive, bval);
+        return sink.PutBool(fd.selector.primitive, bval);
     }
     case UPB_TYPE_STRING: {
         Sink sub;
-        if (!sink->StartString(fd.selector.str_start, keylen, &sub))
+        if (!sink.StartString(fd.selector.str_start, keylen, &sub))
             return false;
         sub.PutStringBuffer(fd.selector.str_cont, key, keylen, NULL);
-        return sink->EndString(fd.selector.str_end);
+        return sink.EndString(fd.selector.str_end);
     }
     case UPB_TYPE_INT32:
-        return sink->PutInt32(fd.selector.primitive, key_iv(aTHX_ key, keylen));
+        return sink.PutInt32(fd.selector.primitive, key_iv(aTHX_ key, keylen));
     case UPB_TYPE_UINT32:
-        return sink->PutUInt32(fd.selector.primitive, key_uv(aTHX_ key, keylen));
+        return sink.PutUInt32(fd.selector.primitive, key_uv(aTHX_ key, keylen));
     case UPB_TYPE_INT64:
-        return sink->PutInt64(fd.selector.primitive, key_iv(aTHX_ key, keylen));
+        return sink.PutInt64(fd.selector.primitive, key_iv(aTHX_ key, keylen));
     case UPB_TYPE_UINT64:
-        return sink->PutInt64(fd.selector.primitive, key_uv(aTHX_ key, keylen));
+        return sink.PutInt64(fd.selector.primitive, key_uv(aTHX_ key, keylen));
     default:
         return false; // just in case
     }
 }
 
-bool Mapper::encode_hash_kv(Sink *sink, Status *status, const char *key, STRLEN keylen, SV *value) const {
-    if (!sink->StartMessage())
+bool Mapper::encode_hash_kv(Sink sink, Status *status, const char *key, STRLEN keylen, SV *value) const {
+    if (!sink.StartMessage())
         return false;
     if (fields[0].is_key) {
         if (!encode_key(sink, status, fields[0], key, keylen))
@@ -1545,12 +1538,12 @@ bool Mapper::encode_hash_kv(Sink *sink, Status *status, const char *key, STRLEN 
         if (!encode_field(sink, status, fields[0], value))
             return false;
     }
-    if (!sink->EndMessage(status))
+    if (!sink.EndMessage(status->ptr()))
         return false;
     return true;
 }
 
-bool Mapper::encode_from_perl_hash(Sink *sink, Status *status, const Field &fd, SV *ref) const {
+bool Mapper::encode_from_perl_hash(Sink sink, Status *status, const Field &fd, SV *ref) const {
 #if !HAS_FULL_NOMG
     SvGETMAGIC(ref);
 #endif
@@ -1560,7 +1553,7 @@ bool Mapper::encode_from_perl_hash(Sink *sink, Status *status, const Field &fd, 
     HV *hash = (HV *) SvRV(ref);
     Sink repeated;
 
-    if (!sink->StartSequence(fd.selector.seq_start, &repeated))
+    if (!sink.StartSequence(fd.selector.seq_start, &repeated))
         return false;
 
     hv_iterinit(hash);
@@ -1594,17 +1587,17 @@ bool Mapper::encode_from_perl_hash(Sink *sink, Status *status, const Field &fd, 
 
         if (!repeated.StartSubMessage(fd.selector.msg_start, &key_value))
             return false;
-        if (!fd.mapper->encode_hash_kv(&key_value, status, key, keylen, value))
+        if (!fd.mapper->encode_hash_kv(key_value, status, key, keylen, value))
             return false;
         if (!repeated.EndSubMessage(fd.selector.msg_end))
             return false;
     }
     warn_context->pop_level();
 
-    return sink->EndSequence(fd.selector.seq_end);
+    return sink.EndSequence(fd.selector.seq_end);
 }
 
-bool Mapper::encode_from_perl_array(Sink *sink, Status *status, const Field &fd, SV *ref) const {
+bool Mapper::encode_from_perl_array(Sink sink, Status *status, const Field &fd, SV *ref) const {
 #if !HAS_FULL_NOMG
     SvGETMAGIC(ref);
 #endif
@@ -1612,7 +1605,7 @@ bool Mapper::encode_from_perl_array(Sink *sink, Status *status, const Field &fd,
         croak("Not an array reference when encoding field '%s'", fd.full_name().c_str());
     AV *array = (AV *) SvRV(ref);
 
-    switch (fd.field_def->type()) {
+    switch (fd.field_def.type()) {
     case UPB_TYPE_FLOAT:
         return encode_from_array<NVGetter, FloatEmitter>(sink, status, fd, array);
     case UPB_TYPE_DOUBLE:
@@ -1691,7 +1684,7 @@ bool Mapper::check_from_enum_array(Status *status, const Mapper::Field &fd, AV *
 bool Mapper::check(Status *status, SV *ref) const {
     SvGETMAGIC(ref);
     if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVHV)
-        croak("Not a hash reference when checking a %s value", message_def->full_name());
+        croak("Not a hash reference when checking a %s value", message_def.full_name());
     HV *hv = (HV *) SvRV(ref);
 
     I32 count = hv_iterinit(hv);
@@ -1713,7 +1706,7 @@ bool Mapper::check(Status *status, SV *ref) const {
         }
 
         Field *field = it->second;
-        if (field->field_def->label() == UPB_LABEL_REPEATED)
+        if (field->field_def.label() == UPB_LABEL_REPEATED)
             ok = ok && check_from_perl_array(status, *field, value);
         else
             ok = ok && check(status, *field, value);
@@ -1723,7 +1716,7 @@ bool Mapper::check(Status *status, SV *ref) const {
 }
 
 bool Mapper::check(Status *status, const Field &fd, SV *ref) const {
-    switch (fd.field_def->type()) {
+    switch (fd.field_def.type()) {
     case UPB_TYPE_MESSAGE:
         return fd.mapper->check(status, ref);
     case UPB_TYPE_ENUM: {
@@ -1755,7 +1748,7 @@ bool Mapper::check_from_perl_array(Status *status, const Field &fd, SV *ref) con
         croak("Not an array reference when encoding field '%s'", fd.full_name().c_str());
     AV *array = (AV *) SvRV(ref);
 
-    switch (fd.field_def->type()) {
+    switch (fd.field_def.type()) {
     case UPB_TYPE_MESSAGE:
         return fd.mapper->check_from_message_array(status, fd, array);
     case UPB_TYPE_ENUM:
@@ -1910,15 +1903,15 @@ HV *MapperField::get_write_hash(HV *self) {
 }
 
 const char *MapperField::name() {
-    return field->field_def->name();
+    return field->field_def.name();
 }
 
 bool MapperField::is_repeated() {
-    return field->field_def->label() == UPB_LABEL_REPEATED;
+    return field->field_def.label() == UPB_LABEL_REPEATED;
 }
 
 bool MapperField::is_extension() {
-    return field->field_def->is_extension();
+    return field->field_def.is_extension();
 }
 
 bool MapperField::is_map() {
@@ -1946,21 +1939,21 @@ SV *MapperField::get_scalar(HV *self, SV *target) {
 }
 
 void MapperField::copy_default(SV *target) {
-    const FieldDef *field_def = field->field_def;
+    const FieldDefPtr field_def = field->field_def;
 
-    switch (field_def->type()) {
+    switch (field_def.type()) {
     case UPB_TYPE_FLOAT:
-        sv_setnv(target, field_def->default_float());
+        sv_setnv(target, field_def.default_float());
         break;
     case UPB_TYPE_DOUBLE:
-        sv_setnv(target, field_def->default_double());
+        sv_setnv(target, field_def.default_double());
         break;
     case UPB_TYPE_BOOL:
-        mapper->set_bool(target, field_def->default_bool());
+        mapper->set_bool(target, field_def.default_bool());
         break;
     case UPB_TYPE_STRING: {
         size_t len;
-        const char *str = field_def->default_string(&len);
+        const char *str = field_def.default_string(&len);
 
         sv_setpvn(target, str, len);
         SvUTF8_on(target);
@@ -1968,7 +1961,7 @@ void MapperField::copy_default(SV *target) {
         break;
     case UPB_TYPE_BYTES: {
         size_t len;
-        const char *str = field_def->default_string(&len);
+        const char *str = field_def.default_string(&len);
 
         sv_setpvn(target, str, len);
     }
@@ -1977,20 +1970,20 @@ void MapperField::copy_default(SV *target) {
         sv_setsv(target, &PL_sv_undef);
         break;
     case UPB_TYPE_ENUM: {
-        sv_setiv(target, field_def->default_int32());
+        sv_setiv(target, field_def.default_int32());
     }
         break;
     case UPB_TYPE_INT32:
-        sv_setiv(target, field_def->default_int32());
+        sv_setiv(target, field_def.default_int32());
         break;
     case UPB_TYPE_UINT32:
-        sv_setuv(target, field_def->default_uint32());
+        sv_setuv(target, field_def.default_uint32());
         break;
     case UPB_TYPE_INT64: {
         if (sizeof(IV) >= sizeof(int64_t))
-            sv_setiv(target, field_def->default_int64());
+            sv_setiv(target, field_def.default_int64());
         else {
-            int64_t i64 = field_def->default_int64();
+            int64_t i64 = field_def.default_int64();
 
             set_bigint(aTHX_ target, (uint64_t) i64, i64 < 0);
         }
@@ -1998,16 +1991,16 @@ void MapperField::copy_default(SV *target) {
         break;
     case UPB_TYPE_UINT64: {
         if (sizeof(IV) >= sizeof(uint64_t))
-            sv_setuv(target, field_def->default_uint64());
+            sv_setuv(target, field_def.default_uint64());
         else {
-            int64_t u64 = field_def->default_uint64();
+            int64_t u64 = field_def.default_uint64();
 
             set_bigint(aTHX_ target, u64, false);
         }
     }
         break;
     default:
-        croak("Unhandled field type %d for field '%s'", field->field_def->type(), field->full_name().c_str());
+        croak("Unhandled field type %d for field '%s'", field->field_def.type(), field->full_name().c_str());
     }
 }
 
@@ -2031,9 +2024,9 @@ void MapperField::set_scalar(HV *self, SV *value) {
 }
 
 void MapperField::copy_value(SV *target, SV *value) {
-    const FieldDef *field_def = field->field_def;
+    const FieldDefPtr field_def = field->field_def;
 
-    switch (field->is_map ? field->map_value_type() : field_def->type()) {
+    switch (field->is_map ? field->map_value_type() : field_def.type()) {
     case UPB_TYPE_FLOAT:
         sv_setnv(target, SvNV(value));
         break;
@@ -2101,7 +2094,7 @@ void MapperField::copy_value(SV *target, SV *value) {
     }
         break;
     default:
-        croak("Unhandled field type %d for field '%s'", field->field_def->type(), field->full_name().c_str());
+        croak("Unhandled field type %d for field '%s'", field->field_def.type(), field->full_name().c_str());
     }
 }
 
@@ -2218,7 +2211,7 @@ void MapperField::set_map(HV *self, SV *ref) {
     SvREFCNT_inc(SvRV(field_ref));
 }
 
-EnumMapper::EnumMapper(pTHX_ Dynamic *_registry, const upb::EnumDef *_enum_def) :
+EnumMapper::EnumMapper(pTHX_ Dynamic *_registry, const upb::EnumDefPtr _enum_def) :
         registry(_registry),
         enum_def(_enum_def) {
     SET_THX_MEMBER;
@@ -2234,12 +2227,12 @@ EnumMapper::~EnumMapper() {
 SV *EnumMapper::enum_descriptor() const {
     SV *ref = newSV(0);
 
-    sv_setref_iv(ref, "Google::ProtocolBuffers::Dynamic::EnumDef", (IV) enum_def);
+    sv_setref_iv(ref, "Google::ProtocolBuffers::Dynamic::EnumDef", (IV) enum_def.ptr());
 
     return ref;
 }
 
-ServiceMapper::ServiceMapper(pTHX_ Dynamic *_registry, const gpd::ServiceDef *_service_def) :
+ServiceMapper::ServiceMapper(pTHX_ Dynamic *_registry, const gpd::ServiceDefPtr _service_def) :
         registry(_registry),
         service_def(_service_def) {
     SET_THX_MEMBER;
@@ -2248,20 +2241,20 @@ ServiceMapper::ServiceMapper(pTHX_ Dynamic *_registry, const gpd::ServiceDef *_s
 }
 
 ServiceMapper::~ServiceMapper() {
-    delete service_def;
+    delete service_def.ptr();
     // make sure this only goes away after inner destructors have completed
     refcounted_mortalize(aTHX_ registry);
 }
 
-SV *ServiceMapper::service_descriptor() const {
+SV *ServiceMapper::service_descriptor() {
     SV *ref = newSV(0);
 
-    sv_setref_iv(ref, "Google::ProtocolBuffers::Dynamic::ServiceDef", (IV) service_def);
+    sv_setref_iv(ref, "Google::ProtocolBuffers::Dynamic::ServiceDef", (IV) service_def.ptr());
 
     return ref;
 }
 
-MethodMapper::MethodMapper(pTHX_ Dynamic *_registry, const string &method, const MessageDef *_input_def, const MessageDef *_output_def, bool client_streaming, bool server_streaming) :
+MethodMapper::MethodMapper(pTHX_ Dynamic *_registry, const string &method, const MessageDefPtr _input_def, const MessageDefPtr _output_def, bool client_streaming, bool server_streaming) :
         registry(_registry),
         input_def(_input_def),
         output_def(_output_def) {

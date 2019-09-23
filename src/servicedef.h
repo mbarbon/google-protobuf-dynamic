@@ -11,14 +11,26 @@
 // uPB does not have service_def/method_def yet, and adding it here
 // is much quicker than implementing it in uPB
 namespace gpd {
+    struct MethodDef;
     struct ServiceDef;
+
+    struct ServiceDefPtr {
+        ServiceDefPtr(ServiceDef *_ptr) : ptr_(_ptr) {}
+
+        ServiceDef *ptr() { return ptr_; }
+
+        void add_method(const MethodDef &method);
+
+    private:
+        ServiceDef *ptr_;
+    };
 
     struct MethodDef {
         MethodDef(const std::string &name,
                   const std::string &full_name,
-                  const ServiceDef *containing_service,
-                  const upb::MessageDef *input_type,
-                  const upb::MessageDef *output_type,
+                  const ServiceDefPtr containing_service,
+                  const upb::MessageDefPtr input_type,
+                  const upb::MessageDefPtr output_type,
                   bool client_streaming,
                   bool server_streaming) :
             _name(name),
@@ -32,9 +44,9 @@ namespace gpd {
 
         const std::string &name() const { return _name; }
         const std::string &full_name() const { return _full_name; }
-        const ServiceDef *containing_service() const { return _containing_service; }
-        const upb::MessageDef *input_type() const { return _input_type; }
-        const upb::MessageDef *output_type() const { return _output_type; }
+        const ServiceDefPtr containing_service() const { return _containing_service; }
+        const upb::MessageDefPtr input_type() const { return _input_type; }
+        const upb::MessageDefPtr output_type() const { return _output_type; }
         bool client_streaming() const { return _client_streaming; }
         bool server_streaming() const { return _server_streaming; }
 
@@ -42,11 +54,18 @@ namespace gpd {
         std::string _name;
         std::string _full_name;
 
-        const ServiceDef *_containing_service;
-        const upb::MessageDef *_input_type;
-        const upb::MessageDef *_output_type;
+        const ServiceDefPtr _containing_service;
+        const upb::MessageDefPtr _input_type;
+        const upb::MessageDefPtr _output_type;
 
         bool _client_streaming, _server_streaming;
+    };
+
+    struct MethodDefPtr {
+        MethodDef *ptr() { return ptr_; }
+
+    private:
+        MethodDef *ptr_;
     };
 
     struct ServiceDef {
@@ -65,6 +84,10 @@ namespace gpd {
         std::string _full_name;
         std::vector<MethodDef> _methods;
     };
+
+    inline void ServiceDefPtr::add_method(const MethodDef &method) {
+        ptr_->add_method(method);
+    }
 }
 
 #endif

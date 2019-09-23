@@ -3,6 +3,7 @@
 #include "servicedef.h"
 
 #include <google/protobuf/dynamic_message.h>
+#include <upb/pb/encoder.h>
 
 #include <sstream>
 
@@ -10,6 +11,7 @@ using namespace gpd;
 using namespace std;
 using namespace google::protobuf;
 using namespace upb;
+using namespace upb::pb;
 
 #if PERL_VERSION < 10
     #undef  newCONSTSUB
@@ -104,6 +106,7 @@ MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
 }
 
 Dynamic::Dynamic(const string &root_directory) :
+        pb_encoder_handlers_cache(EncoderPtr::NewCache()),
         overlay_source_tree(&memory_source_tree, &disk_source_tree),
         descriptor_loader(&overlay_source_tree, &die_on_error) {
     if (!root_directory.empty())
@@ -209,31 +212,31 @@ namespace {
         copy_and_bind(aTHX_ name, temp_name.c_str(), perl_package, mapperfield);
     }
 
-    bool is_map_entry(const MessageDef *message, bool check_implicit_map) {
-        if (message->mapentry())
+    bool is_map_entry(const MessageDefPtr message, bool check_implicit_map) {
+        if (message.mapentry())
             return true;
         if (!check_implicit_map)
             return false;
-        const FieldDef *key = message->FindFieldByNumber(1);
-        const FieldDef *value = message->FindFieldByNumber(2);
-        const char *msg_name = message->name();
-        if (message->field_count() != 2 || message->oneof_count() != 0 ||
-                key == NULL || value == NULL)
+        const FieldDefPtr key = message.FindFieldByNumber(1);
+        const FieldDefPtr value = message.FindFieldByNumber(2);
+        const char *msg_name = message.name();
+        if (message.field_count() != 2 || message.oneof_count() != 0 ||
+                !key || !value)
             return false;
-        if (strcmp(key->name(), "key") != 0 || strcmp(value->name(), "value") != 0)
+        if (strcmp(key.name(), "key") != 0 || strcmp(value.name(), "value") != 0)
             return false;
         size_t msg_name_len = strlen(msg_name);
         if (msg_name_len < 6 || strcmp(msg_name + msg_name_len - 5, "Entry") != 0)
             return false;
-        if (key->IsSequence() || value->IsSequence() ||
-                key->is_extension() || value->is_extension() ||
-                key->subdef() /* message or enum */)
+        if (key.IsSequence() || value.IsSequence() ||
+                key.is_extension() || value.is_extension() ||
+                key.type() == UPB_TYPE_ENUM || key.type() == UPB_TYPE_MESSAGE)
             return false;
         return true;
     }
 
-    void push_method_def(ServiceDef *service_def, const MethodDescriptor *descriptor, const MessageDef *input_message, const MessageDef *output_message) {
-        service_def->add_method(
+    void push_method_def(ServiceDefPtr service_def, const MethodDescriptor *descriptor, const MessageDefPtr input_message, const MessageDefPtr output_message) {
+        service_def.add_method(
             MethodDef(
                 descriptor->name(),
                 descriptor->full_name(),
@@ -440,10 +443,12 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
         load_module(PERL_LOADMOD_NOIMPORT, newSVpvs("Math::BigInt"), NULL);
     bool define_perl_names = !options.no_redefine_perl_names || gv_stashpvn(perl_package.data(), perl_package.size(), 0) == NULL;
     HV *stash = gv_stashpvn(perl_package.data(), perl_package.size(), GV_ADD);
-    const MessageDef *message_def = def_builder.GetMessageDef(descriptor);
+    const MessageDefPtr message_def = def_builder.GetMessageDef(descriptor);
+    /*
     if (is_map_entry(message_def, options.implicit_maps))
         // it's likely I will regret this const_cast<>
-        upb_msgdef_setmapentry(const_cast<MessageDef *>(message_def), true);
+        upb_msgdef_setmapentry(const_cast<MessageDefPtr>(message_def), true);
+    */
     Mapper *mapper = new Mapper(aTHX_ this, message_def, stash, options);
 
     // the map owns the reference from Mapper constructor, and is unreffed in ~Dynamic
@@ -470,6 +475,10 @@ void Dynamic::bind_message(pTHX_ const string &perl_package, Mapper *mapper, HV 
         setter_prefix = "set_";
     }
 
+    descriptor_map[message_def.full_name()] = mapper;
+    used_packages.insert(perl_package);
+    pending.push_back(mapper);
+
     copy_and_bind(aTHX_ "decode", perl_package, mapper);
     copy_and_bind(aTHX_ "encode", perl_package, mapper);
     copy_and_bind(aTHX_ "decode_json", perl_package, mapper);
@@ -487,20 +496,20 @@ void Dynamic::bind_message(pTHX_ const string &perl_package, Mapper *mapper, HV 
         const Mapper::Field *field = mapper->get_field(i);
         MapperField *mapperfield = new MapperField(aTHX_ mapper, field);
 
-        if (field->field_def->is_extension())
+        if (field->field_def.is_extension())
             has_extensions = true;
 
         {
             string upper_field;
 
-            for (const char *field_name = field->field_def->name(); *field_name; ++field_name)
+            for (const char *field_name = field->field_def.name(); *field_name; ++field_name)
                 upper_field.push_back(*field_name == '.' ? '_' : toupper(*field_name));
 
             newCONSTSUB(stash, (upper_field + "_FIELD_NUMBER").c_str(),
-                        newSVuv(field->field_def->number()));
+                        newSVuv(field->field_def.number()));
 
-            if (field->field_def->is_extension()) {
-                string temp = string() + "[" + field->field_def->full_name() + "]";
+            if (field->field_def.is_extension()) {
+                string temp = string() + "[" + field->field_def.full_name() + "]";
 
                 newCONSTSUB(stash, (upper_field + "_KEY").c_str(),
                             newSVpvn_share(temp.data(), temp.size(), 0));
@@ -572,7 +581,7 @@ void Dynamic::map_enum(pTHX_ const EnumDescriptor *descriptor, const string &per
     if (mapped_enums.find(descriptor->full_name()) != mapped_enums.end())
         croak("Enum '%s' has already been mapped", descriptor->full_name().c_str());
 
-    const EnumDef *enum_def = def_builder.GetEnumDef(descriptor);
+    const EnumDefPtr enum_def = def_builder.GetEnumDef(descriptor);
     EnumMapper *mapper = new EnumMapper(aTHX_ this, enum_def);
 
     mapped_enums.insert(descriptor->full_name());
@@ -619,18 +628,18 @@ void Dynamic::map_service(pTHX_ const ServiceDescriptor *descriptor, const strin
     copy_and_bind(aTHX_ "service_descriptor", perl_package, mapper);
 }
 
-void Dynamic::map_service_noop(pTHX_ const ServiceDescriptor *descriptor, const string &perl_package, const MappingOptions &options, ServiceDef *service_def) {
+void Dynamic::map_service_noop(pTHX_ const ServiceDescriptor *descriptor, const string &perl_package, const MappingOptions &options, ServiceDefPtr service_def) {
     for (int i = 0, max = descriptor->method_count(); i < max; ++i) {
         const MethodDescriptor *method = descriptor->method(i);
         const Descriptor *input = method->input_type(), *output = method->output_type();
-        const MessageDef *input_def = def_builder.GetMessageDef(input);
-        const MessageDef *output_def = def_builder.GetMessageDef(output);
+        const MessageDefPtr input_def = def_builder.GetMessageDef(input);
+        const MessageDefPtr output_def = def_builder.GetMessageDef(output);
 
         push_method_def(service_def, method, input_def, output_def);
     }
 }
 
-void Dynamic::map_service_grpc_xs(pTHX_ const ServiceDescriptor *descriptor, const string &perl_package, const MappingOptions &options, ServiceDef *service_def) {
+void Dynamic::map_service_grpc_xs(pTHX_ const ServiceDescriptor *descriptor, const string &perl_package, const MappingOptions &options, ServiceDefPtr service_def) {
     string isa_name = perl_package + "::ISA";
     AV *isa = get_av(isa_name.c_str(), 1);
     SV *base_stub_package = newSVpvs("Grpc::Client::BaseStub");
@@ -643,8 +652,8 @@ void Dynamic::map_service_grpc_xs(pTHX_ const ServiceDescriptor *descriptor, con
         const MethodDescriptor *method = descriptor->method(i);
         string full_method = "/" + descriptor->full_name() + "/" + method->name().c_str();
         const Descriptor *input = method->input_type(), *output = method->output_type();
-        const MessageDef *input_def = def_builder.GetMessageDef(input);
-        const MessageDef *output_def = def_builder.GetMessageDef(output);
+        const MessageDefPtr input_def = def_builder.GetMessageDef(input);
+        const MessageDefPtr output_def = def_builder.GetMessageDef(output);
         MethodMapper *mapper = new MethodMapper(aTHX_ this, full_method, input_def, output_def, method->client_streaming(), method->server_streaming());
 
         copy_and_bind(aTHX_ "grpc_xs_call_service_passthrough", method->name().c_str(), perl_package, mapper);
@@ -665,11 +674,11 @@ void Dynamic::resolve_references() {
     pending_methods.clear();
 }
 
-const Mapper *Dynamic::find_mapper(const MessageDef *message_def) const {
-    STD_TR1::unordered_map<string, const Mapper *>::const_iterator item = descriptor_map.find(message_def->full_name());
+const Mapper *Dynamic::find_mapper(const MessageDefPtr message_def) const {
+    STD_TR1::unordered_map<string, const Mapper *>::const_iterator item = descriptor_map.find(message_def.full_name());
 
     if (item == descriptor_map.end())
-        croak("Unknown type '%s'", message_def->full_name());
+        croak("Unknown type '%s'", message_def.full_name());
 
     return item->second;
 }

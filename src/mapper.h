@@ -12,6 +12,7 @@
 #include <upb/bindings/stdc++/string.h>
 
 #include "unordered_map.h"
+#include "servicedef.h"
 
 #include "EXTERN.h"
 #include "perl.h"
@@ -28,12 +29,11 @@ class Dynamic;
 class MappingOptions;
 class MapperField;
 class WarnContext;
-class ServiceDef;
 
 class Mapper : public Refcounted {
 public:
     struct Field {
-        const upb::FieldDef *field_def;
+        upb::FieldDefPtr field_def;
         struct {
             upb_selector_t seq_start;
             upb_selector_t seq_end;
@@ -73,7 +73,7 @@ public:
         };
 
         std::string full_name() const;
-        upb::FieldDef::Type map_value_type() const;
+        upb::FieldDefPtr::Type map_value_type() const;
         const STD_TR1::unordered_set<int32_t> &map_enum_values() const;
     };
 
@@ -92,7 +92,7 @@ public:
         SV *get_target();
         void clear();
 
-        static bool on_end_message(DecoderHandlers *cxt, upb::Status *status);
+        static bool on_end_message(DecoderHandlers *cxt, upb_status *status);
         static DecoderHandlers *on_start_string(DecoderHandlers *cxt, const int *field_index, size_t size_hint);
         static size_t on_string(DecoderHandlers *cxt, const int *field_index, const char *buf, size_t len);
         static bool on_end_string(DecoderHandlers *cxt, const int *field_index);
@@ -126,7 +126,7 @@ public:
     };
 
 public:
-    Mapper(pTHX_ Dynamic *registry, const upb::MessageDef *message_def, HV *stash, const MappingOptions &options);
+    Mapper(pTHX_ Dynamic *registry, const upb::MessageDefPtr message_def, HV *stash, const MappingOptions &options);
     ~Mapper();
 
     const char *full_name() const;
@@ -155,17 +155,17 @@ public:
     void set_bool(SV *target, bool value) const;
 
 private:
-    bool encode_value(upb::Sink *sink, upb::Status *status, SV *ref) const;
-    bool encode_field(upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;
-    bool encode_field_nodefaults(upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;
-    bool encode_key(upb::Sink *sink, upb::Status *status, const Field &fd, const char *key, I32 keylen) const;
-    bool encode_hash_kv(upb::Sink *sink, upb::Status *status, const char *key, STRLEN keylen, SV *value) const;
-    bool encode_from_perl_array(upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;
-    bool encode_from_perl_hash(upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;
-    bool encode_from_message_array(upb::Sink *sink, upb::Status *status, const Mapper::Field &fd, AV *source) const;
+    bool encode_value(upb::Sink sink, upb::Status *status, SV *ref) const;
+    bool encode_field(upb::Sink sink, upb::Status *status, const Field &fd, SV *ref) const;
+    bool encode_field_nodefaults(upb::Sink sink, upb::Status *status, const Field &fd, SV *ref) const;
+    bool encode_key(upb::Sink sink, upb::Status *status, const Field &fd, const char *key, I32 keylen) const;
+    bool encode_hash_kv(upb::Sink sink, upb::Status *status, const char *key, STRLEN keylen, SV *value) const;
+    bool encode_from_perl_array(upb::Sink sink, upb::Status *status, const Field &fd, SV *ref) const;
+    bool encode_from_perl_hash(upb::Sink sink, upb::Status *status, const Field &fd, SV *ref) const;
+    bool encode_from_message_array(upb::Sink sink, upb::Status *status, const Mapper::Field &fd, AV *source) const;
 
     template<class G, class S>
-    bool encode_from_array(upb::Sink *sink, upb::Status *status, const Mapper::Field &fd, AV *source) const;
+    bool encode_from_array(upb::Sink sink, upb::Status *status, const Mapper::Field &fd, AV *source) const;
 
     bool check(upb::Status *status, SV *ref) const;
     bool check(upb::Status *status, const Field &fd, SV *ref) const;
@@ -175,12 +175,12 @@ private:
 
     DECL_THX_MEMBER;
     Dynamic *registry;
-    const upb::MessageDef *message_def;
+    upb::MessageDefPtr message_def;
     HV *stash;
-    upb::reffed_ptr<const upb::Handlers> pb_encoder_handlers, json_encoder_handlers;
-    upb::reffed_ptr<upb::Handlers> decoder_handlers;
-    upb::reffed_ptr<const upb::pb::DecoderMethod> pb_decoder_method;
-    upb::reffed_ptr<const upb::json::ParserMethod> json_decoder_method;
+    upb::HandlersPtr pb_encoder_handlers, json_encoder_handlers;
+    upb::HandlersPtr decoder_handlers;
+    upb::pb::DecoderMethodPtr pb_decoder_method;
+    upb::json::ParserMethodPtr json_decoder_method;
     std::vector<Field> fields;
     std::vector<MapperField *> extension_mapper_fields;
     STD_TR1::unordered_map<std::string, Field *> field_map;
@@ -249,7 +249,7 @@ private:
 
 class EnumMapper : public Refcounted {
 public:
-    EnumMapper(pTHX_ Dynamic *registry, const upb::EnumDef *enum_def);
+    EnumMapper(pTHX_ Dynamic *registry, const upb::EnumDefPtr enum_def);
     ~EnumMapper();
 
     SV *enum_descriptor() const;
@@ -257,26 +257,26 @@ public:
 private:
     DECL_THX_MEMBER;
     Dynamic *registry;
-    const upb::EnumDef *enum_def;
+    const upb::EnumDefPtr enum_def;
 };
 
 // for introspection only
 class ServiceMapper : public Refcounted {
 public:
-    ServiceMapper(pTHX_ Dynamic *registry, const gpd::ServiceDef *service_def);
+    ServiceMapper(pTHX_ Dynamic *registry, gpd::ServiceDefPtr service_def);
     ~ServiceMapper();
 
-    SV *service_descriptor() const;
+    SV *service_descriptor();
 
 private:
     DECL_THX_MEMBER;
     Dynamic *registry;
-    const gpd::ServiceDef *service_def;
+    gpd::ServiceDefPtr service_def;
 };
 
 class MethodMapper : public Refcounted {
 public:
-    MethodMapper(pTHX_ Dynamic *registry, const std::string &method, const upb::MessageDef *input_def, const upb::MessageDef *output_def, bool client_streaming, bool server_streaming);
+    MethodMapper(pTHX_ Dynamic *registry, const std::string &method, const upb::MessageDefPtr input_def, const upb::MessageDefPtr output_def, bool client_streaming, bool server_streaming);
     ~MethodMapper();
 
     SV *method_name_key() const { return method_name_key_sv; }
@@ -293,7 +293,7 @@ public:
 private:
     DECL_THX_MEMBER;
     Dynamic *registry;
-    const upb::MessageDef *input_def, *output_def;
+    const upb::MessageDefPtr input_def, output_def;
     SV *method_name_key_sv, *serialize_key_sv, *deserialize_key_sv;
     SV *method_name_sv, *serialize_sv, *deserialize_sv;
     CV *grpc_call_sv;

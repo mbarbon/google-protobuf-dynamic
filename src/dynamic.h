@@ -3,14 +3,16 @@
 
 #include "perl_unpollute.h"
 
-#include <google/protobuf/compiler/importer.h>
-
 #include "defbuilder.h"
 #include "descriptorloader.h"
 #include "sourcetree.h"
 #include "ref.h"
 
 #include "unordered_map.h"
+
+#include <google/protobuf/compiler/importer.h>
+#include <upb/pb/decoder.h>
+#include <upb/json/parser.h>
 
 #include "EXTERN.h"
 #include "perl.h"
@@ -19,7 +21,7 @@ namespace gpd {
 
 class Mapper;
 class MethodMapper;
-class ServiceDef;
+class ServiceDefPtr;
 
 struct MappingOptions {
     enum AccessorStyle {
@@ -75,7 +77,7 @@ public:
     void map_wkts(pTHX_ const MappingOptions &options);
     void resolve_references();
 
-    const Mapper *find_mapper(const upb::MessageDef *message_def) const;
+    const Mapper *find_mapper(const upb::MessageDefPtr message_def) const;
 
     static bool is_proto3() {
         return GOOGLE_PROTOBUF_VERSION >= 3000000;
@@ -84,6 +86,13 @@ public:
     static bool has_proto3_optional() {
         return GOOGLE_PROTOBUF_VERSION >= 3012000;
     }
+
+    upb::HandlersPtr pb_encoder_handlers(upb::MessageDefPtr message_def);
+    upb::HandlersPtr json_encoder_handlers(upb::MessageDefPtr message_def);
+    upb::HandlersPtr decoder_handlers(upb::MessageDefPtr message_def);
+
+    upb::pb::DecoderMethodPtr pb_decoder_method(upb::MessageDefPtr message_def);
+    upb::json::ParserMethodPtr json_decoder_method(upb::MessageDefPtr message_def);
 
 private:
     void add_file_recursively(pTHX_ const google::protobuf::FileDescriptor *file);
@@ -94,8 +103,8 @@ private:
     void bind_message(pTHX_ const std::string &perl_package, Mapper *mapper, HV *stash, const MappingOptions &options);
     void map_enum(pTHX_ const google::protobuf::EnumDescriptor *descriptor, const std::string &perl_package, const MappingOptions &options);
     void map_service(pTHX_ const google::protobuf::ServiceDescriptor *descriptor, const std::string &perl_package, const MappingOptions &options);
-    void map_service_noop(pTHX_ const google::protobuf::ServiceDescriptor *descriptor, const std::string &perl_package, const MappingOptions &options, ServiceDef *service_def);
-    void map_service_grpc_xs(pTHX_ const google::protobuf::ServiceDescriptor *descriptor, const std::string &perl_package, const MappingOptions &options, ServiceDef *service_def);
+    void map_service_noop(pTHX_ const google::protobuf::ServiceDescriptor *descriptor, const std::string &perl_package, const MappingOptions &options, ServiceDefPtr service_def);
+    void map_service_grpc_xs(pTHX_ const google::protobuf::ServiceDescriptor *descriptor, const std::string &perl_package, const MappingOptions &options, ServiceDefPtr service_def);
     void check_package(pTHX_ const std::string &perl_package, const std::string &pb_name);
     std::string pbname_to_package(pTHX_ const std::string &pb_name, const std::string &perl_package_prefix);
 
@@ -105,6 +114,9 @@ private:
     MemorySourceTree memory_source_tree;
     DefBuilder def_builder;
     CollectErrors die_on_error;
+    upb::HandlerCache pb_encoder_handlers_cache;
+    upb::json::CodeCache pb_code_cache;
+    upb::json::CodeCache json_code_cache;
     STD_TR1::unordered_map<std::string, const Mapper *> descriptor_map;
     STD_TR1::unordered_set<std::string> used_packages;
     STD_TR1::unordered_set<std::string> mapped_enums;

@@ -13,12 +13,12 @@
 namespace Google {
     namespace ProtocolBuffers {
         namespace Dynamic {
-            typedef upb::MessageDef MessageDef;
-            typedef upb::FieldDef FieldDef;
-            typedef upb::OneofDef OneofDef;
-            typedef upb::EnumDef EnumDef;
-            typedef gpd::ServiceDef ServiceDef;
-            typedef gpd::MethodDef MethodDef;
+            typedef upb::MessageDefPtr MessageDef;
+            typedef upb::FieldDefPtr FieldDef;
+            typedef upb::OneofDefPtr OneofDef;
+            typedef upb::EnumDefPtr EnumDef;
+            typedef gpd::ServiceDefPtr ServiceDef;
+            typedef gpd::MethodDefPtr MethodDef;
         }
     }
 }

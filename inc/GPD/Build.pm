@@ -22,7 +22,7 @@ sub new {
             'ExtUtils::Typemaps::STL::String' => '0',
         },
         extra_linker_flags => [Alien::uPB::Core->libs, Alien::ProtoBuf->libs],
-        extra_compiler_flags => [$debug_flag, Alien::uPB::Core->cflags, Alien::ProtoBuf->cflags, Alien::ProtoBuf->cxxflags, "-DPERL_NO_GET_CONTEXT"],
+        extra_compiler_flags => [$debug_flag, Alien::uPB::Core->cflags, Alien::ProtoBuf->cflags, Alien::ProtoBuf->cxxflags, "-DPERL_NO_GET_CONTEXT -g"],
         script_files => [qw(scripts/protoc-gen-perl-gpd)],
     );
 
