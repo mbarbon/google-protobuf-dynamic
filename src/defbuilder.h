@@ -23,7 +23,7 @@ private:
     static void add_unmapped_files(google::protobuf::FileDescriptorSet *fds, const google::protobuf::FileDescriptor *fd, STD_TR1::unordered_set<std::string> &mapped_files_new);
 
     STD_TR1::unordered_set<std::string> mapped_files;
-    upb::SymbolTable *symbol_table;
+    upb::SymbolTable symbol_table;
 };
 
 };

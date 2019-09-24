@@ -12,6 +12,7 @@ using namespace std;
 using namespace google::protobuf;
 using namespace upb;
 using namespace upb::pb;
+using namespace upb::json;
 
 #if PERL_VERSION < 10
     #undef  newCONSTSUB
@@ -105,8 +106,14 @@ MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
     }
 }
 
+static void empty_callback(const void *closure, upb_handlers *h) {
+}
+
 Dynamic::Dynamic(const string &root_directory) :
         pb_encoder_handlers_cache(EncoderPtr::NewCache()),
+        json_encoder_handlers_cache(PrinterPtr::NewCache(false)),
+        decoder_handlers_cache(empty_callback, NULL),
+        pb_code_cache(&decoder_handlers_cache),
         overlay_source_tree(&memory_source_tree, &disk_source_tree),
         descriptor_loader(&overlay_source_tree, &die_on_error) {
     if (!root_directory.empty())
@@ -681,4 +688,24 @@ const Mapper *Dynamic::find_mapper(const MessageDefPtr message_def) const {
         croak("Unknown type '%s'", message_def.full_name());
 
     return item->second;
+}
+
+HandlersPtr Dynamic::pb_encoder_handlers(upb::MessageDefPtr message_def) {
+    return const_cast<upb_handlers *>(pb_encoder_handlers_cache.Get(message_def));
+}
+
+HandlersPtr Dynamic::json_encoder_handlers(upb::MessageDefPtr message_def) {
+    return const_cast<upb_handlers *>(json_encoder_handlers_cache.Get(message_def));
+}
+
+HandlersPtr Dynamic::decoder_handlers(upb::MessageDefPtr message_def) {
+    return const_cast<upb_handlers *>(decoder_handlers_cache.Get(message_def));
+}
+
+DecoderMethodPtr Dynamic::pb_decoder_method(upb::MessageDefPtr message_def) {
+    return pb_code_cache.Get(message_def);
+}
+
+ParserMethodPtr Dynamic::json_decoder_method(upb::MessageDefPtr message_def) {
+    return json_code_cache.Get(message_def);
 }

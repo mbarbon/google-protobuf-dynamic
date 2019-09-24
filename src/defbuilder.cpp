@@ -1,35 +1,29 @@
 #include "defbuilder.h"
 
-#if 0
-
-#include <upb/descriptor/reader.h>
 #include <upb/pb/decoder.h>
 
 using namespace gpd;
 using namespace std;
 using namespace google::protobuf;
 using namespace upb;
-using namespace upb::descriptor;
 using namespace upb::pb;
 
-DefBuilder::DefBuilder() :
-        symbol_table(SymbolTable::New()) {
+DefBuilder::DefBuilder() {
 }
 
 DefBuilder::~DefBuilder() {
-    SymbolTable::Free(symbol_table);
 }
 
-const MessageDef *DefBuilder::GetMessageDef(const Descriptor *descriptor) {
+const MessageDefPtr DefBuilder::GetMessageDef(const Descriptor *descriptor) {
     add_files(descriptor->file());
 
-    return symbol_table->LookupMessage(descriptor->full_name().c_str());
+    return symbol_table.LookupMessage(descriptor->full_name().c_str());
 }
 
-const EnumDef *DefBuilder::GetEnumDef(const EnumDescriptor *descriptor) {
+const EnumDefPtr DefBuilder::GetEnumDef(const EnumDescriptor *descriptor) {
     add_files(descriptor->file());
 
-    return upb_symtab_lookupenum(symbol_table, descriptor->full_name().c_str());
+    return symbol_table.LookupEnum(descriptor->full_name().c_str());
 }
 
 void DefBuilder::add_files(const FileDescriptor *fd) {
@@ -40,23 +34,20 @@ void DefBuilder::add_files(const FileDescriptor *fd) {
     FileDescriptorSet fds_proto;
     add_unmapped_files(&fds_proto, fd, mapped_files_new);
 
-    Environment env;
-    const Handlers *handlers = upb_descreader_newhandlers(&env);
-    Reader *reader = Reader::Create(&env, handlers);
-    upb::reffed_ptr<const DecoderMethod> pb_decoder_method = DecoderMethod::New(DecoderMethodOptions(handlers));
-
     size_t size = fds_proto.ByteSizeLong();
     vector<uint8> buffer(size, 0);
 
     fds_proto.SerializeWithCachedSizesToArray(&buffer[0]);
-    upb::pb::Decoder *pb_decoder = upb::pb::Decoder::Create(&env, pb_decoder_method.get(), reader->input());
-    pb_decoder->Reset();
 
-    BufferSource::PutBuffer((const char *) &buffer[0], size, pb_decoder->input());
+    upb::Arena arena;
+    google_protobuf_FileDescriptorSet *parsed = google_protobuf_FileDescriptorSet_parse((const char *) &buffer[0], size, arena.ptr());
 
-    for (size_t i = 0; i < reader->file_count(); ++i) {
-        symbol_table->AddFile(reader->file(i), NULL);
+    size_t n;
+    const google_protobuf_FileDescriptorProto *const *files = google_protobuf_FileDescriptorSet_file(parsed, &n);
+    for (size_t i = 0; i < n; ++i) {
+        symbol_table.AddFile(files[i], NULL);
     }
+
     mapped_files = mapped_files_new;
 }
 
@@ -72,5 +63,3 @@ void DefBuilder::add_unmapped_files(FileDescriptorSet *fds, const FileDescriptor
             add_unmapped_files(fds, dependency, mapped_files_new);
     }
 }
-
-#endif

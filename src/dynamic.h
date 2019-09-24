@@ -115,7 +115,9 @@ private:
     DefBuilder def_builder;
     CollectErrors die_on_error;
     upb::HandlerCache pb_encoder_handlers_cache;
-    upb::json::CodeCache pb_code_cache;
+    upb::HandlerCache json_encoder_handlers_cache;
+    upb::HandlerCache decoder_handlers_cache;
+    upb::pb::CodeCache pb_code_cache;
     upb::json::CodeCache json_code_cache;
     STD_TR1::unordered_map<std::string, const Mapper *> descriptor_map;
     STD_TR1::unordered_set<std::string> used_packages;

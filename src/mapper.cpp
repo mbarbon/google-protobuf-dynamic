@@ -654,7 +654,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDefPtr _message_def, HV *_
                 SET_VALUE_HANDLER(int32_t, on_enum);
             else
                 SET_VALUE_HANDLER(int32_t, on_iv<int32_t>);
-            field.default_iv = field_def.default_int32();
+            field.default_iv = field_def.enum_subdef().default_value();
 
             if (check_enum_values) {
                 const EnumDefPtr enumdef = field_def.enum_subdef();
@@ -696,7 +696,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDefPtr _message_def, HV *_
 
         if (has_default &&
                 field_def.label() == UPB_LABEL_OPTIONAL &&
-                oneof_def.ptr() != NULL) {
+                oneof_def.ptr() == NULL) {
             field.has_default = true;
         }
 
@@ -824,7 +824,6 @@ SV *Mapper::make_object(SV *data) const {
 }
 
 void Mapper::resolve_mappers() {
-    /*
     for (vector<Field>::iterator it = fields.begin(), en = fields.end(); it != en; ++it) {
         const FieldDefPtr field = it->field_def;
 
@@ -832,9 +831,8 @@ void Mapper::resolve_mappers() {
             continue;
         it->mapper = registry->find_mapper(field.message_subdef());
         it->mapper->ref();
-        decoder_handlers.SetSubHandlers(it->field_def, it->mapper->decoder_handlers.ptr());
+//        decoder_handlers.SetSubHandlers(it->field_def, it->mapper->decoder_handlers.ptr());
     }
-    */
 }
 
 void Mapper::create_encoder_decoder() {
