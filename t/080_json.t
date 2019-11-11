@@ -144,4 +144,10 @@ my %map_values = (
     }
 }
 
+{
+    my $decoded = Test::Basic->decode_json('{"doubleF":"0.125"}');
+
+    eq_or_diff($decoded->{double_f}, 0.125);
+}
+
 done_testing();
