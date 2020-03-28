@@ -1,5 +1,5 @@
 ## Google::ProtocolBuffers::Dynamic
-Fast and complete Perl protobuf implementaiton using uPB and Google .proto parser
+Fast and complete Perl protobuf implementation using uPB and Google .proto parser
 
 ## Example usage
 

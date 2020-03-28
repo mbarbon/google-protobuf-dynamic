@@ -21,8 +21,8 @@ eq_or_diff($obj->get_optional_inner, undef);
 
 throws_ok(
     sub { $obj->set_optional_inner(123) },
-    qr/Value for message field 'test.OuterWithMessage.optional_inner' is not an hash reference/,
-    'not an hash reference',
+    qr/Value for message field 'test.OuterWithMessage.optional_inner' is not a hash reference/,
+    'not a hash reference',
 );
 
 done_testing();

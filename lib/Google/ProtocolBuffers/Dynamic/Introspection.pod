@@ -239,7 +239,7 @@ Returns the name of the enum entry with the given value, or C<undef>.
 
     $value_map = $enum_def->values;
 
-Returns an hash reference containig all name/value pairs for this
+Returns a hash reference containing all name/value pairs for this
 enum.
 
 =head1 Google::ProtocolBuffers::Dynamic::ServiceDef

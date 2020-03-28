@@ -60,14 +60,14 @@ throws_ok(
 
 throws_ok(
     sub { Test::Maps->new->set_string_int32_map_map(12) },
-    qr/Value for field 'test.Maps.string_int32_map' is not an hash reference/,
-    'not an hash',
+    qr/Value for field 'test.Maps.string_int32_map' is not a hash reference/,
+    'not a hash',
 );
 
 throws_ok(
     sub { Test::Maps->new({ string_int32_map => 1 })->set_string_int32_map("c", 7) },
-    qr/Value of field 'test.Maps.string_int32_map' is not an hash reference/,
-    'not an hash',
+    qr/Value of field 'test.Maps.string_int32_map' is not a hash reference/,
+    'not a hash',
 );
 
 throws_ok(
