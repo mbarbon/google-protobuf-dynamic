@@ -36,7 +36,7 @@ throws_ok(
 
 throws_ok(
     sub { PersonArray->new_and_check({ persons => [undef] }) },
-    qr/Not an hash reference when checking a test.Person value/,
+    qr/Not a hash reference when checking a test.Person value/,
 );
 
 throws_ok(

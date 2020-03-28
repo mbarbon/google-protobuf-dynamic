@@ -38,7 +38,7 @@ MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
     if (options_ref == NULL || !SvOK(options_ref))
         return;
     if (!SvROK(options_ref) || SvTYPE(SvRV(options_ref)) != SVt_PVHV)
-        croak("options must be an hash reference");
+        croak("options must be a hash reference");
     HV *options = (HV *) SvRV(options_ref);
 
 #define BOOLEAN_OPTION(field, name) { \
