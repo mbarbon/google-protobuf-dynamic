@@ -42,13 +42,14 @@ sub generate {
         package # hide from PAUSE indexer
             Data::Dumper;
 
-        our ($Terse, $Indent, $Purity, $Deepcopy, $Pad, $Sortkeys);
+        our ($Terse, $Indent, $Purity, $Deepcopy, $Pad, $Sortkeys, $Quotekeys);
         local $Terse = 1;
         local $Indent = 2;
         local $Purity = 0;
         local $Deepcopy = 1;
         local $Pad = '    ';
         local $Sortkeys = 1;
+        local $Quotekeys = 0;
         join "", map {
             (my $dump = Dumper($_)) =~ s{$}{,}; $dump
         } @{$args{mappings}};
@@ -68,10 +69,10 @@ sub generate {
     for my $descriptor (@descriptors) {
         $load .= sprintf <<'EOL', MIME::Base64::encode_base64($descriptor);
 $gpd->load_serialized_string(MIME::Base64::decode_base64(<<'EOD'));
-%s
-EOD
+%sEOD
 EOL
     }
+    chomp $load;
 
     my %replacement = (
         package     => $args{package},
