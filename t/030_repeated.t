@@ -76,4 +76,11 @@ eq_or_diff(Packed->decode("\x1a\x02\x01\x02\x1a\x02\x03\x04"), Packed->new({
     int32_f => [1, 2, 3, 4],
 }), "packed repeated field in multiple chunks");
 
+# "A packed repeated field containing zero elements does not appear in the
+# encoded message."
+eq_or_diff(
+    Packed->new({ int32_f => [] })->encode,
+    '', # expect empty
+    "empty packed repeated field");
+
 done_testing();

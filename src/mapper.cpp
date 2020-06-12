@@ -1197,9 +1197,18 @@ bool Mapper::encode_from_array(Sink *sink, Status *status, const Mapper::Field &
     S setter(status);
     Sink sub;
 
+    int size = av_top_index(source) + 1;
+
+    if (size == 0) {
+        // when emitting a packed repeated field, we must avoid invoking
+        // StartSequence if we have no values to encode. Not doing so causes us
+        // to emit a packed field with length=0, which is illegal and breaks
+        // decoders.
+        return true;
+    }
+
     if (!sink->StartSequence(fd.selector.seq_start, &sub))
         return false;
-    int size = av_top_index(source) + 1;
 
     WarnContext::Item &warn_cxt = warn_context->push_level(WarnContext::Array);
     for (int i = 0; i < size; ++i) {
