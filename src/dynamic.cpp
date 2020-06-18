@@ -34,7 +34,8 @@ MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
         implicit_maps(false),
         decode_blessed(true),
         accessor_style(GetAndSet),
-        client_services(Disable) {
+        client_services(Disable),
+        fail_ref_coercion(false) {
     if (options_ref == NULL || !SvOK(options_ref))
         return;
     if (!SvROK(options_ref) || SvTYPE(SvRV(options_ref)) != SVt_PVHV)
