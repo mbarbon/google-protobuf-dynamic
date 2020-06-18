@@ -2,6 +2,10 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.28      2020-06-18 09:29:52 CEST
+
+    - Avoid emitting empty packed repeated fields (patch by William Good)
+
 0.27      2019-11-11 22:48:35 CET
 
     - Fix JSON decoding of quoted numeric values
