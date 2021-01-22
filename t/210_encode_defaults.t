@@ -1,4 +1,5 @@
 use t::lib::Test;
+use Alien::uPB;
 
 {
     my $d = Google::ProtocolBuffers::Dynamic->new('t/proto');
@@ -132,10 +133,10 @@ if (Google::ProtocolBuffers::Dynamic::is_proto3()) {
     );
 }
 
-if (Google::ProtocolBuffers::Dynamic::is_proto3()) {
+if (Google::ProtocolBuffers::Dynamic::is_proto3() && (!Alien::uPB->VERSION || Alien::uPB->VERSION >= '0.14')) {
     my $d = Google::ProtocolBuffers::Dynamic->new('t/proto');
     $d->load_file("defaults_proto3.proto");
-    $d->map({ package => 'test', prefix => 'Test4', options => { encode_defaults => 0 } });
+    $d->map({ package => 'test', prefix => 'Test4', options => { encode_defaults => 1 } });
 
     eq_or_diff(
         Test4::Defaults->encode({
