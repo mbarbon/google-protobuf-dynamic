@@ -96,6 +96,7 @@ my %boolean_options = map +($_ => [$_, 1], "no_$_" => [$_, 0]), qw(
     check_required_fields
     explicit_defaults
     encode_defaults
+    encode_defaults_proto3
     check_enum_values
     fail_ref_coercion
     generic_extension_methods

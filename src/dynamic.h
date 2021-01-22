@@ -39,6 +39,7 @@ struct MappingOptions {
     bool check_required_fields;
     bool explicit_defaults;
     bool encode_defaults;
+    bool encode_defaults_proto3;
     bool check_enum_values;
     bool generic_extension_methods;
     bool implicit_maps;

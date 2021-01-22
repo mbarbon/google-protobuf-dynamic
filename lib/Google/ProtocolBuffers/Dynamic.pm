@@ -547,6 +547,13 @@ explicitly set or not.
 When enabled, and a value was explicitly set for the field, the field
 is always emitted.
 
+=head2 encode_defaults_proto3
+
+Disabled by default, it can't be enabled for C<proto2>.
+
+Same as C<encode_defaults>. The only reason to enable this is as an
+hack to emulate proto3 field presence support.
+
 =head2 explicit_defaults
 
 Disabled by default.

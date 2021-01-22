@@ -532,8 +532,11 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
     json_encoder_handlers = Printer::NewHandlers(message_def, false /* XXX option */);
     decoder_handlers = Handlers::New(message_def);
     decode_explicit_defaults = options.explicit_defaults;
-    encode_defaults = message_def->syntax() == UPB_SYNTAX_PROTO2 &&
-        options.encode_defaults;
+    encode_defaults =
+        (message_def->syntax() == UPB_SYNTAX_PROTO2 &&
+         options.encode_defaults) ||
+        (message_def->syntax() == UPB_SYNTAX_PROTO3 &&
+         options.encode_defaults_proto3);
     check_enum_values = options.check_enum_values;
     decode_blessed = options.decode_blessed;
     // on older Perls it is not fully reliable because the check is performed before

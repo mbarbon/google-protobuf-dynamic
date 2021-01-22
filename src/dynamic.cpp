@@ -29,6 +29,7 @@ MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
         check_required_fields(true),
         explicit_defaults(false),
         encode_defaults(false),
+        encode_defaults_proto3(false),
         check_enum_values(true),
         generic_extension_methods(true),
         implicit_maps(false),
@@ -52,6 +53,7 @@ MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
     BOOLEAN_OPTION(check_required_fields, check_required_fields);
     BOOLEAN_OPTION(explicit_defaults, explicit_defaults);
     BOOLEAN_OPTION(encode_defaults, encode_defaults);
+    BOOLEAN_OPTION(encode_defaults_proto3, encode_defaults_proto3);
     BOOLEAN_OPTION(check_enum_values, check_enum_values);
     BOOLEAN_OPTION(generic_extension_methods, generic_extension_methods);
     BOOLEAN_OPTION(implicit_maps, implicit_maps);

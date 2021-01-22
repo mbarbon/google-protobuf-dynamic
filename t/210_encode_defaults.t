@@ -1,6 +1,8 @@
 use t::lib::Test;
 use Alien::uPB;
 
+my $fixed_proto3_syntax = !Alien::uPB->VERSION || Alien::uPB->VERSION >= '0.14';
+
 {
     my $d = Google::ProtocolBuffers::Dynamic->new('t/proto');
     $d->load_file("options.proto");
@@ -133,7 +135,7 @@ if (Google::ProtocolBuffers::Dynamic::is_proto3()) {
     );
 }
 
-if (Google::ProtocolBuffers::Dynamic::is_proto3() && (!Alien::uPB->VERSION || Alien::uPB->VERSION >= '0.14')) {
+if (Google::ProtocolBuffers::Dynamic::is_proto3() && $fixed_proto3_syntax) {
     my $d = Google::ProtocolBuffers::Dynamic->new('t/proto');
     $d->load_file("defaults_proto3.proto");
     $d->map({ package => 'test', prefix => 'Test4', options => { encode_defaults => 1 } });
@@ -151,6 +153,29 @@ if (Google::ProtocolBuffers::Dynamic::is_proto3() && (!Alien::uPB->VERSION || Al
             int32_f     => 0,
         }),
         "",
+    );
+}
+
+if (Google::ProtocolBuffers::Dynamic::is_proto3() && $fixed_proto3_syntax) {
+    my $d = Google::ProtocolBuffers::Dynamic->new('t/proto');
+    $d->load_file("defaults_proto3.proto");
+    $d->map({ package => 'test', prefix => 'Test5', options => { encode_defaults_proto3 => 1 } });
+
+    eq_or_diff(
+        Test5::Defaults->encode({
+            int32_f     => 2,
+        }),
+        join('',
+             "\x08\x02",
+         ),
+    );
+    eq_or_diff(
+        Test5::Defaults->encode({
+            int32_f     => 0,
+        }),
+        join('',
+             "\x08\x00",
+         ),
     );
 }
 
