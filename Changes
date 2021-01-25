@@ -2,6 +2,12 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.30      2021-01-25 09:36:20 CET
+
+    - Add encode_defaults_proto3, same as encode_defaults, but for proto3
+    - Fix encode_defaults to be a no-op for proto3, as documented
+      (fixed by upgrading uPB)
+
 0.29      2020-06-18 17:55:21 CEST
 
     - Fix uninitialized value reported by Valgrind (patch by William Good)
