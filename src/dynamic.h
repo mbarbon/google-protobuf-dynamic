@@ -4,7 +4,8 @@
 #include "perl_unpollute.h"
 
 #include <google/protobuf/compiler/importer.h>
-#include <upb/bindings/googlepb/bridge.h>
+
+#include "upb/bridge.h"
 
 #include "descriptorloader.h"
 #include "sourcetree.h"

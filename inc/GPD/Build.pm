@@ -21,7 +21,7 @@ sub new {
         extra_typemap_modules => {
             'ExtUtils::Typemaps::STL::String' => '0',
         },
-        extra_linker_flags => [Alien::uPB->libs, Alien::ProtoBuf->libs],
+        extra_linker_flags => [Alien::uPB->libs =~ s/\S*googlepb\S*//r, Alien::ProtoBuf->libs],
         extra_compiler_flags => [$debug_flag, Alien::uPB->cflags, Alien::ProtoBuf->cflags, Alien::ProtoBuf->cxxflags, "-DPERL_NO_GET_CONTEXT"],
         script_files => [qw(scripts/protoc-gen-perl-gpd)],
     );
