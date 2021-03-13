@@ -2,6 +2,11 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.31      2021-03-13 09:52:33 CET
+
+    - Remove dependency on uPB googlepb binding, which has been
+      removed from uPB master
+
 0.30      2021-01-25 09:36:20 CET
 
     - Add encode_defaults_proto3, same as encode_defaults, but for proto3
