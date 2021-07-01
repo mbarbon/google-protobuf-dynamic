@@ -140,14 +140,14 @@ EOD
 
 
 $gpd->map(
-    {
+   +{
       'options' => {
                      'encode_defaults' => 1
                    },
       'package' => 'google.protobuf',
       'prefix' => 'Google::ProtocolBuffers::Dynamic::ProtocInterface'
     },
-    {
+   +{
       'options' => {
                      'encode_defaults' => 1
                    },
