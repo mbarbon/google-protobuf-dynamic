@@ -903,7 +903,7 @@ SV *Mapper::decode_json(const char *buffer, STRLEN bufsize) {
     if (json_decoder_method.get() == NULL)
         croak("It looks like resolve_references() was not called (and please use map() anyway)");
     upb::Environment *env = make_localized_environment(aTHX_ &status);
-    upb::json::Parser *json_decoder = upb::json::Parser::Create(env, json_decoder_method.get(), &decoder_sink);
+    upb::json::Parser *json_decoder = upb::json::Parser::Create(env, json_decoder_method.get(), NULL, &decoder_sink, true);
     status.Clear();
     decoder_callbacks.prepare(newHV());
 
