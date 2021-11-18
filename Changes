@@ -2,6 +2,13 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.33      2021-11-18 21:06:53 CET
+
+    - Use strings as the JSON encoding of int64/uint64 types
+    - Fix edge-case where decode_blessed option was not honoerd
+    - Partial and experimantal support for well-known types
+      (timestamp, duration adn primitive type wrappers)
+
 0.32      2021-07-01 16:14:10 CEST
 
     - Tweak code generator to avoid triggering wrong perlcritic check
