@@ -1,5 +1,9 @@
 #include "descriptorloader.h"
 
+#include <google/protobuf/duration.pb.h>
+#include <google/protobuf/timestamp.pb.h>
+#include <google/protobuf/wrappers.pb.h>
+
 #include "EXTERN.h"
 #include "perl.h"
 
@@ -7,6 +11,17 @@ using namespace google::protobuf::compiler;
 using namespace google::protobuf;
 using namespace gpd;
 using namespace std;
+
+namespace {
+    // it seems the only way to add a Descriptor to a pool is to go through the Proto object
+    void add_descriptor_to_pool(DescriptorPool *pool, const Descriptor *descriptor) {
+        const FileDescriptor *file_descriptor = descriptor->file();
+        FileDescriptorProto file_proto;
+
+        file_descriptor->CopyTo(&file_proto);
+        pool->BuildFile(file_proto);
+    }
+}
 
 void DescriptorLoader::ErrorCollector::AddError(const string &filename, const string &element_name, const Message *descriptor, DescriptorPool::ErrorCollector::ErrorLocation location, const string &message) {
     if (!errors.empty())
@@ -31,6 +46,15 @@ DescriptorLoader::DescriptorLoader(SourceTree *source_tree,
         merged_pool(&merged_database, source_database.GetValidationErrorCollector()) {
     merged_pool.EnforceWeakDependencies(true);
     source_database.RecordErrorsTo(error_collector);
+
+    #define ADD_WKT_FILE(name) add_descriptor_to_pool(&binary_pool, google::protobuf:: name ::descriptor())
+
+    // only one WKT per .proto file is needed
+    ADD_WKT_FILE(Duration);
+    ADD_WKT_FILE(Timestamp);
+    ADD_WKT_FILE(DoubleValue); // all types in wrappers.proto
+
+    #undef ADD_WKT
 }
 
 DescriptorLoader::~DescriptorLoader() { }
