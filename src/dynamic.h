@@ -110,6 +110,17 @@ private:
     std::vector<MethodMapper *> pending_methods;
 };
 
+// equivalent to FieldDescriptor::has_presence() in src/google/protobuf/descriptor.h
+inline bool has_presence(const upb::FieldDef* field_def) {
+    if (field_def->IsSequence())
+        return false;
+    if (field_def->IsSubMessage() || field_def->containing_oneof())
+        return true;
+    if (field_def->containing_type() && field_def->containing_type()->syntax() == UPB_SYNTAX_PROTO2)
+        return true;
+    return false;
+}
+
 };
 
 #endif

@@ -155,6 +155,13 @@ extended, not the message where the extension is declared).
 Containing oneof definition, or C<undef> if this field is not part of
 an oneof.
 
+=head2 real_containing_oneof
+
+    $oneof_def = $field_def->real_containing_oneof;
+
+Containing oneof definition. Returns C<undef> if this field is not part of
+an oneof, or is part of the synthetic oneof created by proto3 optional.
+
 =head2 enum_type, message_type
 
     $enum_def = $field_def->enum_type;
@@ -162,6 +169,12 @@ an oneof.
 
 For fields with type enum or message, returns the matching type
 definition, or undef if the fields is not a message/enum.
+
+=head2 has_presence
+
+    $has_presence = $field_def->has_presence;
+
+Returns whether the field supports L<field presence|https://github.com/protocolbuffers/protobuf/blob/master/docs/field_presence.md#application-note-field-presence>.
 
 =head1 Google::ProtocolBuffers::Dynamic::OneofDef
 
@@ -197,15 +210,22 @@ Returns the field with the given name, or C<undef>.
 
 =head2 fields
 
-    $field_defs = $message_def->fields;
+    $field_defs = $oneof_def->fields;
 
 Returns all fields as an array reference.
 
 =head2 containing_type
 
-    $message_def = $field_def->containing_type;
+    $message_def = $oneof_def->containing_type;
 
 Containing message.
+
+=head2 is_synthetic
+
+    $is_synthetic = $oneof_def->is_synthetic;
+
+C<true> for oneof definitions that have been created by proto3
+C<optional> implementation.
 
 =head1 Google::ProtocolBuffers::Dynamic::EnumDef
 

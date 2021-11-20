@@ -20,6 +20,10 @@
 #include <google/protobuf/descriptor.pb.h>
 namespace goog = ::google::protobuf;
 
+#if GOOGLE_PROTOBUF_VERSION >= 3012000
+#define GOOGLE_PROTOBUF_HAS_PROTO3_OPTIONAL
+#endif
+
 namespace upb {
 namespace googlepb {
 
@@ -77,7 +81,11 @@ const MessageDef* DefBuilder::GetMaybeUnfrozenMessageDef(
     reffed_ptr<OneofDef> oneof = NewOneofDef(proto2_oneof);
     for (int j = 0, maxj = proto2_oneof->field_count(); j < maxj; ++j) {
       const goog::FieldDescriptor *proto2_f = proto2_oneof->field(j);
-      oneof->AddField(NewFieldDef(proto2_f, m), &status);
+      reffed_ptr<FieldDef> field = NewFieldDef(proto2_f, m);
+#ifdef GOOGLE_PROTOBUF_HAS_PROTO3_OPTIONAL
+      upb_fielddef_setproto3optional(field.get(), proto2_f->real_containing_oneof() == NULL);
+#endif
+      oneof->AddField(field, &status);
     }
     md->AddOneof(oneof, &status);
   }

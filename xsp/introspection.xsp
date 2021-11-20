@@ -124,9 +124,16 @@
 
     const Google::ProtocolBuffers::Dynamic::MessageDef *containing_type() const;
     const Google::ProtocolBuffers::Dynamic::OneofDef *containing_oneof() const;
+    const Google::ProtocolBuffers::Dynamic::OneofDef *real_containing_oneof() const %code{%
+        RETVAL = upb_fielddef_proto3optional(THIS) ? NULL : THIS->containing_oneof();
+    %};
 
     %name{enum_type} const Google::ProtocolBuffers::Dynamic::EnumDef *enum_subdef() const;
     %name{message_type} const Google::ProtocolBuffers::Dynamic::MessageDef *message_subdef() const;
+
+    bool has_presence() const %code{%
+      RETVAL = gpd::has_presence(THIS);
+    %};
 };
 
 %name{Google::ProtocolBuffers::Dynamic::OneofDef} class upb::OneofDef {
@@ -153,6 +160,10 @@
     %};
 
     const Google::ProtocolBuffers::Dynamic::MessageDef *containing_type() const;
+
+    bool is_synthetic() const %code{%
+        RETVAL = THIS->field_count() == 1 && upb_fielddef_proto3optional(*THIS->begin());
+    %};
 };
 
 %name{Google::ProtocolBuffers::Dynamic::EnumDef} class upb::EnumDef {
