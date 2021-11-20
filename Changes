@@ -2,6 +2,12 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.34      2021-11-20 20:03:36 CET
+
+    - Implement support for proto3 optional fields in introspection
+      and protoc plugin (encoding/decoding was already working in
+      previous releases)
+
 0.33      2021-11-18 21:06:53 CET
 
     - Use strings as the JSON encoding of int64/uint64 types
