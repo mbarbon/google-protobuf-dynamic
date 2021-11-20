@@ -2,6 +2,7 @@
 
 #include "servicedef.h"
 #include "upbwrapper.h"
+#include "dynamic.h" // for has_presence
 
 %typemap{const Google::ProtocolBuffers::Dynamic::MessageDef *}{simple}{
     %xs_type{O_OBJECT};
