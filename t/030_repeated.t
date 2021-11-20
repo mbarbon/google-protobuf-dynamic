@@ -7,15 +7,15 @@ $d->map_message("test.Packed", "Packed");
 $d->resolve_references();
 
 my %values = (
-    double_f    => [[0.125, 0.5], "\x09\x00\x00\x00\x00\x00\x00\xc0?\x09\x00\x00\x00\x00\x00\x00\xe0?"],
-    float_f     => [[0.125, 0.5], "\x15\x00\x00\x00\x3e\x15\x00\x00\x00\x3f"],
-    int32_f     => [[2147483647, 1], "\x18\xff\xff\xff\xff\x07\x18\x01"],
-    int64_f     => [[maybe_bigint('4294967296'), 1], "\x20\x80\x80\x80\x80\x10\x20\x01"],
-    uint32_f    => [[4294967295, 1], "\x28\xff\xff\xff\xff\x0f\x28\x01"],
-    uint64_f    => [[maybe_bigint('1099511627776'), 1], "\x30\x80\x80\x80\x80\x80\x20\x30\x01"],
+    double_f    => [[0.125, 0.5, 0.0], "\x09\x00\x00\x00\x00\x00\x00\xc0?\x09\x00\x00\x00\x00\x00\x00\xe0?\x09\x00\x00\x00\x00\x00\x00\x00\x00"],
+    float_f     => [[0.125, 0.5, 0.0], "\x15\x00\x00\x00\x3e\x15\x00\x00\x00\x3f\x15\x00\x00\x00\x00"],
+    int32_f     => [[2147483647, 1, 0], "\x18\xff\xff\xff\xff\x07\x18\x01\x18\x00"],
+    int64_f     => [[maybe_bigint('4294967296'), 1, 0], "\x20\x80\x80\x80\x80\x10\x20\x01\x20\x00"],
+    uint32_f    => [[4294967295, 1, 0], "\x28\xff\xff\xff\xff\x0f\x28\x01\x28\x00"],
+    uint64_f    => [[maybe_bigint('1099511627776'), 1, 0], "\x30\x80\x80\x80\x80\x80\x20\x30\x01\x30\x00"],
     bool_f      => [[1, ''], "\x38\x01\x38\x00"],
-    string_f    => [["\x{101f}", "\x{101e}"], "\x42\x03\xe1\x80\x9f\x42\x03\xe1\x80\x9e"],
-    bytes_f     => [["\xe1\x80\x9f", "\xe1\x80\x9e"], "\x4a\x03\xe1\x80\x9f\x4a\x03\xe1\x80\x9e"],
+    string_f    => [["\x{101f}", "\x{101e}", ""], "\x42\x03\xe1\x80\x9f\x42\x03\xe1\x80\x9e\x42\x00"],
+    bytes_f     => [["\xe1\x80\x9f", "\xe1\x80\x9e", ""], "\x4a\x03\xe1\x80\x9f\x4a\x03\xe1\x80\x9e\x4a\x00"],
     enum_f      => [[2, 3], "\x50\x02\x50\x03"],
 );
 
@@ -48,11 +48,8 @@ for my $field (sort keys %values) {
     eq_or_diff($decoded, Repeated->new({ $field => $values }),
                "$field - round trip");
     eq_or_diff(tied_fetch_count($tied), { $field => {
-        count => 2,
-        inner => [
-            1,
-            1,
-        ],
+        count => scalar @$values,
+        inner => [(1) x scalar @$values],
     } }, "$field - tied fetch count");
 }
 
