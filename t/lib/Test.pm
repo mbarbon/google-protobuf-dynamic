@@ -43,6 +43,11 @@ sub import {
 
         @_ = ($_[0], "skip_all", "Protocol Buffers v3 required")
             unless Google::ProtocolBuffers::Dynamic::is_proto3();
+    } elsif (@_ > 1 && $_[1] eq 'proto3_optional') {
+        splice @_, 1, 1;
+
+        @_ = ($_[0], "skip_all", "Protocol Buffers v3.12 required")
+            unless Google::ProtocolBuffers::Dynamic::has_proto3_optional();
     }
 
     goto &Test::Builder::Module::import;

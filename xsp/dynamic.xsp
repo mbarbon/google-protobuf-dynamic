@@ -36,4 +36,5 @@
     void resolve_references();
 
     static bool is_proto3();
+    static bool has_proto3_optional();
 };

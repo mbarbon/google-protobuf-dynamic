@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package test;
+
+enum Enum {
+    FIRST = 0;
+    SECOND = 1;
+    THIRD = 2;
+}
+
+message Optional1 {
+    double double_f = 1;
+    float float_f = 2;
+    int32 int32_f = 3;
+    int64 int64_f = 4;
+    uint32 uint32_f = 5;
+    uint64 uint64_f = 6;
+    bool bool_f = 7;
+    string string_f = 8;
+    bytes bytes_f = 9;
+    Enum enum_f = 10;
+
+    optional double double_pf = 33;
+    optional float float_pf = 34;
+    optional int32 int32_pf = 35;
+    optional int32 int64_pf = 36;
+    optional uint32 uint32_pf = 37;
+    optional uint32 uint64_pf = 38;
+    optional bool bool_pf = 39;
+    optional string string_pf = 40;
+    optional bytes bytes_pf = 41;
+    optional Enum enum_pf = 42;
+    
+    oneof test {
+        int32 int32_of = 67;
+    }
+}
