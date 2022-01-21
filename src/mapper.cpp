@@ -276,6 +276,9 @@ Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_map(DecoderHandlers *
         hv = (HV *) SvRV(target);
 
     cxt->mappers.push_back(mapper->fields[*field_index].mapper);
+    cxt->seen_fields.resize(cxt->seen_fields.size() + 1);
+    cxt->seen_fields.back().resize(2);
+    cxt->seen_fields.back()[0] = true; // never apply defaults to "key"
     cxt->items.push_back((SV *) hv);
     cxt->items.push_back(sv_newmortal());
     cxt->items.push_back(NULL);
@@ -284,6 +287,7 @@ Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_map(DecoderHandlers *
 }
 
 bool Mapper::DecoderHandlers::on_end_map(DecoderHandlers *cxt, const int *field_index) {
+    cxt->seen_fields.pop_back();
     cxt->mappers.pop_back();
     cxt->items.pop_back();
     cxt->items.pop_back();
@@ -358,6 +362,7 @@ bool Mapper::DecoderHandlers::on_end_map_entry(DecoderHandlers *cxt, const int *
 
     SvOK_off(key);
     cxt->items[size - 1] = NULL;
+    cxt->seen_fields.back()[1] = false;
 
     return true;
 }
