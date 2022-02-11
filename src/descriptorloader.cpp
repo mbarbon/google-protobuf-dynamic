@@ -13,6 +13,9 @@ using namespace gpd;
 using namespace std;
 
 namespace {
+    const string wkt_prefix = "google/protobuf/";
+    const int wkt_prefix_length = wkt_prefix.length();
+
     // it seems the only way to add a Descriptor to a pool is to go through the Proto object
     void add_descriptor_to_pool(DescriptorPool *pool, const Descriptor *descriptor) {
         const FileDescriptor *file_descriptor = descriptor->file();
@@ -71,8 +74,22 @@ const vector<const FileDescriptor *> DescriptorLoader::load_serialized(const cha
         croak("Error deserializing message descriptors");
     vector<const FileDescriptor *> result;
 
-    for (int i = 0, max = fds.file_size(); i < max; ++i)
-        result.push_back(binary_pool.BuildFileCollectingErrors(fds.file(i), &collector));
+    for (int i = 0, max = fds.file_size(); i < max; ++i) {
+        const FileDescriptorProto &file = fds.file(i);
+        const string &file_name = file.name();
+
+        // for well-known-types, use the compiled-in version
+        if (file_name.length() > wkt_prefix_length &&
+            file_name.at(0) == 'g' &&
+            file_name.compare(0, wkt_prefix_length, wkt_prefix) == 0 &&
+            (file_name.compare(wkt_prefix_length, string::npos, "duration.proto") == 0 ||
+             file_name.compare(wkt_prefix_length, string::npos, "timestamp.proto") == 0 ||
+             file_name.compare(wkt_prefix_length, string::npos, "wrappers.proto") == 0)) {
+            continue;
+        }
+
+        result.push_back(binary_pool.BuildFileCollectingErrors(file, &collector));
+    }
 
     if (!collector.errors.empty())
         croak("%s", collector.errors.c_str());
