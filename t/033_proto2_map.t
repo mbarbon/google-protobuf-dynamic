@@ -123,8 +123,10 @@ eq_or_diff(NoMaps->encode({ string_int32_map => [{ key => $string, value => 1 }]
         ],
     }));
 
-    eq_or_diff([sort keys %{$broken1->{string_int32_map}}], [qw(b)]);
+    eq_or_diff([sort keys %{$broken1->{string_int32_map}}], [qw(a b c)]);
+    eq_or_diff($broken1->{string_int32_map}{a}, 0);
     eq_or_diff($broken1->{string_int32_map}{b}, 1);
+    eq_or_diff($broken1->{string_int32_map}{c}, 0);
 
     my $broken2 = Maps->decode(NoMaps->encode({
         string_int32_map => [

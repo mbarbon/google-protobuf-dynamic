@@ -43,18 +43,13 @@ warning_is(
 );
 
 warning_is(
-    sub { Maps->decode(NoMaps->encode({ string_int32_map => [{ key => 'a'}] })) },
-    qq[Incomplete map entry: missing value],
-);
-
-warning_is(
     sub { Maps->decode(NoMaps->encode({ string_int32_map => [{ value => 1}] })) },
     qq[Incomplete map entry: missing key],
 );
 
 warning_is(
     sub { Maps->decode(NoMaps->encode({ string_int32_map => [{}] })) },
-    qq[Incomplete map entry: missing both key and value],
+    qq[Incomplete map entry: missing key],
 );
 
 done_testing();

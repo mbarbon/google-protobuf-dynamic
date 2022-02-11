@@ -353,11 +353,8 @@ bool Mapper::DecoderHandlers::on_end_map_entry(DecoderHandlers *cxt, const int *
         if (SvPOK(key))
             SvLEN_set(key, 0);
     } else {
-        // having decoding of broken maps succeed is debatable
-        warn("Incomplete map entry: missing %s",
-             (!SvOK(key) && !value) ? "both key and value" :
-             !SvOK(key)             ? "key" :
-                                      "value");
+        // having decoding of maps without keys is debatable
+        warn("Incomplete map entry: missing key");
     }
 
     SvOK_off(key);
