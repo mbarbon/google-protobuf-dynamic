@@ -534,7 +534,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
     pb_encoder_handlers = Encoder::NewHandlers(message_def);
     json_encoder_handlers = Printer::NewHandlers(message_def, false /* XXX option */);
     decoder_handlers = Handlers::New(message_def);
-    decode_explicit_defaults = options.explicit_defaults;
+    decode_explicit_defaults = options.explicit_defaults || message_def->mapentry();
     encode_defaults =
         (message_def->syntax() == UPB_SYNTAX_PROTO2 &&
          options.encode_defaults) ||
