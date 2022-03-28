@@ -2,6 +2,14 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.36      2022-03-28 21:45:35 CEST
+
+0.36
+
+    - When a serialized protobuf descriptor includes descriptors for
+      well-known types, ignore them even when imported using a non-standard
+      path
+
 0.35      2022-03-28 11:34:54 CEST
 
     - Decode map entries without a value using the default value for the
