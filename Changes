@@ -2,6 +2,13 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.35      2022-03-28 11:34:54 CEST
+
+    - Decode map entries without a value using the default value for the
+      type
+    - When a serialized protobuf descriptor includes descriptors for
+      well-known types, ignore them and use the built-in descriptors
+
 0.34      2021-11-20 20:03:36 CET
 
     - Implement support for proto3 optional fields in introspection
