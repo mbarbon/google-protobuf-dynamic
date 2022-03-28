@@ -5,6 +5,8 @@ my $d = Google::ProtocolBuffers::Dynamic->new;
 $d->load_serialized_string(_slurp('t/proto/person.pb'));
 # protoc --include_imports -o t/proto/wkt/scalar.pb t/proto/wkt/scalar.proto
 $d->load_serialized_string(_slurp('t/proto/wkt/scalar.pb'));
+# protoc --include_imports -I t/proto -o t/proto/wkt/scalar_copies.pb t/proto/wkt/scalar_copies.proto
+$d->load_serialized_string(_slurp('t/proto/wkt/scalar_copies.pb'));
 
 $d->map({ package => 'test', prefix => 'Test' });
 

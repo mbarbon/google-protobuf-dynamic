@@ -1,4 +1,5 @@
 #include "descriptorloader.h"
+#include "unordered_map.h"
 
 #include <google/protobuf/duration.pb.h>
 #include <google/protobuf/timestamp.pb.h>
@@ -13,8 +14,9 @@ using namespace gpd;
 using namespace std;
 
 namespace {
-    const string wkt_prefix = "google/protobuf/";
-    const int wkt_prefix_length = wkt_prefix.length();
+    const string wkt_prefix = "google.protobuf";
+    STD_TR1::unordered_set<string> wkt_types;
+    vector<string> wkt_files;
 
     // it seems the only way to add a Descriptor to a pool is to go through the Proto object
     void add_descriptor_to_pool(DescriptorPool *pool, const Descriptor *descriptor) {
@@ -23,6 +25,35 @@ namespace {
 
         file_descriptor->CopyTo(&file_proto);
         pool->BuildFile(file_proto);
+
+        for (int j = 0, max = file_proto.message_type_size(); j < max; ++j) {
+            const DescriptorProto &message = file_proto.message_type(j);
+            const string full_name = file_proto.package() + "." + message.name();
+
+            wkt_types.insert(full_name);
+        }
+
+        wkt_files.push_back(file_proto.name());
+    }
+
+    bool is_wkt_file(const FileDescriptorProto &file) {
+        const string &package = file.package();
+
+        if (package != wkt_prefix)
+            return false;
+
+        // for well-known-types, use the compiled-in version. This
+        // version of the code handles also in-tree copies of WKT
+        // .proto files
+        for (int j = 0, max = file.message_type_size(); j < max; ++j) {
+            const DescriptorProto &message = file.message_type(j);
+            const string full_name = package + "." + message.name();
+
+            if (wkt_types.find(full_name) != wkt_types.end())
+                return true;
+        }
+
+        return false;
     }
 }
 
@@ -74,18 +105,46 @@ const vector<const FileDescriptor *> DescriptorLoader::load_serialized(const cha
         croak("Error deserializing message descriptors");
     vector<const FileDescriptor *> result;
 
+    STD_TR1::unordered_set<string> removed_wkt;
     for (int i = 0, max = fds.file_size(); i < max; ++i) {
-        const FileDescriptorProto &file = fds.file(i);
-        const string &file_name = file.name();
+        FileDescriptorProto file = fds.file(i);
 
-        // for well-known-types, use the compiled-in version
-        if (file_name.length() > wkt_prefix_length &&
-            file_name.at(0) == 'g' &&
-            file_name.compare(0, wkt_prefix_length, wkt_prefix) == 0 &&
-            (file_name.compare(wkt_prefix_length, string::npos, "duration.proto") == 0 ||
-             file_name.compare(wkt_prefix_length, string::npos, "timestamp.proto") == 0 ||
-             file_name.compare(wkt_prefix_length, string::npos, "wrappers.proto") == 0)) {
+        // this somewhat dodgy code tries to address cases where
+        // WKT .proto files have been copied and imported using a
+        // non-standard path.
+        //
+        // For binary descriptors, this requires the binary descriptor to
+        // be skipped, and dependency information to be upated to use the
+        // compiled-in WKT descritpros.
+        if (is_wkt_file(file)) {
+            removed_wkt.insert(file.name());
             continue;
+        }
+
+        // See comment above. If this file dependes on WTK descriptors that
+        // have been removed, the corresponding dependency need to be adjusted
+        // to point to the compiled-in descriptor.
+        //
+        // The crude and hopefully robust way of doing this is to add a
+        // dependency to all compled-in descritprs, without caring whether
+        // they are used or not.
+        if (!removed_wkt.empty()) {
+            vector<string> dependency(file.dependency().begin(), file.dependency().end());
+            bool add_builtin_wkt = false;
+
+            file.clear_dependency();
+            for (int j = 0, max = dependency.size(); j < max; ++j) {
+                if (removed_wkt.find(dependency[j]) != removed_wkt.end()) {
+                    add_builtin_wkt = true;
+                } else {
+                    file.add_dependency(dependency[j]);
+                }
+            }
+
+            if (add_builtin_wkt) {
+                for (vector<string>::const_iterator it = wkt_files.begin(), en = wkt_files.end(); it != en; ++it)
+                    file.add_dependency(*it);
+            }
         }
 
         result.push_back(binary_pool.BuildFileCollectingErrors(file, &collector));

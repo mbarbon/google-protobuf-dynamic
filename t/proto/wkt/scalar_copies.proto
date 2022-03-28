@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+import "wkt/copies/duration.proto";
+import "wkt/copies/timestamp.proto";
+import "wkt/copies/wrappers.proto";
+
+package test;
+
+message BasicCopy {
+    google.protobuf.Timestamp timestamp_f = 1;
+    google.protobuf.Duration duration_f = 2;
+    google.protobuf.DoubleValue double_f = 3;
+    google.protobuf.FloatValue float_f = 4;
+    google.protobuf.Int64Value int64_f = 5;
+    google.protobuf.UInt64Value uint64_f = 6;
+    google.protobuf.Int32Value int32_f = 7;
+    google.protobuf.UInt32Value uint32_f = 8;
+    google.protobuf.BoolValue bool_f = 9;
+    google.protobuf.StringValue string_f = 10;
+    google.protobuf.BytesValue bytes_f = 11;
+}
