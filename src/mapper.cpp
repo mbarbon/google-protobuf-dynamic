@@ -856,9 +856,9 @@ bool Mapper::get_decode_blessed() const {
 
 void Mapper::set_bool(SV *target, bool value) const {
     if (numeric_bool)
-        set_numeric_bool(aTHX, target, value);
+        set_numeric_bool(aTHX_ target, value);
     else
-        set_perl_bool(aTHX, target, value);
+        set_perl_bool(aTHX_ target, value);
 }
 
 SV *Mapper::encode(SV *ref) {
