@@ -2,6 +2,10 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.38      2022-04-08 19:23:52 CEST
+
+    - Compilation fix for non-threaded Perl
+
 0.37      2022-04-08 19:09:43 CEST
 
     - Add option to control how boolean values are mapped to Perl scalars
