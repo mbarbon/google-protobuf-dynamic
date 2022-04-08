@@ -16,7 +16,7 @@ using namespace std;
 namespace {
     const string wkt_prefix = "google.protobuf";
     STD_TR1::unordered_set<string> wkt_types;
-    vector<string> wkt_files;
+    STD_TR1::unordered_set<string> wkt_files;
 
     // it seems the only way to add a Descriptor to a pool is to go through the Proto object
     void add_descriptor_to_pool(DescriptorPool *pool, const Descriptor *descriptor) {
@@ -33,7 +33,7 @@ namespace {
             wkt_types.insert(full_name);
         }
 
-        wkt_files.push_back(file_proto.name());
+        wkt_files.insert(file_proto.name());
     }
 
     bool is_wkt_file(const FileDescriptorProto &file) {
@@ -142,7 +142,7 @@ const vector<const FileDescriptor *> DescriptorLoader::load_serialized(const cha
             }
 
             if (add_builtin_wkt) {
-                for (vector<string>::const_iterator it = wkt_files.begin(), en = wkt_files.end(); it != en; ++it)
+                for (STD_TR1::unordered_set<string>::const_iterator it = wkt_files.begin(), en = wkt_files.end(); it != en; ++it)
                     file.add_dependency(*it);
             }
         }
