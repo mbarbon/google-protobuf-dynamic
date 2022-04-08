@@ -46,6 +46,7 @@ struct MappingOptions {
     bool implicit_maps;
     bool decode_blessed;
     bool fail_ref_coercion;
+    bool numeric_bool;
     AccessorStyle accessor_style;
     ClientService client_services;
 

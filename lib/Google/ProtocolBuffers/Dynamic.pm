@@ -550,6 +550,24 @@ on Perls with 64-bit integers.
 When enabled, values that don't fit in a 32-bit integer are returned as
 L<Math::BigInt> objects.
 
+=head2 boolean_values
+
+Defaults to C<perl>.
+
+It controls how boolean values are mapped in Perl. Accepted values are:
+
+=over 4
+
+=item perl
+
+Maps C<true> to C<1> and C<false> to C<"">.
+
+=item numeric
+
+Maps C<true> to C<1> and C<false> to C<0>.
+
+=back
+
 =head2 check_required_fields
 
 Enabled by default.

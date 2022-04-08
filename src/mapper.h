@@ -117,7 +117,8 @@ public:
         static bool on_bigiv(DecoderHandlers *cxt, const int *field_index, int64_t val);
         static bool on_biguv(DecoderHandlers *cxt, const int *field_index, uint64_t val);
 
-        static bool on_bool(DecoderHandlers *cxt, const int *field_index, bool val);
+        static bool on_perl_bool(DecoderHandlers *cxt, const int *field_index, bool val);
+        static bool on_numeric_bool(DecoderHandlers *cxt, const int *field_index, bool val);
 
         bool apply_defaults_and_check();
         SV *get_target(const int *field_index);
@@ -150,6 +151,8 @@ public:
     SV *message_descriptor() const;
     SV *make_object(SV *data) const;
     bool get_decode_blessed() const;
+
+    void set_bool(SV *target, bool value) const;
 
 private:
     bool encode_value(upb::Sink *sink, upb::Status *status, SV *ref) const;
@@ -186,7 +189,7 @@ private:
     upb::Sink encoder_sink, decoder_sink;
     std::string output_buffer;
     upb::StringSink string_sink;
-    bool check_required_fields, decode_explicit_defaults, encode_defaults, check_enum_values, decode_blessed, fail_ref_coercion;
+    bool check_required_fields, decode_explicit_defaults, encode_defaults, check_enum_values, decode_blessed, fail_ref_coercion, numeric_bool;
     WarnContext *warn_context;
 };
 

@@ -36,6 +36,7 @@ MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
         decode_blessed(true),
         accessor_style(GetAndSet),
         client_services(Disable),
+        numeric_bool(false),
         fail_ref_coercion(false) {
     if (options_ref == NULL || !SvOK(options_ref))
         return;
@@ -59,6 +60,8 @@ MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
     BOOLEAN_OPTION(implicit_maps, implicit_maps);
     BOOLEAN_OPTION(decode_blessed, decode_blessed);
     BOOLEAN_OPTION(fail_ref_coercion, fail_ref_coercion);
+
+#undef BOOLEAN_OPTION
 
     if (SV **value = hv_fetchs(options, "accessor_style", 0)) {
         const char *buf = SvPV_nolen(*value);
@@ -88,7 +91,16 @@ MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
             croak("Invalid value '%s' for 'client_services' option", buf);
     }
 
-#undef BOOLEAN_OPTION
+    if (SV **value = hv_fetchs(options, "boolean_values", 0)) {
+        const char *buf = SvPV_nolen(*value);
+
+        if (strEQ(buf, "perl"))
+            numeric_bool = false;
+        else if (strEQ(buf, "numeric"))
+            numeric_bool = true;
+        else
+            croak("Invalid value '%s' for 'boolean_values' option", buf);
+    }
 }
 
 Dynamic::Dynamic(const string &root_directory) :

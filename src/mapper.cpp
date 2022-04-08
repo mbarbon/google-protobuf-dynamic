@@ -92,11 +92,15 @@ namespace {
     #define warn_sv(sv) GPD_warn_sv(aTHX_ (sv))
 #endif
 
-    inline void set_bool(pTHX_ SV *target, bool value) {
+    inline void set_perl_bool(pTHX_ SV *target, bool value) {
         if (value)
             sv_setiv(target, 1);
         else
             sv_setpvn(target, "", 0);
+    }
+
+    inline void set_numeric_bool(pTHX_ SV *target, bool value) {
+        sv_setiv(target, value ? 1 : 0);
     }
 }
 
@@ -152,7 +156,7 @@ bool Mapper::DecoderHandlers::apply_defaults_and_check() {
                 sv_setnv(target, field.field_def->default_double());
                 break;
             case UPB_TYPE_BOOL:
-                set_bool(aTHX_ target, field.field_def->default_bool());
+                mapper->set_bool(target, field.field_def->default_bool());
                 break;
             case UPB_TYPE_BYTES:
             case UPB_TYPE_STRING: {
@@ -472,11 +476,20 @@ bool Mapper::DecoderHandlers::on_biguv(DecoderHandlers *cxt, const int *field_in
     }
 }
 
-bool Mapper::DecoderHandlers::on_bool(DecoderHandlers *cxt, const int *field_index, bool val) {
+bool Mapper::DecoderHandlers::on_perl_bool(DecoderHandlers *cxt, const int *field_index, bool val) {
     THX_DECLARE_AND_GET;
 
     cxt->mark_seen(field_index);
-    set_bool(aTHX_ cxt->get_target(field_index), val);
+    set_perl_bool(aTHX_ cxt->get_target(field_index), val);
+
+    return true;
+}
+
+bool Mapper::DecoderHandlers::on_numeric_bool(DecoderHandlers *cxt, const int *field_index, bool val) {
+    THX_DECLARE_AND_GET;
+
+    cxt->mark_seen(field_index);
+    set_numeric_bool(aTHX_ cxt->get_target(field_index), val);
 
     return true;
 }
@@ -542,6 +555,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
          options.encode_defaults_proto3);
     check_enum_values = options.check_enum_values;
     decode_blessed = options.decode_blessed;
+    numeric_bool = options.numeric_bool;
     // on older Perls it is not fully reliable because the check is performed before
     // the SetMAGIC() call, so it is better to disable it entirely
     fail_ref_coercion = HAS_FULL_NOMG ? options.fail_ref_coercion : false;
@@ -616,7 +630,10 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
             break;
         case UPB_TYPE_BOOL:
             GET_SELECTOR(BOOL, primitive);
-            SET_VALUE_HANDLER(bool, on_bool);
+            if (numeric_bool)
+                SET_VALUE_HANDLER(bool, on_numeric_bool);
+            else
+                SET_VALUE_HANDLER(bool, on_perl_bool);
             field.default_bool = field_def->default_bool();
             break;
         case UPB_TYPE_STRING:
@@ -835,6 +852,13 @@ void Mapper::create_encoder_decoder() {
 
 bool Mapper::get_decode_blessed() const {
     return decode_blessed;
+}
+
+void Mapper::set_bool(SV *target, bool value) const {
+    if (numeric_bool)
+        set_numeric_bool(aTHX, target, value);
+    else
+        set_perl_bool(aTHX, target, value);
 }
 
 SV *Mapper::encode(SV *ref) {
@@ -1932,7 +1956,7 @@ void MapperField::copy_default(SV *target) {
         sv_setnv(target, field_def->default_double());
         break;
     case UPB_TYPE_BOOL:
-        set_bool(aTHX_ target, field_def->default_bool());
+        mapper->set_bool(target, field_def->default_bool());
         break;
     case UPB_TYPE_STRING: {
         size_t len;
@@ -2017,7 +2041,7 @@ void MapperField::copy_value(SV *target, SV *value) {
         sv_setnv(target, SvNV(value));
         break;
     case UPB_TYPE_BOOL:
-        set_bool(aTHX_ target, SvTRUE(value));
+        mapper->set_bool(target, SvTRUE(value));
         break;
     case UPB_TYPE_STRING: {
         STRLEN len;
