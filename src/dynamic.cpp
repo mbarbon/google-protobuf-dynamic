@@ -111,6 +111,8 @@ Dynamic::Dynamic(const string &root_directory) :
 }
 
 Dynamic::~Dynamic() {
+    for (STD_TR1::unordered_map<std::string, const Mapper *>::iterator it = descriptor_map.begin(), en = descriptor_map.end(); it != en; ++it)
+        it->second->unref();
 }
 
 void Dynamic::load_file(pTHX_ const string &file) {
@@ -443,6 +445,7 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
         setter_prefix = "set_";
     }
 
+    // the map owns the reference from Mapper constructor, and is unreffed in ~Dynamic
     descriptor_map[message_def->full_name()] = mapper;
     used_packages.insert(perl_package);
     pending.push_back(mapper);
@@ -542,8 +545,6 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
             copy_and_bind(aTHX_ "get_or_set_extension_list", "extension_list", perl_package, mapper);
         }
     }
-
-    mapper->unref(); // reference from constructor
 }
 
 void Dynamic::map_enum(pTHX_ const EnumDescriptor *descriptor, const string &perl_package, const MappingOptions &options) {
