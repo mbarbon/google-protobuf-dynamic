@@ -34,6 +34,7 @@ MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
         generic_extension_methods(true),
         implicit_maps(false),
         decode_blessed(true),
+        no_redefine_perl_names(false),
         accessor_style(GetAndSet),
         client_services(Disable),
         numeric_bool(false),
@@ -425,6 +426,7 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
         croak("Message '%s' has already been mapped", descriptor->full_name().c_str());
     if (options.use_bigints)
         load_module(PERL_LOADMOD_NOIMPORT, newSVpvs("Math::BigInt"), NULL);
+    bool define_perl_names = !options.no_redefine_perl_names || gv_stashpvn(perl_package.data(), perl_package.size(), 0) == NULL;
     HV *stash = gv_stashpvn(perl_package.data(), perl_package.size(), GV_ADD);
     const MessageDef *message_def = def_builder.GetMessageDef(descriptor);
     if (is_map_entry(message_def, options.implicit_maps))
@@ -437,7 +439,8 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
     used_packages.insert(perl_package);
     pending.push_back(mapper);
 
-    bind_message(aTHX_ perl_package, mapper, stash, options);
+    if (define_perl_names)
+        bind_message(aTHX_ perl_package, mapper, stash, options);
 }
 
 void Dynamic::bind_message(pTHX_ const string &perl_package, Mapper *mapper, HV *stash, const MappingOptions &options) {
