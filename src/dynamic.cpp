@@ -431,8 +431,18 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
         // it's likely I will regret this const_cast<>
         upb_msgdef_setmapentry(const_cast<MessageDef *>(message_def), true);
     Mapper *mapper = new Mapper(aTHX_ this, message_def, stash, options);
-    const char *getter_prefix, *setter_prefix;
+
+    // the map owns the reference from Mapper constructor, and is unreffed in ~Dynamic
+    descriptor_map[message_def->full_name()] = mapper;
+    used_packages.insert(perl_package);
+    pending.push_back(mapper);
+
+    bind_message(aTHX_ perl_package, mapper, stash, options);
+}
+
+void Dynamic::bind_message(pTHX_ const string &perl_package, Mapper *mapper, HV *stash, const MappingOptions &options) {
     bool plain_accessor = false;
+    const char *getter_prefix, *setter_prefix;
 
     if (options.accessor_style == MappingOptions::SingleAccessor) {
         getter_prefix = setter_prefix = NULL;
@@ -444,11 +454,6 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
             "get_" : "";
         setter_prefix = "set_";
     }
-
-    // the map owns the reference from Mapper constructor, and is unreffed in ~Dynamic
-    descriptor_map[message_def->full_name()] = mapper;
-    used_packages.insert(perl_package);
-    pending.push_back(mapper);
 
     copy_and_bind(aTHX_ "decode", perl_package, mapper);
     copy_and_bind(aTHX_ "encode", perl_package, mapper);
