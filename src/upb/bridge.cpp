@@ -30,10 +30,10 @@ namespace googlepb {
 /* DefBuilder  ****************************************************************/
 
 const EnumDef* DefBuilder::GetEnumDef(const goog::EnumDescriptor* ed) {
-  const EnumDef* cached = FindInCache<EnumDef>(ed);
+  const EnumDef* cached = FindInCaches<EnumDef>(ed->full_name(), ed);
   if (cached) return cached;
 
-  EnumDef* e = AddToCache(ed, EnumDef::New());
+  EnumDef* e = AddToCaches(ed->full_name(), ed, EnumDef::New());
 
   Status status;
   e->set_full_name(ed->full_name(), &status);
@@ -51,10 +51,9 @@ const EnumDef* DefBuilder::GetEnumDef(const goog::EnumDescriptor* ed) {
 
 const MessageDef* DefBuilder::GetMaybeUnfrozenMessageDef(
     const goog::Descriptor* d, const goog::Message* m) {
-  const MessageDef* cached = FindInCache<MessageDef>(d);
+  const MessageDef* cached = FindInCaches<MessageDef>(d->full_name(), d);
   if (cached) return cached;
-
-  MessageDef* md = AddToCache(d, MessageDef::New());
+  MessageDef* md = AddToCaches(d->full_name(), d, MessageDef::New());
   to_freeze_.push_back(upb::upcast(md));
 
   Status status;

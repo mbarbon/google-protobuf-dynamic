@@ -77,17 +77,24 @@ class DefBuilder {
   void Freeze();
 
   template <class T>
-  T* AddToCache(const void *proto2_descriptor, reffed_ptr<T> def) {
+  T* AddToCaches(const std::string &name, const void *proto2_descriptor, reffed_ptr<T> def) {
     UPB_ASSERT(def_cache_.find(proto2_descriptor) == def_cache_.end());
+    UPB_ASSERT(named_def_cache_.find(name) == named_def_cache_.end());
     def_cache_[proto2_descriptor] = def;
+    named_def_cache_[name] = def;
     return def.get();  // Continued lifetime is guaranteed by cache.
   }
 
   template <class T>
-  const T* FindInCache(const void *proto2_descriptor) {
+  const T* FindInCaches(const std::string &name, const void *proto2_descriptor) {
     DefCache::iterator iter = def_cache_.find(proto2_descriptor);
-    return iter == def_cache_.end() ? NULL :
-        upb::down_cast<const T*>(iter->second.get());
+    if (iter != def_cache_.end())
+        return upb::down_cast<const T*>(iter->second.get());
+
+    // doing this lookup might be just papering over a but elsewhere :-(
+    NamedDefCache::iterator named_iter = named_def_cache_.find(name);
+    return named_iter == named_def_cache_.end() ? NULL :
+        upb::down_cast<const T*>(named_iter->second.get());
   }
 
  private:
@@ -96,6 +103,9 @@ class DefBuilder {
   // share a common base.
   typedef std::map<const void*, reffed_ptr<upb::Def> > DefCache;
   DefCache def_cache_;
+
+  typedef std::map<std::string, reffed_ptr<upb::Def> > NamedDefCache;
+  NamedDefCache named_def_cache_;
 
   // Defs that have not been frozen yet.
   std::vector<Def*> to_freeze_;
