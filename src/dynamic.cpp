@@ -641,6 +641,7 @@ void Dynamic::resolve_references() {
     pending.clear();
     for (std::vector<MethodMapper *>::iterator it = pending_methods.begin(), en = pending_methods.end(); it != en; ++it)
         (*it)->resolve_input_output();
+    pending_methods.clear();
 }
 
 const Mapper *Dynamic::find_mapper(const MessageDef *message_def) const {
