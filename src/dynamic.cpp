@@ -116,11 +116,17 @@ Dynamic::~Dynamic() {
         it->second->unref();
 }
 
+void Dynamic::add_file_recursively(pTHX_ const FileDescriptor *file) {
+    files.insert(file);
+    for (int i = 0, max = file->dependency_count(); i < max; ++i)
+        add_file_recursively(file->dependency(i));
+}
+
 void Dynamic::load_file(pTHX_ const string &file) {
     const FileDescriptor *loaded = descriptor_loader.load_proto(file);
 
     if (loaded)
-        files.insert(loaded);
+        add_file_recursively(aTHX_ loaded);
 }
 
 void Dynamic::load_string(pTHX_ const string &file, SV *sv) {
@@ -137,7 +143,8 @@ void Dynamic::load_serialized_string(pTHX_ SV *sv) {
     const char *data = SvPV(sv, len);
     const vector<const FileDescriptor *> loaded = descriptor_loader.load_serialized(data, len);
 
-    files.insert(loaded.begin(), loaded.end());
+    for (vector<const FileDescriptor *>::const_iterator it = loaded.begin(), en = loaded.end(); it != en; ++it)
+        add_file_recursively(aTHX_ *it);
 }
 
 namespace {

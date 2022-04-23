@@ -86,6 +86,7 @@ public:
     }
 
 private:
+    void add_file_recursively(pTHX_ const google::protobuf::FileDescriptor *file);
     void map_package_or_prefix(pTHX_ const std::string &pb_package, bool is_prefix, const std::string &perl_package_prefix, const MappingOptions &options);
     void map_message_recursive(pTHX_ const google::protobuf::Descriptor *descriptor, const std::string &perl_package, const MappingOptions &options);
     void map_message_prefix_recursive(pTHX_ const google::protobuf::Descriptor *descriptor, const std::string &perl_package_prefix, const MappingOptions &options, STD_TR1::unordered_set<std::string> &recursed_names);
