@@ -15,7 +15,7 @@ using namespace std;
 
 namespace {
     const string wkt_prefix = "google.protobuf";
-    STD_TR1::unordered_set<string> wkt_types;
+    STD_TR1::unordered_map<string, string> wkt_types_to_file;
     STD_TR1::unordered_set<string> wkt_files;
 
     // it seems the only way to add a Descriptor to a pool is to go through the Proto object
@@ -30,17 +30,18 @@ namespace {
             const DescriptorProto &message = file_proto.message_type(j);
             const string full_name = file_proto.package() + "." + message.name();
 
-            wkt_types.insert(full_name);
+            wkt_types_to_file.insert(make_pair(full_name, file_proto.name()));
         }
 
         wkt_files.insert(file_proto.name());
     }
 
-    bool is_wkt_file(const FileDescriptorProto &file) {
+    STD_TR1::unordered_set<string> find_wkt_files(const FileDescriptorProto &file) {
         const string &package = file.package();
+        STD_TR1::unordered_set<string> wkt_files;
 
         if (package != wkt_prefix)
-            return false;
+            return wkt_files;
 
         // for well-known-types, use the compiled-in version. This
         // version of the code handles also in-tree copies of WKT
@@ -49,11 +50,12 @@ namespace {
             const DescriptorProto &message = file.message_type(j);
             const string full_name = package + "." + message.name();
 
-            if (wkt_types.find(full_name) != wkt_types.end())
-                return true;
+            STD_TR1::unordered_map<string, string>::iterator entry = wkt_types_to_file.find(full_name);
+            if (entry != wkt_types_to_file.end())
+                wkt_files.insert(entry->second);
         }
 
-        return false;
+        return wkt_files;
     }
 }
 
@@ -105,7 +107,7 @@ const vector<const FileDescriptor *> DescriptorLoader::load_serialized(const cha
         croak("Error deserializing message descriptors");
     vector<const FileDescriptor *> result;
 
-    STD_TR1::unordered_set<string> removed_wkt;
+    STD_TR1::unordered_set<string> removed_wkt, needed_wkt;
     for (int i = 0, max = fds.file_size(); i < max; ++i) {
         FileDescriptorProto file = fds.file(i);
 
@@ -116,18 +118,21 @@ const vector<const FileDescriptor *> DescriptorLoader::load_serialized(const cha
         // For binary descriptors, this requires the binary descriptor to
         // be skipped, and dependency information to be upated to use the
         // compiled-in WKT descritpros.
-        if (is_wkt_file(file)) {
+        STD_TR1::unordered_set<string> standard_wkt_files = find_wkt_files(file);
+        if (!standard_wkt_files.empty()) {
             removed_wkt.insert(file.name());
+            needed_wkt.insert(standard_wkt_files.begin(), standard_wkt_files.end());
             continue;
         }
 
-        // See comment above. If this file dependes on WTK descriptors that
+        // See comment above. If this file dependes on WKT descriptors that
         // have been removed, the corresponding dependency need to be adjusted
         // to point to the compiled-in descriptor.
         //
         // The crude and hopefully robust way of doing this is to add a
-        // dependency to all compled-in descritprs, without caring whether
-        // they are used or not.
+        // dependency to all compled-in descritprs, that provide types that
+        // are used, regardless of whether they are used by a given serialized
+        // descriptor
         if (!removed_wkt.empty()) {
             vector<string> dependency(file.dependency().begin(), file.dependency().end());
             bool add_builtin_wkt = false;
@@ -142,7 +147,7 @@ const vector<const FileDescriptor *> DescriptorLoader::load_serialized(const cha
             }
 
             if (add_builtin_wkt) {
-                for (STD_TR1::unordered_set<string>::const_iterator it = wkt_files.begin(), en = wkt_files.end(); it != en; ++it)
+                for (STD_TR1::unordered_set<string>::const_iterator it = needed_wkt.begin(), en = needed_wkt.end(); it != en; ++it)
                     file.add_dependency(*it);
             }
         }
