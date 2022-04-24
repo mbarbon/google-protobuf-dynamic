@@ -73,6 +73,7 @@ public:
     void map_message_prefix(pTHX_ const std::string &message, const std::string &perl_package_prefix, const MappingOptions &options);
     void map_enum(pTHX_ const std::string &enum_name, const std::string &perl_package, const MappingOptions &options);
     void map_service(pTHX_ const std::string &service_name, const std::string &perl_package, const MappingOptions &options);
+    void map_wkts(pTHX_ const MappingOptions &options);
     void resolve_references();
 
     const Mapper *find_mapper(const upb::MessageDef *message_def) const;

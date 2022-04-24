@@ -147,6 +147,12 @@ void Dynamic::load_serialized_string(pTHX_ SV *sv) {
         add_file_recursively(aTHX_ *it);
 }
 
+void Dynamic::map_wkts(pTHX_ const MappingOptions &options) {
+    MappingOptions maybe_no_perl_names = options;
+    maybe_no_perl_names.no_redefine_perl_names = true;
+    map_package(aTHX_ "google.protobuf", "Google::ProtocolBuffers::Dynamic::WKT", maybe_no_perl_names);
+}
+
 namespace {
     int free_refcounted(pTHX_ SV *sv, MAGIC *mg) {
         Refcounted *refcounted = (Refcounted *) mg->mg_ptr;

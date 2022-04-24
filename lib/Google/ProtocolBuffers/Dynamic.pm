@@ -20,8 +20,6 @@ my $REQUIRED_MAP_MESSAGE = [qw(message to)];
 my $REQUIRED_MAP_ENUM = [qw(enum to)];
 my $REQUIRED_MAP_SERVICE = [qw(service to)];
 
-my $DEFAULT_WKT_MAPPING = 0;
-
 sub map {
     my ($self, @mappings) = @_;
 
@@ -74,24 +72,6 @@ sub _dump {
 
     local $Data::Dumper::Terse = 1;
     Data::Dumper::Dumper(@_)
-}
-
-sub _load_wkt_proto {
-    my ($self) = @_;
-
-    $self->load_file('google/protobuf/duration.proto');
-    $self->load_file('google/protobuf/timestamp.proto');
-    $self->load_file('google/protobuf/wrappers.proto');
-}
-
-sub map_wkts {
-    return if $DEFAULT_WKT_MAPPING;
-    $DEFAULT_WKT_MAPPING = 1;
-
-    my ($self, $options) = @_;
-
-    $self->_load_wkt_proto;
-    $self->map_package('google.protobuf', 'Google::ProtocolBuffers::Dynamic::WKT', $options);
 }
 
 1;

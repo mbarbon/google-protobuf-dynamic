@@ -15,6 +15,10 @@
     void load_serialized_string(SV *sv)
         %code{% THIS->load_serialized_string(aTHX_ sv); %};
 
+    // options is only useful when testing
+    void map_wkts(SV *options = NULL)
+        %code{% THIS->map_wkts(aTHX_ gpd::MappingOptions(aTHX_ options)); %};
+
     void map_message(const std::string &message, const std::string &perl_package, SV *options = NULL)
         %code{% THIS->map_message(aTHX_ *message, *perl_package, gpd::MappingOptions(aTHX_ options)); %};
 
