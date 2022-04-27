@@ -119,7 +119,7 @@ Dynamic::~Dynamic() {
 void Dynamic::add_file_recursively(pTHX_ const FileDescriptor *file) {
     files.insert(file);
     for (int i = 0, max = file->dependency_count(); i < max; ++i)
-        add_file_recursively(file->dependency(i));
+        add_file_recursively(aTHX_ file->dependency(i));
 }
 
 void Dynamic::load_file(pTHX_ const string &file) {
