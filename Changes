@@ -2,6 +2,13 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.39      2022-04-27 14:08:25 CEST
+
+    - map_package/map_package_prefix also map packages that are loaded
+      indirectly via imports
+    - Fix various issues related to loading WKTs from serialized
+      descriptors, and to using WKTs in multiple instances
+
 0.38      2022-04-08 19:23:52 CEST
 
     - Compilation fix for non-threaded Perl
