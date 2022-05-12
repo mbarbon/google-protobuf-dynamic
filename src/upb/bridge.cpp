@@ -111,7 +111,7 @@ reffed_ptr<FieldDef> DefBuilder::NewFieldDef(const goog::FieldDescriptor* f,
   upb_f->set_number(f->number(), &status);
   upb_f->set_label(FieldDef::ConvertLabel(f->label()));
   upb_f->set_descriptor_type(FieldDef::ConvertDescriptorType(f->type()));
-  upb_f->set_packed(f->options().packed());
+  upb_f->set_packed(f->is_packed());
 
   if (f->is_extension()) {
     upb_f->set_name(f->full_name(), &status);

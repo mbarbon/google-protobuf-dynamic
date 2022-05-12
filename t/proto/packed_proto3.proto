@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package test;
+
+message Packed {
+    repeated int32 int32_f = 3;
+}
+
+message Unpacked {
+    repeated int32 int32_f = 3 [packed=false];
+}
