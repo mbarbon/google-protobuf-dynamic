@@ -2,6 +2,10 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.40      2022-05-12 07:24:17 CEST
+
+    - Fix proto3 primitive fields to be packed by default
+
 0.39      2022-04-27 14:08:25 CEST
 
     - map_package/map_package_prefix also map packages that are loaded
