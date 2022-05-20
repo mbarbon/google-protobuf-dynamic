@@ -1009,7 +1009,7 @@ namespace {
     inline bool SvPOK_utf8(SV *sv) {
         return ((SvFLAGS(sv) & (SVf_POK|SVf_UTF8)) == (SVf_POK|SVf_UTF8));
     }
-
+#if PERL_VERSION < 32
     // this is a copied-and-modified version of SvPVutf8 and sv_2pvutf8
     inline char *SvPVutf8_nomg_impl(pTHX_ SV *sv, STRLEN *lp) {
         // condition and branch are from SvPVutf8
@@ -1028,7 +1028,7 @@ namespace {
     }
 
     #define SvPVutf8_nomg(sv, len) SvPVutf8_nomg_impl(aTHX_ sv, &len)
-
+#endif
     uint64_t get_uint64_nomg(pTHX_ SV *src) {
         if (SvROK(src) && sv_derived_from(src, "Math::BigInt")) {
             bool negative = false;
