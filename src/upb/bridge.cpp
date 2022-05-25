@@ -20,6 +20,10 @@
 #include <google/protobuf/descriptor.pb.h>
 namespace goog = ::google::protobuf;
 
+#if GOOGLE_PROTOBUF_VERSION >= 2006000
+#define GOOGLE_PROTOBUF_HAS_ONEOF
+#endif
+
 #if GOOGLE_PROTOBUF_VERSION >= 3012000
 #define GOOGLE_PROTOBUF_HAS_PROTO3_OPTIONAL
 #endif
