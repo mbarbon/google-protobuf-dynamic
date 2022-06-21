@@ -520,6 +520,23 @@ void Mapper::DecoderHandlers::mark_seen(const int *field_index) {
     seen_fields.back()[*field_index] = true;
 }
 
+static void* start_string(void *c, const void *hd, size_t size) {
+    string* str = static_cast<string*>(c);
+    str->clear();
+    return c;
+}
+
+static size_t string_buf(void* c, const void* hd, const char* buf, size_t n,
+                         const upb_bufhandle* h) {
+    string* str = static_cast<string*>(c);
+    try {
+        str->append(buf, n);
+        return n;
+    } catch (const std::exception&) {
+        return 0;
+    }
+}
+
 Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDefPtr _message_def, HV *_stash, const MappingOptions &options) :
         pb_encoder_handlers(_registry->pb_encoder_handlers(message_def)),
         json_encoder_handlers(_registry->json_encoder_handlers(message_def)),
@@ -527,21 +544,27 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDefPtr _message_def, HV *_
         registry(_registry),
         message_def(_message_def),
         stash(_stash),
-        decoder_callbacks(aTHX_ this),
-        string_sink(&output_buffer) {
+        decoder_callbacks(aTHX_ this) {
     SET_THX_MEMBER;
 
     SvREFCNT_inc(stash);
 
+    upb_byteshandler_init(&output_handler);
+    
+    upb_byteshandler_setstartstr(&output_handler, &start_string,
+                                 NULL);
+    upb_byteshandler_setstring(&output_handler, &string_buf, NULL);
+    output_sink.Reset(&output_handler, &output_buffer);
+
     registry->ref();
-    pb_encoder_handlers = Encoder::NewHandlers(message_def);
-    json_encoder_handlers = Printer::NewHandlers(message_def, false /* XXX option */);
-    decoder_handlers = Handlers::New(message_def);
-    decode_explicit_defaults = options.explicit_defaults || message_def->mapentry();
+    pb_encoder_handlers = _registry->pb_encoder_handlers(message_def);
+    json_encoder_handlers = _registry->json_encoder_handlers(message_def);
+    decoder_handlers = _registry->decoder_handlers(message_def);
+    decode_explicit_defaults = options.explicit_defaults || message_def.mapentry();
     encode_defaults =
-        (message_def->syntax() == UPB_SYNTAX_PROTO2 &&
+        (message_def.syntax() == UPB_SYNTAX_PROTO2 &&
          options.encode_defaults) ||
-        (message_def->syntax() == UPB_SYNTAX_PROTO3 &&
+        (message_def.syntax() == UPB_SYNTAX_PROTO3 &&
          options.encode_defaults_proto3);
 
     check_enum_values = options.check_enum_values;
@@ -561,12 +584,12 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDefPtr _message_def, HV *_
 
     bool map_entry = message_def.mapentry();
     bool has_required = false;
-    for (MessageDefPtr::const_field_iterator it = message_def.field_begin(), en = message_def.field_end(); it != en; ++it) {
+    for (int i = 0, max = message_def.field_count(); i < max; ++i) {
         int index = fields.size();
         fields.push_back(Field());
 
         Field &field = fields.back();;
-        FieldDefPtr field_def = *it;
+        FieldDefPtr field_def = message_def.field(i);
         const OneofDefPtr oneof_def = field_def.containing_oneof();
 
         fields_by_field_def_index[field_def.index()] = &fields.back();
@@ -730,11 +753,11 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDefPtr _message_def, HV *_
     }
 
     int oneof_index = 0;
-    for (MessageDefPtr::const_oneof_iterator it = message_def.oneof_begin(), en = message_def.oneof_end(); it != en; ++it, ++oneof_index) {
-        const OneofDefPtr oneof_def = *it;
+    for (int i = 0, max = message_def.oneof_count(); i < max; ++i) {
+        const OneofDefPtr oneof_def = message_def.oneof(i);
 
-        for (OneofDefPtr::const_iterator it = oneof_def.begin(), en = oneof_def.end(); it != en; ++it) {
-            const FieldDefPtr field_def = *it;
+        for (int i = 0, max = oneof_def.field_count(); i < max; ++i) {
+            const FieldDefPtr field_def = oneof_def.field(i);
             Field *field = fields_by_field_def_index[field_def.index()];
 
             field->oneof_index = oneof_index;
@@ -856,7 +879,7 @@ SV *Mapper::encode(SV *ref) {
     if (pb_decoder_method.ptr() == NULL)
         croak("It looks like resolve_references() was not called (and please use map() anyway)");
     upb::Arena arena;
-    upb::pb::EncoderPtr pb_encoder = upb::pb::EncoderPtr::Create(&arena, pb_encoder_handlers.ptr(), string_sink.input());
+    upb::pb::EncoderPtr pb_encoder = upb::pb::EncoderPtr::Create(&arena, pb_encoder_handlers.ptr(), output_sink);
     status.Clear();
     output_buffer.clear();
     warn_context->clear();
@@ -878,7 +901,7 @@ SV *Mapper::encode_json(SV *ref) {
     if (json_decoder_method.ptr() == NULL)
         croak("It looks like resolve_references() was not called (and please use map() anyway)");
     upb::Arena arena;
-    upb::json::PrinterPtr json_encoder = upb::json::PrinterPtr::Create(&arena, json_encoder_handlers.ptr(), string_sink.input());
+    upb::json::PrinterPtr json_encoder = upb::json::PrinterPtr::Create(&arena, json_encoder_handlers.ptr(), output_sink);
     status.Clear();
     output_buffer.clear();
     warn_context->clear();
@@ -1275,7 +1298,7 @@ bool Mapper::encode_from_message_array(Sink sink, Status *status, const Mapper::
             return false;
         if (!encode_value(submsg, status, *item))
             return false;
-        if (!sub.EndSubMessage(fd.selector.msg_end))
+        if (!sub.EndSubMessage(fd.selector.msg_end, submsg))
             return false;
     }
     warn_context->pop_level();
@@ -1379,7 +1402,7 @@ bool Mapper::encode_field(Sink sink, Status *status, const Field &fd, SV *ref) c
             return false;
         if (!fd.mapper->encode_value(sub, status, ref))
             return false;
-        return sink.EndSubMessage(fd.selector.msg_end);
+        return sink.EndSubMessage(fd.selector.msg_end, sub);
     }
     case UPB_TYPE_ENUM: {
         IV value = SvIV_enc(ref);
@@ -1587,7 +1610,7 @@ bool Mapper::encode_from_perl_hash(Sink sink, Status *status, const Field &fd, S
             return false;
         if (!fd.mapper->encode_hash_kv(key_value, status, key, keylen, value))
             return false;
-        if (!repeated.EndSubMessage(fd.selector.msg_end))
+        if (!repeated.EndSubMessage(fd.selector.msg_end, key_value))
             return false;
     }
     warn_context->pop_level();

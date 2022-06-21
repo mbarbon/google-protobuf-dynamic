@@ -3,7 +3,7 @@
 
 #include <google/protobuf/descriptor.pb.h>
 #include <google/protobuf/descriptor.h>
-#include <upb/def.h>
+#include <upb/def.hpp>
 
 #include "unordered_map.h"
 

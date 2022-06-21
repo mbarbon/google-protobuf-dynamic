@@ -9,7 +9,6 @@
 #include <upb/pb/decoder.h>
 #include <upb/json/printer.h>
 #include <upb/json/parser.h>
-#include <upb/bindings/stdc++/string.h>
 
 #include "unordered_map.h"
 #include "servicedef.h"
@@ -188,7 +187,8 @@ private:
     DecoderHandlers decoder_callbacks;
     upb::Sink encoder_sink, decoder_sink;
     std::string output_buffer;
-    upb::StringSink string_sink;
+    upb::BytesHandler output_handler;
+    upb::BytesSink output_sink;
     bool check_required_fields, decode_explicit_defaults, encode_defaults, check_enum_values, decode_blessed, fail_ref_coercion, numeric_bool;
     WarnContext *warn_context;
 };

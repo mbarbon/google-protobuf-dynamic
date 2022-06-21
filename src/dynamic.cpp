@@ -459,7 +459,7 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
     Mapper *mapper = new Mapper(aTHX_ this, message_def, stash, options);
 
     // the map owns the reference from Mapper constructor, and is unreffed in ~Dynamic
-    descriptor_map[message_def->full_name()] = mapper;
+    descriptor_map[message_def.full_name()] = mapper;
     used_packages.insert(perl_package);
     pending.push_back(mapper);
 
@@ -481,10 +481,6 @@ void Dynamic::bind_message(pTHX_ const string &perl_package, Mapper *mapper, HV 
             "get_" : "";
         setter_prefix = "set_";
     }
-
-    descriptor_map[message_def.full_name()] = mapper;
-    used_packages.insert(perl_package);
-    pending.push_back(mapper);
 
     copy_and_bind(aTHX_ "decode", perl_package, mapper);
     copy_and_bind(aTHX_ "encode", perl_package, mapper);
