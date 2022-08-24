@@ -16,6 +16,13 @@ handle_warning(SV *text)
   CODE:
     cxt->warn_with_context(aTHX_ text);
 
+void
+set_decoder_options(SV *klass, HV *options)
+  INIT:
+    gpd::Mapper *mapper = (gpd::Mapper *) CvXSUBANY(cv).any_ptr;
+  CODE:
+    mapper->set_decoder_options(options);
+
 SV*
 new(SV *klass, SV *ref = NULL)
   INIT:

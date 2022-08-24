@@ -471,6 +471,7 @@ void Dynamic::bind_message(pTHX_ const string &perl_package, Mapper *mapper, HV 
         setter_prefix = "set_";
     }
 
+    copy_and_bind(aTHX_ "set_decoder_options", perl_package, mapper);
     copy_and_bind(aTHX_ "decode", perl_package, mapper);
     copy_and_bind(aTHX_ "encode", perl_package, mapper);
     copy_and_bind(aTHX_ "decode_json", perl_package, mapper);

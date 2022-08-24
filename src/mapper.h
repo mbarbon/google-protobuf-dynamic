@@ -30,8 +30,30 @@ class MapperField;
 class WarnContext;
 class ServiceDef;
 
+typedef SV *(*CDecoderTransform)(pTHX_ SV *target);
+
+class DecoderTransform {
+public:
+    DecoderTransform(CDecoderTransform function);
+    DecoderTransform(SV *function);
+
+    SV *transform(pTHX_ SV *target) const;
+
+private:
+    CDecoderTransform c_function;
+    SV *perl_function;
+};
+
 class Mapper : public Refcounted {
 public:
+    struct Transform {
+        const DecoderTransform *field_function;
+        SV *target;
+
+        Transform() {}
+        Transform(const DecoderTransform *f, SV *t) : field_function(f), target(t) {}
+    };
+
     struct Field {
         const upb::FieldDef *field_def;
         struct {
@@ -57,6 +79,7 @@ public:
         bool is_key;
         bool is_value;
         const Mapper *mapper; // for Message/Group fields
+        DecoderTransform *decoder_transform;
         STD_TR1::unordered_set<int32_t> enum_values;
         int oneof_index;
         union {
@@ -83,6 +106,8 @@ public:
         std::vector<const Mapper *> mappers;
         std::vector<std::vector<bool> > seen_fields;
         std::vector<std::vector<int32_t> > seen_oneof;
+        std::vector<Transform> transforms;
+        DecoderTransform *decoder_transform;
         std::string error;
         SV *string;
 
@@ -123,6 +148,8 @@ public:
         bool apply_defaults_and_check();
         SV *get_target(const int *field_index);
         void mark_seen(const int *field_index);
+        void maybe_apply(const Transform transform, const DecoderTransform *message_function);
+        void maybe_apply(SV *root_target);
     };
 
 public:
@@ -134,6 +161,7 @@ public:
 
     void resolve_mappers();
     void create_encoder_decoder();
+    void set_decoder_options(HV *options);
 
     SV *encode(SV *ref);
     SV *decode(const char *buffer, STRLEN bufsize);

@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package test;
+
+message Message {
+    repeated Int32ArrayArray nested_array = 1;
+}
+
+message FieldMessage {
+    Int32Array transformed = 1;
+    Int32Array original = 2;
+}
+
+message MapMessage {
+    map<string, Int32Array> map_values = 1;
+}
+
+message Int32Array {
+    repeated int32 values = 1;
+}
+
+message Int32ArrayArray {
+    repeated Int32Array values = 1;
+}
+
+message InvalidFields {
+    int32 not_message = 1;
+    repeated int32 repeated_not_message = 2;
+    repeated Int32Array repeated_message = 3;
+    map<string, int32> map_field = 4;
+}

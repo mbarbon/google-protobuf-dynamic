@@ -44,7 +44,39 @@ namespace {
     }
 }
 
-Mapper::DecoderHandlers::DecoderHandlers(pTHX_ const Mapper *mapper) {
+DecoderTransform::DecoderTransform(CDecoderTransform function) :
+        c_function(function),
+        perl_function(NULL)
+{}
+
+DecoderTransform::DecoderTransform(SV *function) :
+        c_function(NULL),
+        perl_function(function)
+{}
+
+SV *DecoderTransform::transform(pTHX_ SV *target) const {
+    if (c_function) {
+        return c_function(aTHX_ target);
+    } else {
+        dSP;
+
+        PUSHMARK(SP);
+        XPUSHs(target);
+        PUTBACK;
+
+        // return value is always 1 because of G_SCALAR
+        call_sv(perl_function, G_SCALAR);
+
+        SPAGAIN;
+        SV *res = POPs;
+        PUTBACK;
+
+        return res;
+    }
+}
+
+Mapper::DecoderHandlers::DecoderHandlers(pTHX_ const Mapper *mapper) :
+        decoder_transform(NULL) {
     SET_THX_MEMBER;
     mappers.push_back(mapper);
 }
@@ -60,6 +92,7 @@ void Mapper::DecoderHandlers::prepare(HV *target) {
         seen_oneof.back().resize(oneof_count, -1);
     }
     items.resize(1);
+    transforms.clear();
     error.clear();
     items[0] = (SV *) target;
     string = NULL;
@@ -320,6 +353,7 @@ Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_sub_message(DecoderHa
 
     cxt->items.push_back((SV *) hv);
     cxt->mappers.push_back(message_mapper);
+    cxt->transforms.push_back(Transform(mapper->fields[*field_index].decoder_transform, target));
     cxt->seen_fields.resize(cxt->seen_fields.size() + 1);
     cxt->seen_fields.back().resize(cxt->mappers.back()->fields.size());
     if (int oneof_count = cxt->mappers.back()->message_def->oneof_count()) {
@@ -333,9 +367,14 @@ Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_sub_message(DecoderHa
 }
 
 bool Mapper::DecoderHandlers::on_end_sub_message(DecoderHandlers *cxt, const int *field_index) {
-    if (cxt->mappers.back()->message_def->oneof_count())
+    const Mapper *message_mapper = cxt->mappers.back();
+
+    cxt->maybe_apply(cxt->transforms.back(), message_mapper->decoder_callbacks.decoder_transform);
+
+    if (message_mapper->message_def->oneof_count())
         cxt->seen_oneof.pop_back();
     cxt->seen_fields.pop_back();
+    cxt->transforms.pop_back();
     cxt->mappers.pop_back();
     cxt->items.pop_back();
 
@@ -529,6 +568,29 @@ SV *Mapper::DecoderHandlers::get_target(const int *field_index) {
     }
 }
 
+void Mapper::DecoderHandlers::maybe_apply(const Transform transform, const DecoderTransform *message_function) {
+    const DecoderTransform *actual_function = transform.field_function ? transform.field_function : message_function;
+    if (!actual_function)
+        return;
+
+    SV *transformed = actual_function->transform(aTHX_ transform.target);
+    if (transformed == NULL || transformed == transform.target || !SvOK(transformed))
+        return;
+
+    sv_setsv(transform.target, transformed);
+}
+
+void Mapper::DecoderHandlers::maybe_apply(SV *root_target) {
+    if (!decoder_transform)
+        return;
+
+    SV *transformed = decoder_transform->transform(aTHX_ root_target);
+    if (transformed == NULL || transformed == root_target || !SvOK(transformed))
+        return;
+
+    sv_setsv(root_target, transformed);
+}
+
 void Mapper::DecoderHandlers::mark_seen(const int *field_index) {
     seen_fields.back()[*field_index] = true;
 }
@@ -593,6 +655,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
         field.name_hash = SvSHARED_HASH(field.name);
         field.has_default = field.is_map = false;
         field.mapper = NULL;
+        field.decoder_transform = NULL;
         field.oneof_index = -1;
 
         if (map_entry) {
@@ -754,9 +817,11 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
 }
 
 Mapper::~Mapper() {
-    for (vector<Field>::iterator it = fields.begin(), en = fields.end(); it != en; ++it)
+    for (vector<Field>::iterator it = fields.begin(), en = fields.end(); it != en; ++it) {
         if (it->mapper)
             it->mapper->unref();
+        delete it->decoder_transform;
+    }
     for (vector<MapperField *>::iterator it = extension_mapper_fields.begin(), en = extension_mapper_fields.end(); it != en; ++it)
         // this will make the mapper ref count to go negative, but it's OK
         (*it)->unref();
@@ -850,6 +915,71 @@ void Mapper::create_encoder_decoder() {
     decoder_sink.Reset(decoder_handlers.get(), &decoder_callbacks);
 }
 
+static SV *scalar_option(pTHX_ HV *options, const char *name) {
+    SV **hv_value = hv_fetch(options, name, strlen(name), 0);
+    if (!hv_value)
+        return NULL;
+
+    return *hv_value;
+}
+
+static HV *hash_option(pTHX_ HV *options, const char *name) {
+    SV **hv_value = hv_fetch(options, name, strlen(name), 0);
+    if (!hv_value)
+        return NULL;
+    if (!SvROK(*hv_value) || SvTYPE(SvRV(*hv_value)) != SVt_PVHV)
+        croak("Expected hash reference for option key %s", name);
+
+    return (HV *) SvRV(*hv_value);
+}
+
+static DecoderTransform *make_transform(pTHX_ SV *scalar) {
+    if (SvROK(scalar)) {
+        SV *maybe_cv = SvRV(scalar);
+        if (SvTYPE(maybe_cv) != SVt_PVCV)
+            croak("Transformation function is a reference but not a code reference");
+
+        return new DecoderTransform(maybe_cv);
+    }
+
+    if (SvIOK(scalar)) {
+        return new DecoderTransform(INT2PTR(CDecoderTransform, SvIV(scalar)));
+    }
+
+    croak("Transformation function must be either a code reference or an integer representing a C function pointer");
+}
+
+void Mapper::set_decoder_options(HV *options) {
+    SV *transform = scalar_option(aTHX_ options, "transform");
+    HV *transform_fields = hash_option(aTHX_ options, "transform_fields");
+
+    if (transform) {
+        decoder_callbacks.decoder_transform = make_transform(aTHX_ transform);
+    }
+
+    if (transform_fields) {
+        I32 keylen;
+        char *key;
+        hv_iterinit(transform_fields);
+        while (SV *value = hv_iternextsv(transform_fields, &key, &keylen)) {
+            string field_name = string(key, keylen);
+            STD_TR1::unordered_map<std::string, Field *>::const_iterator field_it = field_map.find(field_name);
+            if (field_it == field_map.end()) {
+                croak("Unknown field name %s", field_name.c_str());
+            }
+
+            Field *field = field_it->second;
+            if (field->is_map ||
+                    field->field_def->label() == UPB_LABEL_REPEATED ||
+                    field->field_def->type() != UPB_TYPE_MESSAGE) {
+                croak("Can't apply transformation to field %s", field_name.c_str());
+            }
+
+            field->decoder_transform = make_transform(aTHX_ value);
+        }
+    }
+}
+
 bool Mapper::get_decode_blessed() const {
     return decode_blessed;
 }
@@ -920,6 +1050,7 @@ SV *Mapper::decode(const char *buffer, STRLEN bufsize) {
         if (decode_blessed)
             sv_bless(result, stash);
     }
+    decoder_callbacks.maybe_apply(result);
     decoder_callbacks.clear();
 
     return result;
@@ -939,6 +1070,7 @@ SV *Mapper::decode_json(const char *buffer, STRLEN bufsize) {
         if (decode_blessed)
             sv_bless(result, stash);
     }
+    decoder_callbacks.maybe_apply(result);
     decoder_callbacks.clear();
 
     return result;
