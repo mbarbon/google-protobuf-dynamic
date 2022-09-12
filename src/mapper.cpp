@@ -44,40 +44,10 @@ namespace {
     }
 }
 
-DecoderTransform::DecoderTransform(CDecoderTransform function) :
-        c_function(function),
-        perl_function(NULL)
-{}
-
-DecoderTransform::DecoderTransform(SV *function) :
-        c_function(NULL),
-        perl_function(function)
-{}
-
-SV *DecoderTransform::transform(pTHX_ SV *target) const {
-    if (c_function) {
-        return c_function(aTHX_ target);
-    } else {
-        dSP;
-
-        PUSHMARK(SP);
-        XPUSHs(target);
-        PUTBACK;
-
-        // return value is always 1 because of G_SCALAR
-        call_sv(perl_function, G_SCALAR);
-
-        SPAGAIN;
-        SV *res = POPs;
-        PUTBACK;
-
-        return res;
-    }
-}
-
 Mapper::DecoderHandlers::DecoderHandlers(pTHX_ const Mapper *mapper) :
         target_ref(NULL),
-        decoder_transform(NULL) {
+        decoder_transform(NULL),
+        pending_transforms(aTHX) {
     SET_THX_MEMBER;
     mappers.push_back(mapper);
 }
@@ -93,11 +63,16 @@ void Mapper::DecoderHandlers::prepare(HV *target) {
         seen_oneof.back().resize(oneof_count, -1);
     }
     items.resize(1);
-    transforms.clear();
     items[0] = (SV *) target;
     target_ref = newRV_noinc(items[0]);
     error.clear();
     string = NULL;
+
+    SAVEDESTRUCTOR(&DecoderTransformQueue::static_clear, &pending_transforms);
+
+    pending_transforms.clear();
+    if (decoder_transform)
+        pending_transforms.add_transform(target_ref, decoder_transform, NULL);
 
     if (mappers[0]->get_decode_blessed())
         sv_bless(target_ref, mappers[0]->stash);
@@ -354,7 +329,7 @@ Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_sub_message(DecoderHa
 
     cxt->items.push_back((SV *) hv);
     cxt->mappers.push_back(message_mapper);
-    cxt->transforms.push_back(Transform(mapper->fields[*field_index].decoder_transform, target));
+    cxt->maybe_add_transform(target, message_mapper->decoder_callbacks.decoder_transform, mapper->fields[*field_index].decoder_transform);
     cxt->seen_fields.resize(cxt->seen_fields.size() + 1);
     cxt->seen_fields.back().resize(cxt->mappers.back()->fields.size());
     if (int oneof_count = cxt->mappers.back()->message_def->oneof_count()) {
@@ -370,12 +345,9 @@ Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_sub_message(DecoderHa
 bool Mapper::DecoderHandlers::on_end_sub_message(DecoderHandlers *cxt, const int *field_index) {
     const Mapper *message_mapper = cxt->mappers.back();
 
-    cxt->maybe_apply(cxt->transforms.back(), message_mapper->decoder_callbacks.decoder_transform);
-
     if (message_mapper->message_def->oneof_count())
         cxt->seen_oneof.pop_back();
     cxt->seen_fields.pop_back();
-    cxt->transforms.pop_back();
     cxt->mappers.pop_back();
     cxt->items.pop_back();
 
@@ -567,29 +539,6 @@ SV *Mapper::DecoderHandlers::get_target(const int *field_index) {
 
         return HeVAL(hv_fetch_ent(hv, field.name, 1, field.name_hash));
     }
-}
-
-void Mapper::DecoderHandlers::maybe_apply(const Transform transform, const DecoderTransform *message_function) {
-    const DecoderTransform *actual_function = transform.field_function ? transform.field_function : message_function;
-    if (!actual_function)
-        return;
-
-    SV *transformed = actual_function->transform(aTHX_ transform.target);
-    if (transformed == NULL || transformed == transform.target || !SvOK(transformed))
-        return;
-
-    sv_setsv(transform.target, transformed);
-}
-
-void Mapper::DecoderHandlers::maybe_apply(SV *root_target) {
-    if (!decoder_transform)
-        return;
-
-    SV *transformed = decoder_transform->transform(aTHX_ root_target);
-    if (transformed == NULL || transformed == root_target || !SvOK(transformed))
-        return;
-
-    sv_setsv(root_target, transformed);
 }
 
 void Mapper::DecoderHandlers::mark_seen(const int *field_index) {
@@ -1049,7 +998,8 @@ SV *Mapper::decode(const char *buffer, STRLEN bufsize) {
     if (BufferSource::PutBuffer(buffer, bufsize, pb_decoder->input())) {
         result = decoder_callbacks.get_and_mortalize_target();
     }
-    decoder_callbacks.maybe_apply(result);
+    // this can croak()
+    decoder_callbacks.apply_transforms();
 
     return SvREFCNT_inc(result);
 }
@@ -1066,7 +1016,8 @@ SV *Mapper::decode_json(const char *buffer, STRLEN bufsize) {
     if (BufferSource::PutBuffer(buffer, bufsize, json_decoder->input())) {
         result = decoder_callbacks.get_and_mortalize_target();
     }
-    decoder_callbacks.maybe_apply(result);
+    // this can croak()
+    decoder_callbacks.apply_transforms();
 
     return SvREFCNT_inc(result);
 }

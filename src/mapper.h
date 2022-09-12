@@ -18,6 +18,7 @@
 #include "ppport.h"
 
 #include "thx_member.h"
+#include "transform.h"
 
 #include <list>
 #include <vector>
@@ -30,30 +31,8 @@ class MapperField;
 class WarnContext;
 class ServiceDef;
 
-typedef SV *(*CDecoderTransform)(pTHX_ SV *target);
-
-class DecoderTransform {
-public:
-    DecoderTransform(CDecoderTransform function);
-    DecoderTransform(SV *function);
-
-    SV *transform(pTHX_ SV *target) const;
-
-private:
-    CDecoderTransform c_function;
-    SV *perl_function;
-};
-
 class Mapper : public Refcounted {
 public:
-    struct Transform {
-        const DecoderTransform *field_function;
-        SV *target;
-
-        Transform() {}
-        Transform(const DecoderTransform *f, SV *t) : field_function(f), target(t) {}
-    };
-
     struct Field {
         const upb::FieldDef *field_def;
         struct {
@@ -107,7 +86,7 @@ public:
         std::vector<const Mapper *> mappers;
         std::vector<std::vector<bool> > seen_fields;
         std::vector<std::vector<int32_t> > seen_oneof;
-        std::vector<Transform> transforms;
+        DecoderTransformQueue pending_transforms;
         DecoderTransform *decoder_transform;
         std::string error;
         SV *string;
@@ -149,8 +128,14 @@ public:
         bool apply_defaults_and_check();
         SV *get_target(const int *field_index);
         void mark_seen(const int *field_index);
-        void maybe_apply(const Transform transform, const DecoderTransform *message_function);
-        void maybe_apply(SV *root_target);
+
+        void maybe_add_transform(SV *target, const DecoderTransform *message_transform, const DecoderTransform *field_transform) {
+            if (message_transform || field_transform)
+                pending_transforms.add_transform(target, message_transform, field_transform);
+        }
+        void apply_transforms() {
+            pending_transforms.apply_transforms();
+        }
     };
 
 public:
