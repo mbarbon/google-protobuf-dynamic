@@ -65,4 +65,34 @@ for my $noop (sub { 42 }, sub { }, sub { return }, sub { $_[0] }) {
     }
 }
 
+# concatenated messages (callbacks are only triggered once)
+{
+    my $d = Google::ProtocolBuffers::Dynamic->new('t/proto');
+    $d->load_file("transform/decoder.proto");
+    $d->map({ package => 'test', prefix => 'Test3', @no_blessed });
+
+    my $strip_repeated_wrapper = { transform => sub { $_[0]->{values} } };
+    Test3::Int32Array->set_decoder_options($strip_repeated_wrapper);
+    Test3::Int32ArrayArray->set_decoder_options($strip_repeated_wrapper);
+
+    # nested messages
+    eq_or_diff(Test3::Message->decode(Test3::Message->encode({
+        concatenated_array => {
+            values => [{
+                values => [1, 2, 3],
+            }, {
+                values => [4, 5, 6],
+            }],
+        },
+    }) . Test3::Message->encode({
+        concatenated_array => {
+            values => [{
+                values => [7, 8, 9],
+            }],
+        },
+    })), {
+        concatenated_array => [ [1, 2, 3], [4, 5, 6], [7, 8, 9] ],
+    });
+}
+
 done_testing();

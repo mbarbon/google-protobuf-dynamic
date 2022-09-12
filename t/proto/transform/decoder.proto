@@ -4,6 +4,7 @@ package test;
 
 message Message {
     repeated Int32ArrayArray nested_array = 1;
+    Int32ArrayArray concatenated_array = 2;
 }
 
 message FieldMessage {

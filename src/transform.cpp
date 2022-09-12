@@ -1,5 +1,7 @@
 #include "transform.h"
 
+#include "unordered_map.h"
+
 DecoderTransform::DecoderTransform(CDecoderTransform function) :
         c_function(function),
         perl_function(NULL)
@@ -60,8 +62,21 @@ void DecoderTransformQueue::add_transform(SV *target, const DecoderTransform *me
 }
 
 void DecoderTransformQueue::apply_transforms() {
+    STD_TR1::unordered_set<SV *> already_mapped;
+
     for (std::vector<PendingTransform>::reverse_iterator it = pending_transforms.rbegin(), en = pending_transforms.rend(); it != en; ++it) {
         SV *target = it->target;
+        // this block should only be entered when decoding the concatenation
+        // of two protocol buffer messahes
+        //
+        // if an SV has refcount 2 (1 in the decoded struct, 1 in the
+        // transform list) it can't be in the transform list multiple times
+        if (SvREFCNT(target) > 2) {
+            if (already_mapped.find(target) != already_mapped.end())
+                continue;
+            already_mapped.insert(target);
+        }
+
         SV *transformed = it->transform->transform(aTHX_ target);
 
         if (transformed == NULL || transformed == target || !SvOK(transformed))
