@@ -102,6 +102,7 @@ public:
 
     struct DecoderHandlers {
         DECL_THX_MEMBER;
+        SV *target_ref;
         std::vector<SV *> items;
         std::vector<const Mapper *> mappers;
         std::vector<std::vector<bool> > seen_fields;
@@ -114,7 +115,7 @@ public:
         DecoderHandlers(pTHX_ const Mapper *mapper);
 
         void prepare(HV *target);
-        SV *get_target();
+        SV *get_and_mortalize_target();
         void clear();
 
         static bool on_end_message(DecoderHandlers *cxt, upb::Status *status);

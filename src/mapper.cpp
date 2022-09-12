@@ -76,6 +76,7 @@ SV *DecoderTransform::transform(pTHX_ SV *target) const {
 }
 
 Mapper::DecoderHandlers::DecoderHandlers(pTHX_ const Mapper *mapper) :
+        target_ref(NULL),
         decoder_transform(NULL) {
     SET_THX_MEMBER;
     mappers.push_back(mapper);
@@ -93,17 +94,17 @@ void Mapper::DecoderHandlers::prepare(HV *target) {
     }
     items.resize(1);
     transforms.clear();
-    error.clear();
     items[0] = (SV *) target;
+    target_ref = newRV_noinc(items[0]);
+    error.clear();
     string = NULL;
+
+    if (mappers[0]->get_decode_blessed())
+        sv_bless(target_ref, mappers[0]->stash);
 }
 
-SV *Mapper::DecoderHandlers::get_target() {
-    return items[0];
-}
-
-void Mapper::DecoderHandlers::clear() {
-    SvREFCNT_dec(items[0]);
+SV *Mapper::DecoderHandlers::get_and_mortalize_target() {
+    return sv_2mortal(target_ref);
 }
 
 namespace {
@@ -361,7 +362,7 @@ Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_sub_message(DecoderHa
         cxt->seen_oneof.back().resize(oneof_count, -1);
     }
     if (message_mapper->get_decode_blessed())
-        sv_bless(target, cxt->mappers.back()->stash);
+        sv_bless(target, message_mapper->stash);
 
     return cxt;
 }
@@ -1046,14 +1047,11 @@ SV *Mapper::decode(const char *buffer, STRLEN bufsize) {
 
     SV *result = NULL;
     if (BufferSource::PutBuffer(buffer, bufsize, pb_decoder->input())) {
-        result = newRV_inc(decoder_callbacks.get_target());
-        if (decode_blessed)
-            sv_bless(result, stash);
+        result = decoder_callbacks.get_and_mortalize_target();
     }
     decoder_callbacks.maybe_apply(result);
-    decoder_callbacks.clear();
 
-    return result;
+    return SvREFCNT_inc(result);
 }
 
 SV *Mapper::decode_json(const char *buffer, STRLEN bufsize) {
@@ -1066,14 +1064,11 @@ SV *Mapper::decode_json(const char *buffer, STRLEN bufsize) {
 
     SV *result = NULL;
     if (BufferSource::PutBuffer(buffer, bufsize, json_decoder->input())) {
-        result = newRV_inc(decoder_callbacks.get_target());
-        if (decode_blessed)
-            sv_bless(result, stash);
+        result = decoder_callbacks.get_and_mortalize_target();
     }
     decoder_callbacks.maybe_apply(result);
-    decoder_callbacks.clear();
 
-    return result;
+    return SvREFCNT_inc(result);
 }
 
 bool Mapper::check(SV *ref) {
