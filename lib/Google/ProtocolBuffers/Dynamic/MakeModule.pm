@@ -54,7 +54,7 @@ sub generate {
             $dump =~ s{$}{,};
             # the '+' is to make sure Perl::Critic does not consider
             # this an anonymous subroutine
-            $dump =~ s[^(\s+)\s({)][\1+\2]mg;
+            $dump =~ s[^(\s+)\s(\{)][$1+$2]mg;
             $dump
         } @{$args{mappings}};
     };
