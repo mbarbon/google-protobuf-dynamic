@@ -70,4 +70,30 @@ option value to 0.
 String options: C<accessor_style>, C<client_services> set the
 corresponding option to the specified value
 
+=head1 INSERTION POINTS
+
+Generated code uses insertion points to enable customization via
+C<protoc> plugins.
+
+The
+L<official documentation for insertion points|https://developers.google.com/protocol-buffers/docs/reference/cpp/google.protobuf.compiler.plugin.pb>
+offers more details on what insertion points are and how they can be
+used. L<protoc-gen-perl-gpd-add-pragma> and
+L<Google::ProtocolBuffers::Dynamic::AddPragma> source code is a simple
+example of a C<protoc> plugin that uses insertion points.
+
+Currently available insertion points:
+
+=head2 after_pragmas
+
+Inserts code after the C<use strict / use warnings> at the top of the module.
+
+=head2 after_loading
+
+Inserts code after serialized descriptors have been loaded, but beforre mapping.
+
+=head2 after_mapping
+
+Inserts code after mapping options have been applied.
+
 =cut

@@ -13,6 +13,7 @@ package ${package};
 
 use strict;
 use warnings;
+# @@protoc_insertion_point(after_pragmas)
 use MIME::Base64 qw();
 use Google::ProtocolBuffers::Dynamic;
 
@@ -20,8 +21,12 @@ my $gpd = Google::ProtocolBuffers::Dynamic->new;
 
 ${load_blobs}
 
+# @@protoc_insertion_point(after_loading)
+
 $gpd->map(
 ${mappings});
+
+# @@protoc_insertion_point(after_mapping)
 
 undef $gpd;
 
