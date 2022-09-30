@@ -10,7 +10,7 @@ my @no_blessed = (options => { decode_blessed => 0 });
 
     my $strip_repeated_wrapper = {
         transform_fields => {
-            transformed => sub { $_[0]->{values} },
+            transformed => sub { $_[0] = $_[0]->{values} },
         }
     };
     Test1::FieldMessage->set_decoder_options($strip_repeated_wrapper);
@@ -38,11 +38,11 @@ my @no_blessed = (options => { decode_blessed => 0 });
 
     my $strip_repeated_wrapper = {
         transform_fields => {
-            transformed => sub { $_[0]->{values} },
+            transformed => sub { $_[0] = $_[0]->{values} },
         }
     };
     my $rename_repeated_wrapper = {
-        transform => sub { { pretty_values => $_[0]->{values} } },
+        transform => sub { $_[0] = { pretty_values => $_[0]->{values} } },
     };
     Test2::Int32Array->set_decoder_options($rename_repeated_wrapper);
     Test2::FieldMessage->set_decoder_options($strip_repeated_wrapper);

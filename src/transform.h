@@ -11,14 +11,14 @@
 
 #include <vector>
 
-typedef SV *(*CDecoderTransform)(pTHX_ SV *target);
+typedef void (*CDecoderTransform)(pTHX_ SV *target);
 
 class DecoderTransform {
 public:
     DecoderTransform(CDecoderTransform function);
     DecoderTransform(SV *function);
 
-    SV *transform(pTHX_ SV *target) const;
+    void transform(pTHX_ SV *target) const;
 
 private:
     CDecoderTransform c_function;

@@ -12,9 +12,9 @@ DecoderTransform::DecoderTransform(SV *function) :
         perl_function(function)
 {}
 
-SV *DecoderTransform::transform(pTHX_ SV *target) const {
+void DecoderTransform::transform(pTHX_ SV *target) const {
     if (c_function) {
-        return c_function(aTHX_ target);
+        c_function(aTHX_ target);
     } else {
         dSP;
 
@@ -23,13 +23,7 @@ SV *DecoderTransform::transform(pTHX_ SV *target) const {
         PUTBACK;
 
         // return value is always 1 because of G_SCALAR
-        call_sv(perl_function, G_SCALAR);
-
-        SPAGAIN;
-        SV *res = POPs;
-        PUTBACK;
-
-        return res;
+        call_sv(perl_function, G_VOID|G_DISCARD);
     }
 }
 
@@ -77,11 +71,6 @@ void DecoderTransformQueue::apply_transforms() {
             already_mapped.insert(target);
         }
 
-        SV *transformed = it->transform->transform(aTHX_ target);
-
-        if (transformed == NULL || transformed == target || !SvOK(transformed))
-            continue;
-
-        sv_setsv(target, transformed);
+        it->transform->transform(aTHX_ target);
     }
 }
