@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package test;
+
+message Person3 {
+  string name = 1;
+  int32 id = 2;
+  string email = 3;
+}
+
+message Person3Array {
+  repeated Person3 persons = 1;
+}
