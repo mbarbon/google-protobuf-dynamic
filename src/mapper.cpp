@@ -365,9 +365,6 @@ bool Mapper::DecoderHandlers::on_end_map_entry(DecoderHandlers *cxt, const int *
     if (SvOK(key) && value) {
         SvREFCNT_inc(value);
         hv_store_ent(hash, key, value, 0);
-
-        if (SvPOK(key))
-            SvLEN_set(key, 0);
     } else {
         // having decoding of maps without keys is debatable
         warn("Incomplete map entry: missing key");
