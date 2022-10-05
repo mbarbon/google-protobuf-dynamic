@@ -2,6 +2,11 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.41_02   2022-10-05 15:15:59 CEST
+
+    - Add 3 insertion points to generated code
+    - Fix warnings in protoc plugin
+
 0.41_01   2022-09-07 13:02:26 CEST
 
     - No user-visible changes
