@@ -52,11 +52,25 @@ Mapper::DecoderHandlers::DecoderHandlers(pTHX_ const Mapper *mapper) :
     mappers.push_back(mapper);
 }
 
+void Mapper::DecoderHandlers::push_mapper(const Mapper *mapper) {
+    mappers.push_back(mapper);
+    track_seen_fields = mapper->get_track_seen_fields();
+}
+
+void Mapper::DecoderHandlers::pop_mapper() {
+    mappers.pop_back();
+    track_seen_fields = mappers.back()->get_track_seen_fields();
+}
+
 void Mapper::DecoderHandlers::prepare(HV *target) {
+    track_seen_fields = mappers[0]->get_track_seen_fields();
+
     mappers.resize(1);
-    seen_fields.resize(1);
-    seen_fields.back().clear();
-    seen_fields.back().resize(mappers.back()->fields.size());
+    if (track_seen_fields) {
+        seen_fields.resize(1);
+        seen_fields.back().clear();
+        seen_fields.back().resize(mappers.back()->fields.size());
+    }
     if (int oneof_count = mappers.back()->message_def->oneof_count()) {
         seen_oneof.resize(1);
         seen_oneof.back().clear();
@@ -139,11 +153,15 @@ const STD_TR1::unordered_set<int32_t> &Mapper::Field::map_enum_values() const {
 }
 
 bool Mapper::DecoderHandlers::apply_defaults_and_check() {
-    const vector<bool> &seen = seen_fields.back();
     const Mapper *mapper = mappers.back();
-    const vector<Mapper::Field> &fields = mapper->fields;
     bool decode_explicit_defaults = mapper->decode_explicit_defaults;
     bool check_required_fields = mapper->check_required_fields;
+
+    if (!decode_explicit_defaults && !check_required_fields)
+        return true;
+
+    const vector<bool> &seen = seen_fields.back();
+    const vector<Mapper::Field> &fields = mapper->fields;
 
     for (int i = 0, n = fields.size(); i < n; ++i) {
         const Mapper::Field &field = fields[i];
@@ -288,10 +306,12 @@ Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_map(DecoderHandlers *
     } else
         hv = (HV *) SvRV(target);
 
-    cxt->mappers.push_back(mapper->fields[*field_index].mapper);
-    cxt->seen_fields.resize(cxt->seen_fields.size() + 1);
-    cxt->seen_fields.back().resize(2);
-    cxt->seen_fields.back()[0] = true; // never apply defaults to "key"
+    cxt->push_mapper(mapper->fields[*field_index].mapper);
+    if (cxt->track_seen_fields) {
+        cxt->seen_fields.resize(cxt->seen_fields.size() + 1);
+        cxt->seen_fields.back().resize(2);
+        cxt->seen_fields.back()[0] = true; // never apply defaults to "key"
+    }
     cxt->items.push_back((SV *) hv);
     cxt->items.push_back(sv_newmortal());
     cxt->items.push_back(NULL);
@@ -300,8 +320,9 @@ Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_map(DecoderHandlers *
 }
 
 bool Mapper::DecoderHandlers::on_end_map(DecoderHandlers *cxt, const int *field_index) {
-    cxt->seen_fields.pop_back();
-    cxt->mappers.pop_back();
+    if (cxt->track_seen_fields)
+        cxt->seen_fields.pop_back();
+    cxt->pop_mapper();
     cxt->items.pop_back();
     cxt->items.pop_back();
     cxt->items.pop_back();
@@ -328,10 +349,12 @@ Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_sub_message(DecoderHa
         hv = (HV *) SvRV(target);
 
     cxt->items.push_back((SV *) hv);
-    cxt->mappers.push_back(message_mapper);
+    cxt->push_mapper(message_mapper);
     cxt->maybe_add_transform(target, message_mapper->decoder_callbacks.decoder_transform, mapper->fields[*field_index].decoder_transform);
-    cxt->seen_fields.resize(cxt->seen_fields.size() + 1);
-    cxt->seen_fields.back().resize(cxt->mappers.back()->fields.size());
+    if (cxt->track_seen_fields) {
+        cxt->seen_fields.resize(cxt->seen_fields.size() + 1);
+        cxt->seen_fields.back().resize(cxt->mappers.back()->fields.size());
+    }
     if (int oneof_count = cxt->mappers.back()->message_def->oneof_count()) {
         cxt->seen_oneof.resize(cxt->seen_oneof.size() + 1);
         cxt->seen_oneof.back().resize(oneof_count, -1);
@@ -347,8 +370,9 @@ bool Mapper::DecoderHandlers::on_end_sub_message(DecoderHandlers *cxt, const int
 
     if (message_mapper->message_def->oneof_count())
         cxt->seen_oneof.pop_back();
-    cxt->seen_fields.pop_back();
-    cxt->mappers.pop_back();
+    if (cxt->track_seen_fields)
+        cxt->seen_fields.pop_back();
+    cxt->pop_mapper();
     cxt->items.pop_back();
 
     return true;
@@ -372,7 +396,8 @@ bool Mapper::DecoderHandlers::on_end_map_entry(DecoderHandlers *cxt, const int *
 
     SvOK_off(key);
     cxt->items[size - 1] = NULL;
-    cxt->seen_fields.back()[1] = false;
+    if (cxt->track_seen_fields)
+        cxt->seen_fields.back()[1] = false;
 
     return true;
 }
@@ -539,7 +564,8 @@ SV *Mapper::DecoderHandlers::get_target(const int *field_index) {
 }
 
 void Mapper::DecoderHandlers::mark_seen(const int *field_index) {
-    seen_fields.back()[*field_index] = true;
+    if (track_seen_fields)
+        seen_fields.back()[*field_index] = true;
 }
 
 Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_stash, const MappingOptions &options) :
@@ -929,6 +955,10 @@ void Mapper::set_decoder_options(HV *options) {
 
 bool Mapper::get_decode_blessed() const {
     return decode_blessed;
+}
+
+bool Mapper::get_track_seen_fields() const {
+    return check_required_fields || decode_explicit_defaults;
 }
 
 void Mapper::set_bool(SV *target, bool value) const {

@@ -90,6 +90,7 @@ public:
         DecoderTransform *decoder_transform;
         std::string error;
         SV *string;
+        bool track_seen_fields;
 
         DecoderHandlers(pTHX_ const Mapper *mapper);
 
@@ -124,6 +125,9 @@ public:
 
         static bool on_perl_bool(DecoderHandlers *cxt, const int *field_index, bool val);
         static bool on_numeric_bool(DecoderHandlers *cxt, const int *field_index, bool val);
+
+        void push_mapper(const Mapper *mapper);
+        void pop_mapper();
 
         bool apply_defaults_and_check();
         SV *get_target(const int *field_index);
@@ -165,6 +169,7 @@ public:
     SV *message_descriptor() const;
     SV *make_object(SV *data) const;
     bool get_decode_blessed() const;
+    bool get_track_seen_fields() const;
 
     void set_bool(SV *target, bool value) const;
 
