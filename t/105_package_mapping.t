@@ -64,7 +64,7 @@ use t::lib::Test;
 
     throws_ok(
         sub { $d->map_package('test2', 'Test4') },
-        qr/Package 'Test4::Message1' has already been used in a mapping/,
+        qr/Package 'Test4::Message1' has already been mapped/,
         "duplicated message",
     );
 

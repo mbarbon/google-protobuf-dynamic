@@ -20,6 +20,23 @@ using namespace upb::googlepb;
     #define newXS(a, b, c) Perl_newXS(aTHX_ const_cast<char *>(a), b, const_cast<char *>(c))
 #endif
 
+namespace {
+    SV *get_stack_trace(pTHX) {
+        dSP;
+
+        PUSHMARK(SP);
+        PUTBACK;
+
+        call_pv("Google::ProtocolBuffers::Dynamic::_stack_trace", G_SCALAR);
+
+        SPAGAIN;
+        SV *stack_trace = POPs;
+        PUTBACK;
+
+        return stack_trace;
+    }
+}
+
 void Dynamic::CollectErrors::AddError(const string &filename, int line, int column, const string &message) {
     croak("Error during protobuf parsing: %s:%d:%d: %s", filename.c_str(), line, column, message.c_str());
 }
@@ -39,6 +56,8 @@ MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
         client_services(Disable),
         numeric_bool(false),
         fail_ref_coercion(false) {
+    stack_trace = get_stack_trace(aTHX);
+
     if (options_ref == NULL || !SvOK(options_ref))
         return;
     if (!SvROK(options_ref) || SvTYPE(SvRV(options_ref)) != SVt_PVHV)
@@ -427,19 +446,31 @@ void Dynamic::map_message_prefix_recursive(pTHX_ const Descriptor *descriptor, c
 }
 
 void Dynamic::check_package(pTHX_ const string &perl_package, const string &pb_name) {
-    if (used_packages.find(perl_package) == used_packages.end())
+    string marker_name = perl_package + "::mapped_from";
+    SV *marker_sv = get_sv(marker_name.c_str(), 0);
+
+    if (!marker_sv || !SvOK(marker_sv))
         return;
 
-    croak("Package '%s' has already been used in a mapping", perl_package.c_str());
+    croak("Package '%s' has already been mapped from %s",
+          perl_package.c_str(), SvPV_nolen(marker_sv));
+}
+
+void Dynamic::mark_package(pTHX_ const string &perl_package, SV *stack_trace) {
+    string marker_name = perl_package + "::mapped_from";
+    SV *marker_sv = get_sv(marker_name.c_str(), 1);
+
+    sv_setsv(marker_sv, stack_trace);
 }
 
 void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl_package, const MappingOptions &options) {
-    check_package(aTHX_ perl_package, descriptor->full_name());
+    bool define_perl_names = !options.no_redefine_perl_names || gv_stashpvn(perl_package.data(), perl_package.size(), 0) == NULL;
+    if (define_perl_names)
+        check_package(aTHX_ perl_package, descriptor->full_name());
     if (descriptor_map.find(descriptor->full_name()) != descriptor_map.end())
         croak("Message '%s' has already been mapped", descriptor->full_name().c_str());
     if (options.use_bigints)
         load_module(PERL_LOADMOD_NOIMPORT, newSVpvs("Math::BigInt"), NULL);
-    bool define_perl_names = !options.no_redefine_perl_names || gv_stashpvn(perl_package.data(), perl_package.size(), 0) == NULL;
     HV *stash = gv_stashpvn(perl_package.data(), perl_package.size(), GV_ADD);
     const MessageDef *message_def = def_builder.GetMessageDef(descriptor);
     if (is_map_entry(message_def, options.implicit_maps))
@@ -449,7 +480,7 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
 
     // the map owns the reference from Mapper constructor, and is unreffed in ~Dynamic
     descriptor_map[message_def->full_name()] = mapper;
-    used_packages.insert(perl_package);
+    mark_package(aTHX_ perl_package, options.stack_trace);
     pending.push_back(mapper);
 
     if (define_perl_names)
@@ -578,7 +609,7 @@ void Dynamic::map_enum(pTHX_ const EnumDescriptor *descriptor, const string &per
     EnumMapper *mapper = new EnumMapper(aTHX_ this, enum_def);
 
     mapped_enums.insert(descriptor->full_name());
-    used_packages.insert(perl_package);
+    mark_package(aTHX_ perl_package, options.stack_trace);
 
     HV *stash = gv_stashpvn(perl_package.data(), perl_package.size(), GV_ADD);
 
@@ -601,7 +632,7 @@ void Dynamic::map_service(pTHX_ const ServiceDescriptor *descriptor, const strin
         croak("Service '%s' has already been mapped", descriptor->full_name().c_str());
 
     mapped_services.insert(descriptor->full_name());
-    used_packages.insert(perl_package);
+    mark_package(aTHX_ perl_package, options.stack_trace);
 
     ServiceDef *service_def = new ServiceDef(descriptor->full_name());
 

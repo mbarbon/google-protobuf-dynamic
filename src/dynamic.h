@@ -50,6 +50,7 @@ struct MappingOptions {
     bool no_redefine_perl_names;
     AccessorStyle accessor_style;
     ClientService client_services;
+    SV *stack_trace;
 
     MappingOptions(pTHX_ SV *options_ref);
 };
@@ -98,6 +99,7 @@ private:
     void map_service_noop(pTHX_ const google::protobuf::ServiceDescriptor *descriptor, const std::string &perl_package, const MappingOptions &options, ServiceDef *service_def);
     void map_service_grpc_xs(pTHX_ const google::protobuf::ServiceDescriptor *descriptor, const std::string &perl_package, const MappingOptions &options, ServiceDef *service_def);
     void check_package(pTHX_ const std::string &perl_package, const std::string &pb_name);
+    void mark_package(pTHX_ const std::string &perl_package, SV *stack_trace);
     std::string pbname_to_package(pTHX_ const std::string &pb_name, const std::string &perl_package_prefix);
 
     OverlaySourceTree overlay_source_tree;
@@ -107,7 +109,6 @@ private:
     upb::googlepb::DefBuilder def_builder;
     CollectErrors die_on_error;
     STD_TR1::unordered_map<std::string, const Mapper *> descriptor_map;
-    STD_TR1::unordered_set<std::string> used_packages;
     STD_TR1::unordered_set<std::string> mapped_enums;
     STD_TR1::unordered_set<std::string> mapped_services;
     STD_TR1::unordered_set<const google::protobuf::FileDescriptor *> files;

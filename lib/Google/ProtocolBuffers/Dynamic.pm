@@ -74,6 +74,12 @@ sub _dump {
     Data::Dumper::Dumper(@_)
 }
 
+sub _stack_trace {
+    my (undef, $filename, $line) = caller(0);
+
+    return "$filename line $line";
+}
+
 1;
 
 __END__
