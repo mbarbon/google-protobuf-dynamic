@@ -1,5 +1,4 @@
 use t::lib::Test;
-no warnings 'redefine';
 
 {
     my $d = Google::ProtocolBuffers::Dynamic->new('t/proto/mapping');
@@ -46,30 +45,30 @@ no warnings 'redefine';
     my $d = Google::ProtocolBuffers::Dynamic->new('t/proto/mapping');
 
     $d->load_file("test1.proto");
-    $d->map_message("test1.Message1", "Test1::FirstMessage");
+    $d->map_message("test1.Message1", "Test2::FirstMessage");
 
     throws_ok(
-        sub { $d->map_message("test1.Message1", "Test1::FirstMessageDup") },
+        sub { $d->map_message("test1.Message1", "Test2::FirstMessageDup") },
         qr/Message 'test1\.Message1' has already been mapped/,
         "duplicate message mapping",
     );
 
     throws_ok(
-        sub { $d->map_message("test1.Message2", "Test1::FirstMessage") },
-        qr/Package 'Test1::FirstMessage' has already been used in a mapping/,
+        sub { $d->map_message("test1.Message2", "Test2::FirstMessage") },
+        qr/Package 'Test2::FirstMessage' has already been used in a mapping/,
         "duplicate package mapping",
     );
 
     throws_ok(
-        sub { $d->map_enum('test1.Enum', 'Test1::FirstMessage') },
-        qr/Package 'Test1::FirstMessage' has already been used in a mapping/,
+        sub { $d->map_enum('test1.Enum', 'Test2::FirstMessage') },
+        qr/Package 'Test2::FirstMessage' has already been used in a mapping/,
         "enum/message clash",
     );
 
-    $d->map_enum('test1.Enum', 'Test1::Enumeration');
+    $d->map_enum('test1.Enum', 'Test2::Enumeration');
 
     throws_ok(
-        sub { $d->map_enum('test1.Enum', 'Test1::OtherEnum') },
+        sub { $d->map_enum('test1.Enum', 'Test2::OtherEnum') },
         qr/test1.Enum' has already been mapped/,
         "duplicate enum mapping",
     );

@@ -1,5 +1,4 @@
 use t::lib::Test;
-no warnings 'redefine';
 
 {
     my $d = Google::ProtocolBuffers::Dynamic->new('t/proto/mapping');
@@ -31,10 +30,10 @@ no warnings 'redefine';
     my $d = Google::ProtocolBuffers::Dynamic->new('t/proto/mapping');
 
     $d->load_file("test1.proto");
-    $d->map_package('test1', 'Test1');
+    $d->map_package('test1', 'Test2');
 
     throws_ok(
-        sub { $d->map_message('test1.Message1', 'Test1::FirstMessage') },
+        sub { $d->map_message('test1.Message1', 'Test2::FirstMessage') },
         qr/Message 'test1\.Message1' has already been mapped/,
         "duplicate mapping",
     );

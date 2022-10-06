@@ -1,5 +1,4 @@
 use t::lib::Test;
-no warnings 'redefine';
 
 {
     my $d = Google::ProtocolBuffers::Dynamic->new('t/proto/mapping');
