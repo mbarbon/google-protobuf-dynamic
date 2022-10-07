@@ -15,10 +15,10 @@ my $d;
     $d = Google::ProtocolBuffers::Dynamic->new('t/proto');
     $d->load_file("person.proto");
     $d->load_file("person3.proto");
-    $d->map_message("test.Person", "DynamicPerson");
-    $d->map_message("test.PersonArray", "DynamicPersonArray");
-    $d->map_message("test.Person3", "DynamicPerson3");
-    $d->map_message("test.Person3Array", "DynamicPerson3Array");
+    $d->map_message("test.Person", "DynamicPerson", { decode_blessed => 0 });
+    $d->map_message("test.PersonArray", "DynamicPersonArray", { decode_blessed => 0 });
+    $d->map_message("test.Person3", "DynamicPerson3", { decode_blessed => 0 });
+    $d->map_message("test.Person3Array", "DynamicPerson3Array", { decode_blessed => 0 });
     $d->resolve_references();
 }
 
