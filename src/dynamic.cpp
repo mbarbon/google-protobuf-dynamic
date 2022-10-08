@@ -458,7 +458,16 @@ void Dynamic::check_package(pTHX_ const string &perl_package, const string &pb_n
 
 void Dynamic::mark_package(pTHX_ const string &perl_package, SV *stack_trace) {
     string marker_name = perl_package + "::mapped_from";
-    SV *marker_sv = get_sv(marker_name.c_str(), 1);
+#ifdef GV_ADDMULTI
+    const int get_sv_flags = GV_ADDMULTI;
+#else
+    const int get_sv_flags = GV_ADD;
+
+    // this is just to avoid the 'used only once' warning
+    get_sv(marker_name.c_str(), get_sv_flags);
+#endif
+
+    SV *marker_sv = get_sv(marker_name.c_str(), get_sv_flags);
 
     sv_setsv(marker_sv, stack_trace);
 }
