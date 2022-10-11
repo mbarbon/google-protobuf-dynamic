@@ -55,8 +55,9 @@ sub encode_sereal_one { $sereal_encoder->encode($person); }
 sub encode_json_one { JSON::encode_json($person); }
 
 sub decode_protobuf_pp_one { Test::Person->decode($pbd_person); }
-sub decode_protobuf_one { DynamicPerson->decode($pbd_person); }
-sub decode_protobuf3_one { DynamicPerson3->decode($pbd_person); }
+sub decode_protobuf_upb_one { DynamicPerson->decode_upb($pbd_person); }
+sub decode_protobuf3_upb_one { DynamicPerson3->decode_upb($pbd_person); }
+sub decode_protobuf3_bbpb_one { DynamicPerson3->decode_bbpb($pbd_person); }
 sub decode_sereal_one { $sereal_decoder->decode($sereal_person); }
 sub decode_json_one { JSON::from_json($json_person); }
 
@@ -70,12 +71,13 @@ cmpthese(-1, {
 });
 
 print "\nDecoder\n";
-cmpthese(-1, {
-    protobuf_pp => \&decode_protobuf_pp_one,
-    protobuf    => \&decode_protobuf_one,
-    protobuf3   => \&decode_protobuf3_one,
-    sereal      => \&decode_sereal_one,
-    json        => \&decode_json_one,
+cmpthese(-3, {
+    protobuf_pp     => \&decode_protobuf_pp_one,
+    protobuf_upb    => \&decode_protobuf_upb_one,
+    protobuf3_upb   => \&decode_protobuf3_upb_one,
+    protobuf3_bbpb  => \&decode_protobuf3_bbpb_one,
+    sereal          => \&decode_sereal_one,
+    json            => \&decode_json_one,
 });
 
 my $persons = {
@@ -93,8 +95,9 @@ sub encode_sereal_arr { $sereal_encoder->encode($persons); }
 sub encode_json_arr { JSON::encode_json($persons); }
 
 sub decode_protobuf_pp_arr { Test::PersonArray->decode($pbd_persons); }
-sub decode_protobuf_arr { DynamicPersonArray->decode($pbd_persons); }
-sub decode_protobuf3_arr { DynamicPerson3Array->decode($pbd_persons); }
+sub decode_protobuf_upb_arr { DynamicPersonArray->decode_upb($pbd_persons); }
+sub decode_protobuf3_upb_arr { DynamicPerson3Array->decode_upb($pbd_persons); }
+sub decode_protobuf3_bbpb_arr { DynamicPerson3Array->decode_bbpb($pbd_persons); }
 sub decode_sereal_arr { $sereal_decoder->decode($sereal_persons); }
 sub decode_json_arr { JSON::from_json($json_persons); }
 
@@ -109,9 +112,10 @@ cmpthese(-1, {
 
 print "\nDecoder (arrays)\n";
 cmpthese(-1, {
-    protobuf_pp => \&decode_protobuf_pp_arr,
-    protobuf    => \&decode_protobuf_arr,
-    protobuf3   => \&decode_protobuf3_arr,
-    sereal      => \&decode_sereal_arr,
-    json        => \&decode_json_arr,
+    protobuf_pp     => \&decode_protobuf_pp_arr,
+    protobuf_upb    => \&decode_protobuf_upb_arr,
+    protobuf3_upb   => \&decode_protobuf3_upb_arr,
+    protobuf3_bbpb  => \&decode_protobuf3_bbpb_arr,
+    sereal          => \&decode_sereal_arr,
+    json            => \&decode_json_arr,
 });
