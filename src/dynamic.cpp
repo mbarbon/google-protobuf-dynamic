@@ -2,8 +2,6 @@
 #include "mapper.h"
 #include "servicedef.h"
 
-#include <google/protobuf/dynamic_message.h>
-
 #include <sstream>
 
 using namespace gpd;
