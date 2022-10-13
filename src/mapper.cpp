@@ -224,7 +224,9 @@ bool Mapper::DecoderHandlers::apply_defaults_and_check() {
 }
 
 bool Mapper::DecoderHandlers::on_end_message(DecoderHandlers *cxt, upb::Status *status) {
-    if (!status || status->ok()) {
+    if (!cxt->track_seen_fields)
+        return true;
+    else if (!status || status->ok()) {
         return cxt->apply_defaults_and_check();
     } else
         return false;
@@ -561,11 +563,6 @@ SV *Mapper::DecoderHandlers::get_target(const int *field_index) {
 
         return HeVAL(hv_fetch_ent(hv, field.name, 1, field.name_hash));
     }
-}
-
-void Mapper::DecoderHandlers::mark_seen(const int *field_index) {
-    if (track_seen_fields)
-        seen_fields.back()[*field_index] = true;
 }
 
 Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_stash, const MappingOptions &options) :

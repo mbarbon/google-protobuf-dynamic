@@ -131,7 +131,10 @@ public:
 
         bool apply_defaults_and_check();
         SV *get_target(const int *field_index);
-        void mark_seen(const int *field_index);
+        void mark_seen(const int *field_index) {
+            if (track_seen_fields)
+                seen_fields.back()[*field_index] = true;
+        }
 
         void maybe_add_transform(SV *target, const DecoderTransform *message_transform, const DecoderTransform *field_transform) {
             if (message_transform || field_transform)
