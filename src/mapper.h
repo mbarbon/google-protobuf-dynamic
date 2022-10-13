@@ -195,6 +195,7 @@ private:
     DECL_THX_MEMBER;
     Dynamic *registry;
     const upb::MessageDef *message_def;
+    int oneof_count; // cached here for performance
     HV *stash;
     upb::reffed_ptr<const upb::Handlers> pb_encoder_handlers, json_encoder_handlers;
     upb::reffed_ptr<upb::Handlers> decoder_handlers;

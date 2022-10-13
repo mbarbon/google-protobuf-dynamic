@@ -71,7 +71,7 @@ void Mapper::DecoderHandlers::prepare(HV *target) {
         seen_fields.back().clear();
         seen_fields.back().resize(mappers.back()->fields.size());
     }
-    if (int oneof_count = mappers.back()->message_def->oneof_count()) {
+    if (int oneof_count = mappers.back()->oneof_count) {
         seen_oneof.resize(1);
         seen_oneof.back().clear();
         seen_oneof.back().resize(oneof_count, -1);
@@ -355,7 +355,7 @@ Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_sub_message(DecoderHa
         cxt->seen_fields.resize(cxt->seen_fields.size() + 1);
         cxt->seen_fields.back().resize(cxt->mappers.back()->fields.size());
     }
-    if (int oneof_count = cxt->mappers.back()->message_def->oneof_count()) {
+    if (int oneof_count = cxt->mappers.back()->oneof_count) {
         cxt->seen_oneof.resize(cxt->seen_oneof.size() + 1);
         cxt->seen_oneof.back().resize(oneof_count, -1);
     }
@@ -368,7 +368,7 @@ Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_sub_message(DecoderHa
 bool Mapper::DecoderHandlers::on_end_sub_message(DecoderHandlers *cxt, const int *field_index) {
     const Mapper *message_mapper = cxt->mappers.back();
 
-    if (message_mapper->message_def->oneof_count())
+    if (message_mapper->oneof_count)
         cxt->seen_oneof.pop_back();
     if (cxt->track_seen_fields)
         cxt->seen_fields.pop_back();
@@ -582,6 +582,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
     pb_encoder_handlers = Encoder::NewHandlers(message_def);
     json_encoder_handlers = Printer::NewHandlers(message_def, false /* XXX option */);
     decoder_handlers = Handlers::New(message_def);
+    oneof_count = message_def->oneof_count();
     decode_explicit_defaults = options.explicit_defaults || message_def->mapentry();
     encode_defaults =
         (message_def->syntax() == UPB_SYNTAX_PROTO2 &&
@@ -1422,7 +1423,7 @@ bool Mapper::encode_value(Sink *sink, Status *status, SV *ref) const {
     bool ok = true;
     WarnContext::Item &warn_cxt = warn_context->push_level(WarnContext::Message);
     vector<bool> seen_oneof;
-    seen_oneof.resize(message_def->oneof_count());
+    seen_oneof.resize(oneof_count);
     for (vector<Field>::const_iterator it = fields.begin(), en = fields.end(); it != en; ++it) {
         warn_cxt.field = &*it;
         HE *he = tied ? hv_fetch_ent_tied(aTHX_ hv, it->name, 0, it->name_hash) :
