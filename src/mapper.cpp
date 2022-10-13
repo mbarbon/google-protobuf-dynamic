@@ -237,9 +237,9 @@ Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_string(DecoderHandler
 
     cxt->mark_seen(field_index);
     cxt->string = cxt->get_target(field_index);
-    // if length of the string is zero initialize it with empty string
-    if (size_hint == 0)
-        sv_setpvn(cxt->string, "", 0);
+    sv_grow(cxt->string, size_hint);
+    SvPOK_on(cxt->string);
+    SvCUR_set(cxt->string, 0);
 
     return cxt;
 }
@@ -247,10 +247,9 @@ Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_string(DecoderHandler
 size_t Mapper::DecoderHandlers::on_string(DecoderHandlers *cxt, const int *field_index, const char *buf, size_t len) {
     THX_DECLARE_AND_GET;
 
-    if (!SvOK(cxt->string))
-        sv_setpvn(cxt->string, buf, len);
-    else
-        sv_catpvn(cxt->string, buf, len);
+    STRLEN cur = SvCUR(cxt->string);
+    memcpy(SvPVX(cxt->string) + cur, buf, len);
+    SvCUR_set(cxt->string, cur + len);
 
     return len;
 }
