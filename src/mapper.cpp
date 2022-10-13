@@ -544,7 +544,7 @@ SV *Mapper::DecoderHandlers::get_target(const int *field_index) {
     } else if (SvTYPE(curr) == SVt_PVAV) {
         AV *av = (AV *) curr;
 
-        return *av_fetch(av, av_top_index(av) + 1, 1);
+        return *av_store(av, av_top_index(av) + 1, newSV(0));
     } else {
         HV *hv = (HV *) curr;
 
