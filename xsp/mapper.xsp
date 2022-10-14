@@ -76,7 +76,6 @@ decode(SV *klass, SV *scalar)
     RETVAL = mapper->decode(buffer, bufsize);
 
     if (!RETVAL) {
-        sv_2mortal(RETVAL);
         croak("Deserialization failed: %s", mapper->last_error_message());
     }
   OUTPUT: RETVAL
@@ -91,7 +90,6 @@ static_decode(SV *scalar)
     RETVAL = mapper->decode(buffer, bufsize);
 
     if (!RETVAL) {
-        sv_2mortal(RETVAL);
         croak("Deserialization failed: %s", mapper->last_error_message());
     }
   OUTPUT: RETVAL
@@ -106,7 +104,6 @@ decode_json(SV *klass, SV *scalar)
     RETVAL = mapper->decode_json(buffer, bufsize);
 
     if (!RETVAL) {
-        sv_2mortal(RETVAL);
         croak("Deserialization failed: %s", mapper->last_error_message());
     }
   OUTPUT: RETVAL
@@ -126,7 +123,6 @@ encode(SV *klass_or_object, SV *ref = NULL)
     RETVAL = mapper->encode(ref);
 
     if (!RETVAL) {
-        sv_2mortal(RETVAL);
         croak("Serialization failed: %s", mapper->last_error_message());
     }
   OUTPUT: RETVAL
@@ -139,7 +135,6 @@ static_encode(SV *ref)
     RETVAL = mapper->encode(ref);
 
     if (!RETVAL) {
-        sv_2mortal(RETVAL);
         croak("Serialization failed: %s", mapper->last_error_message());
     }
   OUTPUT: RETVAL
@@ -159,7 +154,6 @@ encode_json(SV *klass_or_object, SV *ref = NULL)
     RETVAL = mapper->encode_json(ref);
 
     if (!RETVAL) {
-        sv_2mortal(RETVAL);
         croak("Serialization failed: %s", mapper->last_error_message());
     }
   OUTPUT: RETVAL
