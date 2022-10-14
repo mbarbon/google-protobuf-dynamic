@@ -1,0 +1,7 @@
+syntax = "proto2";
+
+package test;
+
+message Bool {
+    optional bool bool_f = 7;
+}
