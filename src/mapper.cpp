@@ -175,44 +175,7 @@ bool Mapper::DecoderHandlers::apply_defaults_and_check() {
             if (SvOK(target))
                 continue;
 
-            switch (field.field_def->type()) {
-            case UPB_TYPE_FLOAT:
-                sv_setnv(target, field.field_def->default_float());
-                break;
-            case UPB_TYPE_DOUBLE:
-                sv_setnv(target, field.field_def->default_double());
-                break;
-            case UPB_TYPE_BOOL:
-                mapper->set_bool(target, field.field_def->default_bool());
-                break;
-            case UPB_TYPE_BYTES:
-            case UPB_TYPE_STRING: {
-                size_t len;
-                const char *val = field.field_def->default_string(&len);
-                if (!val) {
-                    val = "";
-                    len = 0;
-                }
-
-                sv_setpvn(target, val, len);
-                if (field.field_def->type() == UPB_TYPE_STRING)
-                    SvUTF8_on(target);
-            }
-                break;
-            case UPB_TYPE_ENUM:
-            case UPB_TYPE_INT32:
-                sv_setiv(target, field.field_def->default_int32());
-                break;
-            case UPB_TYPE_UINT32:
-                sv_setuv(target, field.field_def->default_uint32());
-                break;
-            case UPB_TYPE_INT64:
-                sv_setiv(target, field.field_def->default_int64());
-                break;
-            case UPB_TYPE_UINT64:
-                sv_setuv(target, field.field_def->default_uint64());
-                break;
-            }
+            mapper->apply_default(field, target);
         } else if (!field_seen && check_required_fields && field.field_def->label() == UPB_LABEL_REQUIRED) {
             error = "Missing required field " + field.full_name();
 
@@ -308,11 +271,6 @@ Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_map(DecoderHandlers *
         hv = (HV *) SvRV(target);
 
     cxt->push_mapper(mapper->fields[*field_index].mapper);
-    if (cxt->track_seen_fields) {
-        cxt->seen_fields.resize(cxt->seen_fields.size() + 1);
-        cxt->seen_fields.back().resize(2);
-        cxt->seen_fields.back()[0] = true; // never apply defaults to "key"
-    }
     cxt->items.push_back((SV *) hv);
     cxt->items.push_back(sv_newmortal());
     cxt->items.push_back(NULL);
@@ -321,8 +279,6 @@ Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_map(DecoderHandlers *
 }
 
 bool Mapper::DecoderHandlers::on_end_map(DecoderHandlers *cxt, const int *field_index) {
-    if (cxt->track_seen_fields)
-        cxt->seen_fields.pop_back();
     cxt->pop_mapper();
     cxt->items.pop_back();
     cxt->items.pop_back();
@@ -387,8 +343,20 @@ bool Mapper::DecoderHandlers::on_end_map_entry(DecoderHandlers *cxt, const int *
     SV *key = (SV *) cxt->items[size - 2];
     SV *value = (SV *) cxt->items[size - 1];
 
-    if (SvOK(key) && value) {
-        SvREFCNT_inc(value);
+    if (SvOK(key)) {
+        if (!value) {
+            const Mapper *message_mapper = cxt->mappers.back();
+
+            value = newSV(0);
+            if (message_mapper->fields[1].is_value) {
+                message_mapper->apply_default(message_mapper->fields[1], value);
+            } else {
+                message_mapper->apply_default(message_mapper->fields[0], value);
+            }
+        } else {
+            SvREFCNT_inc(value);
+        }
+
         hv_store_ent(hash, key, value, 0);
     } else {
         // having decoding of maps without keys is debatable
@@ -397,8 +365,6 @@ bool Mapper::DecoderHandlers::on_end_map_entry(DecoderHandlers *cxt, const int *
 
     SvOK_off(key);
     cxt->items[size - 1] = NULL;
-    if (cxt->track_seen_fields)
-        cxt->seen_fields.back()[1] = false;
 
     return true;
 }
@@ -579,7 +545,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
     json_encoder_handlers = Printer::NewHandlers(message_def, false /* XXX option */);
     decoder_handlers = Handlers::New(message_def);
     oneof_count = message_def->oneof_count();
-    decode_explicit_defaults = options.explicit_defaults || message_def->mapentry();
+    decode_explicit_defaults = options.explicit_defaults;
     encode_defaults =
         (message_def->syntax() == UPB_SYNTAX_PROTO2 &&
          options.encode_defaults) ||
@@ -593,8 +559,10 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
     fail_ref_coercion = HAS_FULL_NOMG ? options.fail_ref_coercion : false;
     warn_context = WarnContext::get(aTHX);
 
-    if (!decoder_handlers->SetEndMessageHandler(UpbMakeHandler(DecoderHandlers::on_end_message)))
-        croak("Unable to set upb end message handler for %s", message_def->full_name());
+    if (!message_def->mapentry()) {
+        if (!decoder_handlers->SetEndMessageHandler(UpbMakeHandler(DecoderHandlers::on_end_message)))
+            croak("Unable to set upb end message handler for %s", message_def->full_name());
+    }
 
     std::vector<Field*> fields_by_field_def_index;
     fields.reserve(message_def->field_count());
@@ -1869,6 +1837,47 @@ bool Mapper::check_from_perl_array(Status *status, const Field &fd, SV *ref) con
         // I doubt there is any point in performing "strict" type checks
         // on scalar values, due to coercion
         return true;
+    }
+}
+
+void Mapper::apply_default(const Field &field, SV *target) const {
+    switch (field.field_def->type()) {
+    case UPB_TYPE_FLOAT:
+        sv_setnv(target, field.field_def->default_float());
+        break;
+    case UPB_TYPE_DOUBLE:
+        sv_setnv(target, field.field_def->default_double());
+        break;
+    case UPB_TYPE_BOOL:
+        set_bool(target, field.field_def->default_bool());
+        break;
+    case UPB_TYPE_BYTES:
+    case UPB_TYPE_STRING: {
+        size_t len;
+        const char *val = field.field_def->default_string(&len);
+        if (!val) {
+            val = "";
+            len = 0;
+        }
+
+        sv_setpvn(target, val, len);
+        if (field.field_def->type() == UPB_TYPE_STRING)
+            SvUTF8_on(target);
+    }
+        break;
+    case UPB_TYPE_ENUM:
+    case UPB_TYPE_INT32:
+        sv_setiv(target, field.field_def->default_int32());
+        break;
+    case UPB_TYPE_UINT32:
+        sv_setuv(target, field.field_def->default_uint32());
+        break;
+    case UPB_TYPE_INT64:
+        sv_setiv(target, field.field_def->default_int64());
+        break;
+    case UPB_TYPE_UINT64:
+        sv_setuv(target, field.field_def->default_uint64());
+        break;
     }
 }
 

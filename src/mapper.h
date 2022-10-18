@@ -195,6 +195,8 @@ private:
     bool check_from_message_array(upb::Status *status, const Mapper::Field &fd, AV *source) const;
     bool check_from_enum_array(upb::Status *status, const Mapper::Field &fd, AV *source) const;
 
+    void apply_default(const Field &field, SV *target) const;
+
     DECL_THX_MEMBER;
     Dynamic *registry;
     const upb::MessageDef *message_def;
