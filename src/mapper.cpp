@@ -83,6 +83,7 @@ void Mapper::DecoderHandlers::prepare(HV *target) {
     string = NULL;
 
     SAVEDESTRUCTOR(&DecoderTransformQueue::static_clear, &pending_transforms);
+    SAVEDESTRUCTOR(&DecoderHandlers::static_clear, this);
 
     pending_transforms.clear();
     if (decoder_transform)
@@ -90,6 +91,25 @@ void Mapper::DecoderHandlers::prepare(HV *target) {
 
     if (mappers[0]->get_decode_blessed())
         sv_bless(target_ref, mappers[0]->stash);
+}
+
+void Mapper::DecoderHandlers::static_clear(DecoderHandlers *cxt) {
+    THX_DECLARE_AND_GET;
+
+    for (vector<SV *>::iterator it = cxt->items.begin(), en = cxt->items.end(); it != en; ++it) {
+        SV *item = *it;
+
+        // This can happen for the last entry (map value has not been decoded)
+        if (!item)
+            continue;
+        // AVs/HVs are linked into the top-level target when they are created,
+        // while map key/value need to be cleaned up manually
+        if (SvTYPE(item) != SVt_PVHV && SvTYPE(item) != SVt_PVAV) {
+            SvREFCNT_dec(item);
+        }
+    }
+
+    cxt->items.resize(0);
 }
 
 SV *Mapper::DecoderHandlers::get_and_mortalize_target() {
@@ -272,14 +292,18 @@ Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_map(DecoderHandlers *
 
     cxt->push_mapper(mapper->fields[*field_index].mapper);
     cxt->items.push_back((SV *) hv);
-    cxt->items.push_back(sv_newmortal());
+    cxt->items.push_back(newSV(0));
     cxt->items.push_back(NULL);
 
     return cxt;
 }
 
 bool Mapper::DecoderHandlers::on_end_map(DecoderHandlers *cxt, const int *field_index) {
+    THX_DECLARE_AND_GET;
+
     cxt->pop_mapper();
+
+    SvREFCNT_dec(cxt->items[cxt->items.size() - 2]);
     cxt->items.pop_back();
     cxt->items.pop_back();
     cxt->items.pop_back();
@@ -353,8 +377,6 @@ bool Mapper::DecoderHandlers::on_end_map_entry(DecoderHandlers *cxt, const int *
             } else {
                 message_mapper->apply_default(message_mapper->fields[0], value);
             }
-        } else {
-            SvREFCNT_inc(value);
         }
 
         hv_store_ent(hash, key, value, 0);
@@ -503,7 +525,9 @@ SV *Mapper::DecoderHandlers::get_target(const int *field_index) {
     if (field.is_key) {
         return items[items.size() - 2];
     } else if (field.is_value) {
-        SV *sv = sv_newmortal();
+        // here we could use sv_newmortal(), it would be equally efficient,
+        // but it makes the performance profile a bit more noisy
+        SV *sv = newSV(0);
 
         items[items.size() - 1] = sv;
 
@@ -990,6 +1014,8 @@ SV *Mapper::decode(const char *buffer, STRLEN bufsize) {
     if (BufferSource::PutBuffer(buffer, bufsize, pb_decoder->input())) {
         result = decoder_callbacks.get_and_mortalize_target();
     }
+    // this should be a no-op that only resizes the items vector
+    DecoderHandlers::static_clear(&decoder_callbacks);
     // this can croak()
     decoder_callbacks.apply_transforms();
 
@@ -1008,6 +1034,8 @@ SV *Mapper::decode_json(const char *buffer, STRLEN bufsize) {
     if (BufferSource::PutBuffer(buffer, bufsize, json_decoder->input())) {
         result = decoder_callbacks.get_and_mortalize_target();
     }
+    // this should be a no-op that only resizes the items vector
+    DecoderHandlers::static_clear(&decoder_callbacks);
     // this can croak()
     decoder_callbacks.apply_transforms();
 

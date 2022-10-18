@@ -96,7 +96,7 @@ public:
 
         void prepare(HV *target);
         SV *get_and_mortalize_target();
-        void clear();
+        static void static_clear(DecoderHandlers *cxt);
 
         static bool on_end_message(DecoderHandlers *cxt, upb::Status *status);
         static DecoderHandlers *on_start_string(DecoderHandlers *cxt, const int *field_index, size_t size_hint);
