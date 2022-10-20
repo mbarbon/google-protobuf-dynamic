@@ -81,44 +81,42 @@ MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
 
 #undef BOOLEAN_OPTION
 
-    if (SV **value = hv_fetchs(options, "accessor_style", 0)) {
-        const char *buf = SvPV_nolen(*value);
+#define START_STRING_VALUE(name) \
+    if (SV **value = hv_fetchs(options, #name, 0)) { \
+        const char *buf = SvPV_nolen(*value); \
+        \
+        if (0 == 1)
 
-        if (strEQ(buf, "get_and_set"))
-            accessor_style = GetAndSet;
-        else if (strEQ(buf, "plain_and_set"))
-            accessor_style = PlainAndSet;
-        else if (strEQ(buf, "single_accessor"))
-            accessor_style = SingleAccessor;
-        else if (strEQ(buf, "plain"))
-            accessor_style = Plain;
-        else
-            croak("Invalid value '%s' for 'accessor_style' option", buf);
+#define STRING_VALUE(field, string, value) \
+        else if (strEQ(buf, #string)) \
+            field = value
+
+#define END_STRING_VALUE(name) \
+        else \
+            croak("Invalid value '%s' for '" #name "' option", buf); \
     }
 
-    if (SV **value = hv_fetchs(options, "client_services", 0)) {
-        const char *buf = SvPV_nolen(*value);
+    START_STRING_VALUE(accessor_style);
+    STRING_VALUE(accessor_style, get_and_set, GetAndSet);
+    STRING_VALUE(accessor_style, plain_and_set, PlainAndSet);
+    STRING_VALUE(accessor_style, single_accessor, SingleAccessor);
+    STRING_VALUE(accessor_style, plain, Plain);
+    END_STRING_VALUE(accessor_style);
 
-        if (strEQ(buf, "disable"))
-            client_services = Disable;
-        else if (strEQ(buf, "noop"))
-            client_services = Noop;
-        else if (strEQ(buf, "grpc_xs"))
-            client_services = GrpcXS;
-        else
-            croak("Invalid value '%s' for 'client_services' option", buf);
-    }
+    START_STRING_VALUE(client_services);
+    STRING_VALUE(client_services, disable, Disable);
+    STRING_VALUE(client_services, noop, Noop);
+    STRING_VALUE(client_services, grpc_xs, GrpcXS);
+    END_STRING_VALUE(client_services);
 
-    if (SV **value = hv_fetchs(options, "boolean_values", 0)) {
-        const char *buf = SvPV_nolen(*value);
+    START_STRING_VALUE(boolean_values);
+    STRING_VALUE(numeric_bool, perl, false);
+    STRING_VALUE(numeric_bool, numeric, true);
+    END_STRING_VALUE(boolean_values);
 
-        if (strEQ(buf, "perl"))
-            numeric_bool = false;
-        else if (strEQ(buf, "numeric"))
-            numeric_bool = true;
-        else
-            croak("Invalid value '%s' for 'boolean_values' option", buf);
-    }
+#undef START_STRING_VALUE
+#undef STRING_VALUE
+#undef END_STRING_VALUE
 }
 
 Dynamic::Dynamic(const string &root_directory) :
