@@ -43,8 +43,8 @@ use if $] < 5.014, 'Test::More' => 'skip_all' => 'Not available on Perl < 5.14';
         "ref for repeated scalar croaks in serialization"
     );
 
-    eq_or_diff(
-        Test1::Repeated->decode(Test1::Repeated->encode({ string_f => ['a', $ovl] })),
+    decode_eq_or_diff(
+        'Test1::Repeated', Test1::Repeated->encode({ string_f => ['a', $ovl] }),
         Test1::Repeated->new({
             string_f => ['a', "123"],
         }),
@@ -61,29 +61,29 @@ use if $] < 5.014, 'Test::More' => 'skip_all' => 'Not available on Perl < 5.14';
     my $obj = TestObj->new;
     my $ovl = TestOvl->new;
 
-    eq_or_diff(
-        Test2::Basic->decode(Test2::Basic->encode({ string_f => $ref })),
+    decode_eq_or_diff(
+        'Test2::Basic', Test2::Basic->encode({ string_f => $ref }),
         Test2::Basic->new({
             string_f => "$ref",
         }),
     );
 
-    eq_or_diff(
-        Test2::Basic->decode(Test2::Basic->encode({ string_f => $obj })),
+    decode_eq_or_diff(
+        'Test2::Basic', Test2::Basic->encode({ string_f => $obj }),
         Test2::Basic->new({
             string_f => "$obj",
         }),
     );
 
-    eq_or_diff(
-        Test2::Repeated->decode(Test2::Repeated->encode({ string_f => ['a', $ref] })),
+    decode_eq_or_diff(
+        'Test2::Repeated', Test2::Repeated->encode({ string_f => ['a', $ref] }),
         Test2::Repeated->new({
             string_f => ['a', "$ref"],
         }),
     );
 
-    eq_or_diff(
-        Test2::Repeated->decode(Test2::Repeated->encode({ string_f => ['a', $ovl] })),
+    decode_eq_or_diff(
+        'Test2::Repeated', Test2::Repeated->encode({ string_f => ['a', $ovl] }),
         Test2::Repeated->new({
             string_f => ['a', "123"],
         }),

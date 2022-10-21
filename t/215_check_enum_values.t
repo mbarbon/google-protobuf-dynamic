@@ -5,8 +5,8 @@ use t::lib::Test;
     $d->load_file("enum.proto");
     $d->map({ package => 'test', prefix => 'Test1', options => { check_enum_values => 1 } });
 
-    eq_or_diff(
-        Test1::MessageBefore->decode(Test1::MessageAfter->encode({ value => 3, array => [3, 2, 1] })),
+    decode_eq_or_diff(
+        'Test1::MessageBefore', Test1::MessageAfter->encode({ value => 3, array => [3, 2, 1] }),
         Test1::MessageBefore->new({ array => [1, 2, 1] }),
         "unknown enum value uses default in deserialization",
     );
@@ -35,8 +35,8 @@ use t::lib::Test;
     $d->load_file("enum.proto");
     $d->map({ package => 'test', prefix => 'Test2', options => { check_enum_values => 0 } });
 
-    eq_or_diff(
-        Test2::MessageBefore->decode(Test2::MessageAfter->encode({ value => 3, array => [3, 2, 1] })),
+    decode_eq_or_diff(
+        'Test2::MessageBefore', Test2::MessageAfter->encode({ value => 3, array => [3, 2, 1] }),
         Test2::MessageBefore->new({ value => 3, array => [3, 2, 1] }),
     );
 

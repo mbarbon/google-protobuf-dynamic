@@ -7,9 +7,8 @@ use t::lib::Test;
 
     $d->map({ package => 'test', prefix => 'Test1' });
 
-    my $p = Test1::Person->decode("\x0a\x03foo\x10\x1f");
-
-    eq_or_diff($p, Test1::Person->new({ id => 31, name => 'foo' }));
+    decode_eq_or_diff('Test1::Person', "\x0a\x03foo\x10\x1f",
+                      Test1::Person->new({ id => 31, name => 'foo' }));
 }
 
 # check no WKTs are mapped since none is used
@@ -24,9 +23,10 @@ ok(!Google::ProtocolBuffers::Dynamic::WKT::Duration->can('new'));
 
     $d->map({ package => 'test', prefix => 'Test2' });
 
-    my $t = Test2::Basic->decode("\x60\x03\x0a\x04\x08\x0f\x10\x11");
-
-    eq_or_diff($t, Test2::Basic->new({ timestamp_f => Google::ProtocolBuffers::Dynamic::WKT::Timestamp->new({ seconds => 15, nanos => 17 })}));
+    decode_eq_or_diff('Test2::Basic', "\x60\x03\x0a\x04\x08\x0f\x10\x11",
+                      Test2::Basic->new({
+                          timestamp_f => Google::ProtocolBuffers::Dynamic::WKT::Timestamp->new({ seconds => 15, nanos => 17 })
+                      }));
 }
 
 # check only Timestamp is mapped
@@ -41,9 +41,10 @@ ok(!Google::ProtocolBuffers::Dynamic::WKT::Duration->can('new'));
 
     $d->map({ package => 'test', prefix => 'Test3' });
 
-    my $t = Test3::Basic->decode("\x60\x03\x0a\x04\x08\x0f\x10\x11");
-
-    eq_or_diff($t, Test3::Basic->new({ timestamp_f => Google::ProtocolBuffers::Dynamic::WKT::Timestamp->new({ seconds => 15, nanos => 17 })}));
+    decode_eq_or_diff('Test3::Basic', "\x60\x03\x0a\x04\x08\x0f\x10\x11",
+                      Test3::Basic->new({
+                          timestamp_f => Google::ProtocolBuffers::Dynamic::WKT::Timestamp->new({ seconds => 15, nanos => 17 })
+                      }));
 }
 
 # check all WKTs are mapped now

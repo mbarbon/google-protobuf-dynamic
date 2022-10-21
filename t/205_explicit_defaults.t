@@ -5,8 +5,8 @@ use t::lib::Test;
     $d->load_file("options.proto");
     $d->map({ package => 'test', prefix => 'Test1', options => { explicit_defaults => 1 } });
 
-    eq_or_diff(
-        Test1::Defaults->decode("\x08\x02"),
+    decode_eq_or_diff(
+        'Test1::Defaults', "\x08\x02",
         Test1::Defaults->new({
             int32_f     => 2,
             uint32_f    => 8,
@@ -19,8 +19,9 @@ use t::lib::Test;
             enum_f      => 2,
         }),
     );
-    eq_or_diff(
-        Test1::Defaults->decode(""),
+
+    decode_eq_or_diff(
+        'Test1::Defaults', "",
         Test1::Defaults->new({
             int32_f     => 7,
             uint32_f    => 8,
@@ -40,12 +41,13 @@ use t::lib::Test;
     $d->load_file("options.proto");
     $d->map({ package => 'test', prefix => 'Test2', options => { explicit_default => 0 } });
 
-    eq_or_diff(
-        Test2::Defaults->decode("\x08\x02"),
+    decode_eq_or_diff(
+        'Test2::Defaults', "\x08\x02",
         Test2::Defaults->new({ int32_f => 2 }),
     );
-    eq_or_diff(
-        Test2::Defaults->decode(""),
+
+    decode_eq_or_diff(
+        'Test2::Defaults', "",
         Test2::Defaults->new({}),
     );
 }

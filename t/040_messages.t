@@ -51,7 +51,7 @@ $d->resolve_references();
         tie_scalar($tied, $value);
     };
 
-    eq_or_diff(OuterWithMessage->decode($encoded), $decoded);
+    decode_eq_or_diff('OuterWithMessage', $encoded, $decoded);
     eq_or_diff(OuterWithMessage->encode($for_encode), $encoded);
     eq_or_diff(OuterWithMessage->encode($tied), $encoded);
     eq_or_diff(tied_fetch_count($tied), {
@@ -108,7 +108,7 @@ $d->resolve_references();
         }),
     });
 
-    eq_or_diff(OuterWithMessage->decode($encoded), $decoded);
+    decode_eq_or_diff('OuterWithMessage', $encoded, $decoded);
     eq_or_diff(OuterWithMessage->encode($decoded), $reencoded);
 }
 

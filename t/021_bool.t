@@ -10,9 +10,9 @@ my $encoded_default = "";
     $d->map_message("test.Bool", "PerlBool", { explicit_defaults => 1, boolean_values => 'perl', decode_blessed => 0 });
     $d->resolve_references();
 
-    eq_or_diff(PerlBool->decode($encoded_true), { bool_f => 1 });
-    eq_or_diff(PerlBool->decode($encoded_false), { bool_f => '' });
-    eq_or_diff(PerlBool->decode($encoded_default), { bool_f => '' });
+    decode_eq_or_diff('PerlBool', $encoded_true, { bool_f => 1 });
+    decode_eq_or_diff('PerlBool', $encoded_false, { bool_f => '' });
+    decode_eq_or_diff('PerlBool', $encoded_default, { bool_f => '' });
 }
 
 {
@@ -21,9 +21,9 @@ my $encoded_default = "";
     $d->map_message("test.Bool", "NumericBool", { explicit_defaults => 1, boolean_values => 'numeric', decode_blessed => 0 });
     $d->resolve_references();
 
-    eq_or_diff(NumericBool->decode($encoded_true), { bool_f => 1 });
-    eq_or_diff(NumericBool->decode($encoded_false), { bool_f => 0 });
-    eq_or_diff(NumericBool->decode($encoded_default), { bool_f => 0 });
+    decode_eq_or_diff('NumericBool', $encoded_true, { bool_f => 1 });
+    decode_eq_or_diff('NumericBool', $encoded_false, { bool_f => 0 });
+    decode_eq_or_diff('NumericBool', $encoded_default, { bool_f => 0 });
 }
 
 SKIP: {
@@ -34,9 +34,9 @@ SKIP: {
     $d->map_message("test.Bool", "JSONBool", { explicit_defaults => 1, boolean_values => 'json', decode_blessed => 0 });
     $d->resolve_references();
 
-    eq_or_diff(JSONBool->decode($encoded_true), { bool_f => JSON::true() });
-    eq_or_diff(JSONBool->decode($encoded_false), { bool_f => JSON::false() });
-    eq_or_diff(JSONBool->decode($encoded_default), { bool_f => JSON::false() });
+    decode_eq_or_diff('JSONBool', $encoded_true, { bool_f => JSON::true() });
+    decode_eq_or_diff('JSONBool', $encoded_false, { bool_f => JSON::false() });
+    decode_eq_or_diff('JSONBool', $encoded_default, { bool_f => JSON::false() });
 }
 
 {

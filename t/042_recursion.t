@@ -11,7 +11,7 @@ $d->resolve_references();
         value => 2,
     });
 
-    eq_or_diff(List->decode($encoded), $decoded);
+    decode_eq_or_diff('List', $encoded, $decoded);
     eq_or_diff(List->encode($decoded), $encoded);
 }
 
@@ -24,7 +24,7 @@ $d->resolve_references();
         }),
     });
 
-    eq_or_diff(List->decode($encoded), $decoded);
+    decode_eq_or_diff('List', $encoded, $decoded);
     eq_or_diff(List->encode($decoded), $encoded);
 }
 

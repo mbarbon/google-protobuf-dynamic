@@ -85,14 +85,13 @@ for my $field (sort keys %values) {
     my ($values, $encoded) = @{$values{$field}};
     my $bytes = Maps->encode({ $field => $values });
     my $bytes_nomap = NoMaps->encode({ $field => to_array($values) });
-    my $decoded = Maps->decode($bytes);
 
     eq_or_diff($bytes, encode($values, $encoded),
                "$field - encoded value");
     eq_or_diff($bytes, $bytes_nomap,
                "$field - encoded value (pair array)");
-    eq_or_diff($decoded, Maps->new({ $field => $values }),
-               "$field - round trip");
+    decode_eq_or_diff('Maps', $bytes, Maps->new({ $field => $values }),
+                      "$field - round trip");
 }
 
 my $bytes = "\xb2";
@@ -111,11 +110,13 @@ eq_or_diff(Maps->encode({ string_int32_map => { $string => 1 } }), $encoded,
 eq_or_diff(NoMaps->encode({ string_int32_map => [{ key => $string, value => 1 }] }), $encoded,
        "UTF-8 string (pair array)");
 
-{
+for my $method (decoder_functions) {
+    my $method_desc = "($method)";
+
     # warnings are tested separately
     local $SIG{__WARN__} = sub { };
 
-    my $broken1 = Maps->decode(NoMaps->encode({
+    my $broken1 = Maps->$method(NoMaps->encode({
         string_int32_map => [
             { key => 'a' },
             { key => 'b', value => 1 },
@@ -123,12 +124,12 @@ eq_or_diff(NoMaps->encode({ string_int32_map => [{ key => $string, value => 1 }]
         ],
     }));
 
-    eq_or_diff([sort keys %{$broken1->{string_int32_map}}], [qw(a b c)]);
-    eq_or_diff($broken1->{string_int32_map}{a}, 0);
-    eq_or_diff($broken1->{string_int32_map}{b}, 1);
-    eq_or_diff($broken1->{string_int32_map}{c}, 0);
+    eq_or_diff([sort keys %{$broken1->{string_int32_map}}], [qw(a b c)], $method_desc);
+    eq_or_diff($broken1->{string_int32_map}{a}, 0, $method_desc);
+    eq_or_diff($broken1->{string_int32_map}{b}, 1, $method_desc);
+    eq_or_diff($broken1->{string_int32_map}{c}, 0, $method_desc);
 
-    my $broken2 = Maps->decode(NoMaps->encode({
+    my $broken2 = Maps->$method(NoMaps->encode({
         string_int32_map => [
             {             value => 2 },
             { key => 'b', value => 1 },
@@ -136,8 +137,8 @@ eq_or_diff(NoMaps->encode({ string_int32_map => [{ key => $string, value => 1 }]
         ],
     }));
 
-    eq_or_diff([sort keys %{$broken2->{string_int32_map}}], [qw(b)]);
-    eq_or_diff($broken2->{string_int32_map}{b}, 1);
+    eq_or_diff([sort keys %{$broken2->{string_int32_map}}], [qw(b)], $method_desc);
+    eq_or_diff($broken2->{string_int32_map}{b}, 1, $method_desc);
 }
 
 done_testing();

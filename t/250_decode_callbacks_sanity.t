@@ -13,7 +13,7 @@ my @no_blessed = (options => { decode_blessed => 0 });
     Test1::Int32ArrayArray->set_decoder_options($strip_repeated_wrapper);
 
     # nested messages
-    eq_or_diff(Test1::Message->decode(Test1::Message->encode({
+    decode_eq_or_diff('Test1::Message', Test1::Message->encode({
         nested_array => [{
             values => [{
                 values => [1, 2, 3],
@@ -25,14 +25,14 @@ my @no_blessed = (options => { decode_blessed => 0 });
                 values => [7, 8, 9],
             }],
         }],
-    })), {
+    }), {
         nested_array => [ [ [1, 2, 3] ], [ [4, 5, 6], [7, 8, 9] ] ],
     });
 
     # top-level message
-    eq_or_diff(Test1::Int32Array->decode(Test1::Int32Array->encode({
+    decode_eq_or_diff('Test1::Int32Array', Test1::Int32Array->encode({
         values => [1, 2, 3],
-    })),
+    }),
         [1, 2, 3]
     );
 }
@@ -50,16 +50,16 @@ for my $noop (sub { $_[0] = 42 }, sub { }, sub { return }, sub { $_[0] }) {
 
     if ($noop_index == 1) {
         # check the test is sane
-        eq_or_diff($package->decode($package->encode({
+        decode_eq_or_diff($package, $package->encode({
             values => [1, 2, 3],
-        })),
+        }),
             42,
         );
     } else {
         # actually check what we need to check
-        eq_or_diff($package->decode($package->encode({
+        decode_eq_or_diff($package, $package->encode({
             values => [1, 2, 3],
-        })), {
+        }), {
             values => [1, 2, 3],
         });
     }
@@ -76,7 +76,7 @@ for my $noop (sub { $_[0] = 42 }, sub { }, sub { return }, sub { $_[0] }) {
     Test3::Int32ArrayArray->set_decoder_options($strip_repeated_wrapper);
 
     # nested messages
-    eq_or_diff(Test3::Message->decode(Test3::Message->encode({
+    decode_eq_or_diff('Test3::Message', Test3::Message->encode({
         concatenated_array => {
             values => [{
                 values => [1, 2, 3],
@@ -90,7 +90,7 @@ for my $noop (sub { $_[0] = 42 }, sub { }, sub { return }, sub { $_[0] }) {
                 values => [7, 8, 9],
             }],
         },
-    })), {
+    }), {
         concatenated_array => [ [1, 2, 3], [4, 5, 6], [7, 8, 9] ],
     });
 }

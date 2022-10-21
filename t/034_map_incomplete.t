@@ -76,10 +76,9 @@ sub encode {
 for my $field (sort keys %values) {
     my ($values, $encoded) = @{$values{$field}};
     my $bytes = Maps->encode({ $field => $values });
-    my $decoded = Maps->decode( encode($values, $encoded));
 
-    eq_or_diff($decoded, Maps->decode($bytes),
-               "$field - decode missing map values as default");
+    decode_eq_or_diff('Maps', encode($values, $encoded), Maps->decode($bytes),
+                      "$field - decode missing map values as default");
 }
 
 done_testing();

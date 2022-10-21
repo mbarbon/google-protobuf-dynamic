@@ -13,7 +13,7 @@ $d->resolve_references();
         email => 'foo@test.com',
     });
 
-    eq_or_diff(Person->decode($encoded), $decoded);
+    decode_eq_or_diff('Person', $encoded, $decoded);
     eq_or_diff(Person->encode($decoded), $encoded);
 }
 
@@ -23,8 +23,8 @@ $d->resolve_references();
         name => 'foo',
     });
 
-    throws_ok(
-        sub { Person->decode($encoded) },
+    decode_throws_ok(
+        'Person', $encoded,
         qr/Deserialization failed: Missing required field test.Person.id/,
     );
 

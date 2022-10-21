@@ -27,7 +27,7 @@ for my $type (sort keys %values) {
             "${type}_pf"=> $v_pf,
         });
 
-        eq_or_diff(Optional1->decode($encoded_nondefault), $decoded, "$type - non-default values both present in decoded value");
+        decode_eq_or_diff('Optional1', $encoded_nondefault, $decoded, "$type - non-default values both present in decoded value");
         eq_or_diff(Optional1->encode($decoded), $encoded_nondefault, "$type - non-default value both present in encoded bytes");
     }
 

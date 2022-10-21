@@ -42,14 +42,20 @@ warning_is(
     qq[While encoding field 'int32_message_map.{3}.one_value': $uninit],
 );
 
-warning_is(
-    sub { Maps->decode(NoMaps->encode({ string_int32_map => [{ value => 1}] })) },
-    qq[Incomplete map entry: missing key],
-);
+for my $method (decoder_functions) {
+    my $method_desc = "($method)";
 
-warning_is(
-    sub { Maps->decode(NoMaps->encode({ string_int32_map => [{}] })) },
-    qq[Incomplete map entry: missing key],
-);
+    warning_is(
+        sub { Maps->$method(NoMaps->encode({ string_int32_map => [{ value => 1}] })) },
+        qq[Incomplete map entry: missing key],
+        $method_desc,
+    );
+
+    warning_is(
+        sub { Maps->$method(NoMaps->encode({ string_int32_map => [{}] })) },
+        qq[Incomplete map entry: missing key],
+        $method_desc,
+    );
+}
 
 done_testing();

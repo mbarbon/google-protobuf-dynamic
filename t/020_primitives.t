@@ -68,7 +68,6 @@ bless \%test_defaults, 'Default';
 for my $field (sort keys %values) {
     my ($value, $encoded) = @{$values{$field}};
     my $bytes = Basic->encode({ $field => $value });
-    my $decoded = Basic->decode($bytes);
 
     my $tied = { $field => undef };
     tie_scalar($tied->{$field}, $value);
@@ -78,14 +77,14 @@ for my $field (sort keys %values) {
                "$field - encoded value");
     eq_or_diff($tied_bytes, $encoded,
                "$field - encoded tied value");
-    eq_or_diff($decoded, Basic->new({ %default_defaults, $field => $value }),
-               "$field - round trip");
+    decode_eq_or_diff('Basic', $bytes, Basic->new({ %default_defaults, $field => $value }),
+                      "$field - round trip");
     eq_or_diff(tied_fetch_count($tied), { $field => 1 }, "$field - tied fetch count");
 }
 
 eq_or_diff(Basic->encode({bool_f => ''}), "", "bool false");
 eq_or_diff(Default->encode({bool_f => ''}), "\x38\x00", "bool false");
-eq_or_diff(Basic->decode(''), \%default_defaults, "implicit defaults");
-eq_or_diff(Default->decode(''), \%test_defaults, "explicit defaults");
+decode_eq_or_diff('Basic', '',, \%default_defaults, "implicit defaults");
+decode_eq_or_diff('Default', '', \%test_defaults, "explicit defaults");
 
 done_testing();

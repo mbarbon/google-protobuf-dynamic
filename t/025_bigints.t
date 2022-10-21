@@ -12,7 +12,7 @@ $d->resolve_references();
         uint64_f => Math::BigInt->new('0x7ffffffff'),,
     });
 
-    eq_or_diff(BigInts->decode($encoded), $decoded);
+    decode_eq_or_diff('BigInts', $encoded, $decoded);
     eq_or_diff(BigInts->encode($decoded), $encoded);
 }
 
@@ -23,7 +23,7 @@ $d->resolve_references();
         uint64_f => 0xfffffff,
     });
 
-    eq_or_diff(BigInts->decode($encoded), $decoded);
+    decode_eq_or_diff('BigInts', $encoded, $decoded);
     eq_or_diff(BigInts->encode($decoded), $encoded);
 }
 

@@ -15,14 +15,14 @@ my @no_blessed = (options => { decode_blessed => 0 });
     };
     Test1::FieldMessage->set_decoder_options($strip_repeated_wrapper);
 
-    eq_or_diff(Test1::FieldMessage->decode(Test1::FieldMessage->encode({
+    decode_eq_or_diff('Test1::FieldMessage', Test1::FieldMessage->encode({
         transformed => {
             values => [1, 2, 3],
         },
         original => {
             values => [4, 5, 6],
         },
-    })),{
+    }),{
         transformed => [1, 2, 3],
         original => {
             values => [4, 5, 6],
@@ -47,14 +47,14 @@ my @no_blessed = (options => { decode_blessed => 0 });
     Test2::Int32Array->set_decoder_options($rename_repeated_wrapper);
     Test2::FieldMessage->set_decoder_options($strip_repeated_wrapper);
 
-    eq_or_diff(Test2::FieldMessage->decode(Test2::FieldMessage->encode({
+    decode_eq_or_diff('Test2::FieldMessage', Test2::FieldMessage->encode({
         transformed => {
             values => [1, 2, 3],
         },
         original => {
             values => [4, 5, 6],
         },
-    })),{
+    }),{
         transformed => [1, 2, 3],
         original => {
             pretty_values => [4, 5, 6],

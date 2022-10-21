@@ -33,7 +33,6 @@ my %packed_values = (
 for my $field (sort keys %values) {
     my ($values, $encoded) = @{$values{$field}};
     my $bytes = Repeated->encode({ $field => $values });
-    my $decoded = Repeated->decode($bytes);
 
     my $array = [(undef) x @$values];
     my $tied = { $field => [] };
@@ -45,8 +44,8 @@ for my $field (sort keys %values) {
                "$field - encoded value");
     eq_or_diff($tied_bytes, $encoded,
                "$field - encoded value with tied elements");
-    eq_or_diff($decoded, Repeated->new({ $field => $values }),
-               "$field - round trip");
+    decode_eq_or_diff('Repeated', $bytes, Repeated->new({ $field => $values }),
+                      "$field - round trip");
     eq_or_diff(tied_fetch_count($tied), { $field => {
         count => scalar @$values,
         inner => [(1) x scalar @$values],
@@ -56,20 +55,19 @@ for my $field (sort keys %values) {
 for my $field (sort keys %packed_values) {
     my ($values, $encoded) = @{$packed_values{$field}};
     my $bytes = Packed->encode({ $field => $values });
-    my $decoded = Packed->decode($bytes);
 
     eq_or_diff($bytes, $encoded,
                "$field - packed value");
-    eq_or_diff($decoded, Packed->new({ $field => $values }),
-               "$field - round trip");
+    decode_eq_or_diff('Packed', $bytes, Packed->new({ $field => $values }),
+                      "$field - round trip");
 }
 
 # unusual, but the spec excplicitly mentions them
-eq_or_diff(Repeated->decode("\x18\x01\x38\x01\x18\x02\x38\x00"), Repeated->new({
+decode_eq_or_diff('Repeated', "\x18\x01\x38\x01\x18\x02\x38\x00", Repeated->new({
     int32_f => [1, 2],
     bool_f  => [1, ''],
 }), "non-contiguous repeated fields");
-eq_or_diff(Packed->decode("\x1a\x02\x01\x02\x1a\x02\x03\x04"), Packed->new({
+decode_eq_or_diff('Packed', "\x1a\x02\x01\x02\x1a\x02\x03\x04", Packed->new({
     int32_f => [1, 2, 3, 4],
 }), "packed repeated field in multiple chunks");
 

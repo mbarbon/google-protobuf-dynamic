@@ -24,12 +24,11 @@ my %scalar_values = (
     for my $field (sort keys %scalar_values) {
         my ($value, $encoded) = @{$scalar_values{$field}};
         my $bytes = Test::Basic->encode({ $field => $value });
-        my $decoded = Test::Basic->decode($bytes);
 
         eq_or_diff($bytes, $encoded,
                    "scalar $field - encoded value");
-        eq_or_diff($decoded, Test::Basic->new({ $field => $value }),
-                   "scalar $field - round trip");
+        decode_eq_or_diff('Test::Basic', $bytes, Test::Basic->new({ $field => $value }),
+                          "scalar $field - round trip");
     }
 }
 

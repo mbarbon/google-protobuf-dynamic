@@ -12,7 +12,7 @@ $d->resolve_references();
         value2 => 'foo',
     });
 
-    eq_or_diff(OneOf1->decode($encoded), $decoded);
+    decode_eq_or_diff('OneOf1', $encoded, $decoded);
     eq_or_diff(OneOf1->encode($decoded), $encoded);
 }
 
@@ -23,7 +23,7 @@ $d->resolve_references();
         value3 => 4,
     });
 
-    eq_or_diff(OneOf1->decode($encoded), $decoded);
+    decode_eq_or_diff('OneOf1', $encoded, $decoded);
     eq_or_diff(OneOf1->encode($decoded), $encoded);
 }
 
@@ -34,7 +34,7 @@ $d->resolve_references();
         value3 => 4,
     });
 
-    eq_or_diff(OneOf1->decode($encoded), $decoded);
+    decode_eq_or_diff('OneOf1', $encoded, $decoded);
 }
 
 {
@@ -44,7 +44,7 @@ $d->resolve_references();
         value2 => 'foo',
     });
 
-    eq_or_diff(OneOf1->decode($encoded), $decoded);
+    decode_eq_or_diff('OneOf1', $encoded, $decoded);
 }
 
 {
