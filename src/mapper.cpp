@@ -257,7 +257,7 @@ Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_sequence(DecoderHandl
     THX_DECLARE_AND_GET;
 
     cxt->mark_seen(field_index);
-    SV *target = cxt->get_target(field_index);
+    SV *target = cxt->get_hash_item_target(field_index);
     AV *av = NULL;
 
     if (!SvROK(target)) {
@@ -285,7 +285,7 @@ Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_map(DecoderHandlers *
 
     cxt->mark_seen(field_index);
     const Mapper *mapper = cxt->mappers.back();
-    SV *target = cxt->get_target(field_index);
+    SV *target = cxt->get_hash_item_target(field_index);
     HV *hv = NULL;
 
     if (!SvROK(target)) {
@@ -564,6 +564,14 @@ SV *Mapper::DecoderHandlers::get_target(const int *field_index) {
 
         return HeVAL(hv_fetch_ent(hv, field.name, 1, field.name_hash));
     }
+}
+
+SV *Mapper::DecoderHandlers::get_hash_item_target(const int *field_index) {
+    const Mapper *mapper = mappers.back();
+    const Field &field = mapper->fields[*field_index];
+    HV *hv = (HV *) items.back();
+
+    return HeVAL(hv_fetch_ent(hv, field.name, 1, field.name_hash));
 }
 
 Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_stash, const MappingOptions &options) :
