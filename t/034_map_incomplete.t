@@ -4,6 +4,7 @@ my $d = Google::ProtocolBuffers::Dynamic->new('t/proto');
 $d->load_file("map.proto");
 $d->map_message("test.Maps", "Maps");
 $d->map_message("test.Item", "Item");
+$d->map_message("test.StringMap", "StringMap");
 $d->resolve_references();
 
 my %values = (

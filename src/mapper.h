@@ -38,6 +38,7 @@ public:
         TARGET_MAP_VALUE        = 2,
         TARGET_ARRAY_ITEM       = 3,
         TARGET_HASH_ITEM        = 4,
+        TARGET_FIELDTABLE_ITEM  = 5,
     };
 
     struct Field {
@@ -64,7 +65,7 @@ public:
         bool is_map;
         FieldTarget field_target;
         const Mapper *mapper; // for Message/Group fields
-        DecoderTransform *decoder_transform;
+        gpd::transform::DecoderTransform *decoder_transform;
         STD_TR1::unordered_set<int32_t> enum_values;
         int oneof_index;
         union {
@@ -95,11 +96,13 @@ public:
         std::vector<const Mapper *> mappers;
         std::vector<std::vector<bool> > seen_fields;
         std::vector<std::vector<int32_t> > seen_oneof;
-        DecoderTransformQueue pending_transforms;
-        DecoderTransform *decoder_transform;
+        gpd::transform::DecoderTransformQueue pending_transforms;
+        gpd::transform::DecoderTransform *decoder_transform;
+        bool transform_fieldtable;
         std::string error;
         SV *string;
         bool track_seen_fields;
+        std::vector<gpd::transform::Fieldtable::Entry> fieldtable_entries;
 
         DecoderHandlers(pTHX_ const Mapper *mapper);
 
@@ -148,10 +151,12 @@ public:
                 seen_fields.back()[*field_index] = true;
         }
 
-        void maybe_add_transform(SV *target, const DecoderTransform *message_transform, const DecoderTransform *field_transform) {
+        void maybe_add_transform(SV *target, const gpd::transform::DecoderTransform *message_transform, const gpd::transform::DecoderTransform *field_transform) {
             if (message_transform || field_transform)
                 pending_transforms.add_transform(target, message_transform, field_transform);
         }
+        void add_transform_fieldtable(SV *target, const gpd::transform::DecoderTransform *message_transform, const gpd::transform::DecoderTransform *field_transform);
+        void finish_add_transform_fieldtable();
         void apply_transforms() {
             pending_transforms.apply_transforms();
         }

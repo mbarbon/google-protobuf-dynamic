@@ -2,20 +2,30 @@
 
 #include "unordered_map.h"
 
-DecoderTransform::DecoderTransform(CDecoderTransform function) :
-        c_function(function),
-        perl_function(NULL)
+using namespace gpd::transform;
+
+DecoderTransform::DecoderTransform(CDecoderTransform _c_transform) :
+        c_transform(_c_transform),
+        c_transform_fieldtable(NULL),
+        perl_transform(NULL)
 {}
 
-DecoderTransform::DecoderTransform(SV *function) :
-        c_function(NULL),
-        perl_function(function)
+DecoderTransform::DecoderTransform(CDecoderTransformFieldtable _c_transform_fieldtable) :
+        c_transform(NULL),
+        c_transform_fieldtable(_c_transform_fieldtable),
+        perl_transform(NULL)
+{}
+
+DecoderTransform::DecoderTransform(SV *_perl_transform) :
+        c_transform(NULL),
+        c_transform_fieldtable(NULL),
+        perl_transform(_perl_transform)
 {}
 
 void DecoderTransform::transform(pTHX_ SV *target) const {
-    if (c_function) {
-        c_function(aTHX_ target);
-    } else {
+    if (c_transform) {
+        c_transform(aTHX_ target);
+    } else if (perl_transform) {
         dSP;
 
         PUSHMARK(SP);
@@ -23,7 +33,17 @@ void DecoderTransform::transform(pTHX_ SV *target) const {
         PUTBACK;
 
         // return value is always 1 because of G_SCALAR
-        call_sv(perl_function, G_VOID|G_DISCARD);
+        call_sv(perl_transform, G_VOID|G_DISCARD);
+    } else {
+        croak("Internal error: transform function not provided");
+    }
+}
+
+void DecoderTransform::transform_fieldtable(pTHX_ SV *target, Fieldtable *fieldtable) const {
+    if (c_transform_fieldtable) {
+        c_transform_fieldtable(aTHX_ target, fieldtable);
+    } else {
+        croak("Internal error: fieldtable transform function not provided");
     }
 }
 
@@ -45,18 +65,36 @@ void DecoderTransformQueue::clear() {
     }
 
     pending_transforms.clear();
+
+    for (std::vector<Fieldtable::Entry>::iterator it = fieldtable.begin(), en = fieldtable.end(); it != en; ++it) {
+        SvREFCNT_dec(it->value);
+    }
+
+    fieldtable.clear();
 }
 
-void DecoderTransformQueue::add_transform(SV *target, const DecoderTransform *message_transform, const DecoderTransform *field_transform) {
+size_t DecoderTransformQueue::add_transform(SV *target, const DecoderTransform *message_transform, const DecoderTransform *field_transform) {
     if (field_transform != NULL) {
         pending_transforms.push_back(PendingTransform(SvREFCNT_inc(target), field_transform));
     } else if (message_transform != NULL) {
         pending_transforms.push_back(PendingTransform(SvREFCNT_inc(target), message_transform));
     }
+
+    return pending_transforms.size() - 1;
+}
+
+void DecoderTransformQueue::finish_add_transform(size_t index, int size, Fieldtable::Entry *entries) {
+    int fieldtable_offset = fieldtable.size();
+
+    fieldtable.insert(fieldtable.end(), entries, entries + size);
+
+    pending_transforms[index].fieldtable_offset = fieldtable_offset;
+    pending_transforms[index].fieldtable_size = size;
 }
 
 void DecoderTransformQueue::apply_transforms() {
     STD_TR1::unordered_set<SV *> already_mapped;
+    Fieldtable table;
 
     for (std::vector<PendingTransform>::reverse_iterator it = pending_transforms.rbegin(), en = pending_transforms.rend(); it != en; ++it) {
         SV *target = it->target;
@@ -71,6 +109,32 @@ void DecoderTransformQueue::apply_transforms() {
             already_mapped.insert(target);
         }
 
-        it->transform->transform(aTHX_ target);
+        if (it->fieldtable_offset == -1) {
+            it->transform->transform(aTHX_ target);
+        } else {
+            table.size = it->fieldtable_size;
+            table.entries = &fieldtable[it->fieldtable_offset];
+
+            it->transform->transform_fieldtable(aTHX_ target, &table);
+        }
+    }
+}
+
+// the only use for this transform is to be able to test fieldtable trnasformations
+void gpd::transform::fieldtable_debug_transform(pTHX_ SV *target, Fieldtable *fieldtable) {
+    AV *res = newAV();
+
+    SvROK_on(target);
+    SvRV_set(target, (SV *) res);
+
+    for (int i = 0; i < fieldtable->size; ++i) {
+        AV *item = newAV();
+
+        av_push(item, newSViv(fieldtable->entries[i].field));
+        av_push(item, fieldtable->entries[i].value);
+
+        fieldtable->entries[i].value = NULL;
+
+        av_push(res, newRV_noinc((SV *) item));
     }
 }

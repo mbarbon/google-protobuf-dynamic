@@ -8,6 +8,7 @@
 #include <upb/pb/decoder.h>
 
 using namespace gpd;
+using namespace gpd::transform;
 using namespace std;
 using namespace upb;
 using namespace upb::pb;
@@ -47,6 +48,7 @@ namespace {
 Mapper::DecoderHandlers::DecoderHandlers(pTHX_ const Mapper *mapper) :
         target_ref(NULL),
         decoder_transform(NULL),
+        transform_fieldtable(false),
         pending_transforms(aTHX) {
     SET_THX_MEMBER;
     mappers.push_back(mapper);
@@ -78,6 +80,7 @@ void Mapper::DecoderHandlers::prepare(HV *target) {
     }
     items.resize(1);
     items[0] = (SV *) target;
+    fieldtable_entries.clear();
     target_ref = newRV_noinc(items[0]);
     error.clear();
     string = NULL;
@@ -86,14 +89,23 @@ void Mapper::DecoderHandlers::prepare(HV *target) {
     SAVEDESTRUCTOR(&DecoderHandlers::static_clear, this);
 
     pending_transforms.clear();
-    if (decoder_transform)
-        pending_transforms.add_transform(target_ref, decoder_transform, NULL);
+    if (decoder_transform) {
+        if (transform_fieldtable) {
+            add_transform_fieldtable(target_ref, decoder_transform, NULL);
+        } else {
+            pending_transforms.add_transform(target_ref, decoder_transform, NULL);
+        }
+    }
 
     if (mappers[0]->get_decode_blessed())
         sv_bless(target_ref, mappers[0]->stash);
 }
 
 void Mapper::DecoderHandlers::finish() {
+    if (transform_fieldtable) {
+        finish_add_transform_fieldtable();
+    }
+
     // this should be a no-op that only resizes the items vector
     DecoderHandlers::static_clear(this);
     // this can croak()
@@ -117,6 +129,12 @@ void Mapper::DecoderHandlers::static_clear(DecoderHandlers *cxt) {
     }
 
     cxt->items.clear();
+
+    for (vector<Fieldtable::Entry>::iterator it = cxt->fieldtable_entries.begin(), en = cxt->fieldtable_entries.end(); it != en; ++it) {
+        SvREFCNT_dec(it->value);
+    }
+
+    cxt->fieldtable_entries.clear();
 }
 
 SV *Mapper::DecoderHandlers::get_and_mortalize_target() {
@@ -325,20 +343,35 @@ Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_sub_message(DecoderHa
     const Mapper *mapper = cxt->mappers.back();
     const Mapper *message_mapper = mapper->fields[*field_index].mapper;
     SV *target = cxt->get_target(field_index);
-    HV *hv = NULL;
 
-    if (!SvROK(target)) {
-        hv = newHV();
+    if (!message_mapper->decoder_callbacks.transform_fieldtable) {
+        HV *hv = NULL;
 
-        SvUPGRADE(target, SVt_RV);
-        SvROK_on(target);
-        SvRV_set(target, (SV *) hv);
-    } else
-        hv = (HV *) SvRV(target);
+        if (!SvROK(target)) {
+            hv = newHV();
 
-    cxt->items.push_back((SV *) hv);
+            SvUPGRADE(target, SVt_RV);
+            SvROK_on(target);
+            SvRV_set(target, (SV *) hv);
+        } else
+            hv = (HV *) SvRV(target);
+
+        cxt->items.push_back((SV *) hv);
+
+        cxt->maybe_add_transform(
+            target,
+            message_mapper->decoder_callbacks.decoder_transform,
+            mapper->fields[*field_index].decoder_transform);
+    } else {
+        cxt->add_transform_fieldtable(
+            target,
+            message_mapper->decoder_callbacks.decoder_transform,
+            mapper->fields[*field_index].decoder_transform);
+
+        cxt->items.push_back((SV *) target);
+    }
+
     cxt->push_mapper(message_mapper);
-    cxt->maybe_add_transform(target, message_mapper->decoder_callbacks.decoder_transform, mapper->fields[*field_index].decoder_transform);
     if (cxt->track_seen_fields) {
         cxt->seen_fields.resize(cxt->seen_fields.size() + 1);
         cxt->seen_fields.back().resize(cxt->mappers.back()->fields.size());
@@ -361,6 +394,11 @@ bool Mapper::DecoderHandlers::on_end_sub_message(DecoderHandlers *cxt, const int
     if (cxt->track_seen_fields)
         cxt->seen_fields.pop_back();
     cxt->pop_mapper();
+
+    if (message_mapper->decoder_callbacks.transform_fieldtable) {
+        cxt->finish_add_transform_fieldtable();
+    }
+
     cxt->items.pop_back();
 
     return true;
@@ -567,15 +605,53 @@ SV *Mapper::DecoderHandlers::get_target(const int *field_index) {
 
         return HeVAL(hv_fetch_ent(hv, field.name, 1, field.name_hash));
     }
+    case TARGET_FIELDTABLE_ITEM: {
+        SV *sv = newSV(0);
+
+        fieldtable_entries.push_back(Fieldtable::Entry(field.field_def->number(), sv));
+
+        return sv;
+    }
     }
 }
 
 SV *Mapper::DecoderHandlers::get_hash_item_target(const int *field_index) {
     const Mapper *mapper = mappers.back();
     const Field &field = mapper->fields[*field_index];
-    HV *hv = (HV *) items.back();
 
-    return HeVAL(hv_fetch_ent(hv, field.name, 1, field.name_hash));
+    if (!mapper->decoder_callbacks.transform_fieldtable) {
+        HV *hv = (HV *) items.back();
+
+        return HeVAL(hv_fetch_ent(hv, field.name, 1, field.name_hash));
+    } else {
+        SV *sv = newSV(0);
+
+        fieldtable_entries.push_back(Fieldtable::Entry(field.field_def->number(), sv));
+
+        return sv;
+    }
+}
+
+void Mapper::DecoderHandlers::add_transform_fieldtable(SV *target, const DecoderTransform *message_transform, const DecoderTransform *field_transform) {
+    size_t transform_index = pending_transforms.add_transform(target, message_transform, field_transform);
+
+    fieldtable_entries.push_back(Fieldtable::Entry(transform_index, NULL));
+}
+
+void Mapper::DecoderHandlers::finish_add_transform_fieldtable() {
+    for (vector<Fieldtable::Entry>::reverse_iterator it = fieldtable_entries.rbegin(), en = fieldtable_entries.rend(); it != en; ++it) {
+        if (it->value != NULL)
+            continue;
+
+        int size = it - fieldtable_entries.rbegin();
+        pending_transforms.finish_add_transform(
+            it->field,
+            size, &*(it - 1)
+        );
+        fieldtable_entries.erase(fieldtable_entries.end() - size - 1, fieldtable_entries.end());
+
+        break;
+    }
 }
 
 Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_stash, const MappingOptions &options) :
@@ -938,17 +1014,23 @@ static HV *hash_option(pTHX_ HV *options, const char *name) {
     return (HV *) SvRV(*hv_value);
 }
 
-static DecoderTransform *make_transform(pTHX_ SV *scalar) {
+static DecoderTransform *make_transform(pTHX_ SV *scalar, bool fieldtable) {
     if (SvROK(scalar)) {
         SV *maybe_cv = SvRV(scalar);
         if (SvTYPE(maybe_cv) != SVt_PVCV)
             croak("Transformation function is a reference but not a code reference");
+        if (fieldtable)
+            croak("Fieldtable transformation function must be written in C");
 
         return new DecoderTransform(maybe_cv);
     }
 
     if (SvIOK(scalar)) {
-        return new DecoderTransform(INT2PTR(CDecoderTransform, SvIV(scalar)));
+        if (fieldtable) {
+            return new DecoderTransform(INT2PTR(CDecoderTransformFieldtable, SvIV(scalar)));
+        } else {
+            return new DecoderTransform(INT2PTR(CDecoderTransform, SvIV(scalar)));
+        }
     }
 
     croak("Transformation function must be either a code reference or an integer representing a C function pointer");
@@ -956,10 +1038,28 @@ static DecoderTransform *make_transform(pTHX_ SV *scalar) {
 
 void Mapper::set_decoder_options(HV *options) {
     SV *transform = scalar_option(aTHX_ options, "transform");
+    SV *fieldtable_sv = scalar_option(aTHX_ options, "fieldtable");
     HV *transform_fields = hash_option(aTHX_ options, "transform_fields");
+    bool fieldtable = fieldtable_sv ? SvTRUE(fieldtable_sv) : false;
 
     if (transform) {
-        decoder_callbacks.decoder_transform = make_transform(aTHX_ transform);
+        decoder_callbacks.decoder_transform = make_transform(aTHX_ transform, fieldtable);
+    }
+
+    if (fieldtable) {
+        if (message_def->mapentry()) {
+            croak("Can't use fieldtable for map messages");
+        } else if (!transform) {
+            croak("Can't use fieldtable without transform");
+        }
+
+        decoder_callbacks.transform_fieldtable = true;
+
+        for (vector<Field>::iterator it = fields.begin(), en = fields.end(); it != en; ++it) {
+            if (it->field_target == TARGET_HASH_ITEM) {
+                it->field_target = TARGET_FIELDTABLE_ITEM;
+            }
+        }
     }
 
     if (transform_fields) {
@@ -980,7 +1080,7 @@ void Mapper::set_decoder_options(HV *options) {
                 croak("Can't apply transformation to field %s", field_name.c_str());
             }
 
-            field->decoder_transform = make_transform(aTHX_ value);
+            field->decoder_transform = make_transform(aTHX_ value, fieldtable);
         }
     }
 }
