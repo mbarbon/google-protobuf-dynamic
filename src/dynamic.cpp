@@ -2,6 +2,8 @@
 #include "mapper.h"
 #include "servicedef.h"
 
+#include "pb/gpb_mapping.h"
+
 #include <sstream>
 
 using namespace gpd;
@@ -53,6 +55,7 @@ MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
         accessor_style(GetAndSet),
         client_services(Disable),
         boolean_style(Perl),
+        default_decoder(Upb),
         fail_ref_coercion(false) {
     stack_trace = get_stack_trace(aTHX);
 
@@ -95,6 +98,11 @@ MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
         else \
             croak("Invalid value '%s' for '" #name "' option", buf); \
     }
+
+    START_STRING_VALUE(default_decoder);
+    STRING_VALUE(default_decoder, upb, Upb);
+    STRING_VALUE(default_decoder, bbpb, Bbpb);
+    END_STRING_VALUE(default_decoder);
 
     START_STRING_VALUE(accessor_style);
     STRING_VALUE(accessor_style, get_and_set, GetAndSet);
@@ -479,10 +487,11 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
         load_module(PERL_LOADMOD_NOIMPORT, newSVpvs("Math::BigInt"), NULL);
     HV *stash = gv_stashpvn(perl_package.data(), perl_package.size(), GV_ADD);
     const MessageDef *message_def = def_builder.GetMessageDef(descriptor);
+    const gpd::pb::Descriptor *gpd_descriptor = gpd::pb::map_pb_descriptor(&descriptor_set, descriptor, descriptor_loader.pool());
     if (is_map_entry(message_def, options.implicit_maps))
         // it's likely I will regret this const_cast<>
         upb_msgdef_setmapentry(const_cast<MessageDef *>(message_def), true);
-    Mapper *mapper = new Mapper(aTHX_ this, message_def, stash, options);
+    Mapper *mapper = new Mapper(aTHX_ this, message_def, gpd_descriptor, stash, options);
 
     // the map owns the reference from Mapper constructor, and is unreffed in ~Dynamic
     descriptor_map[message_def->full_name()] = mapper;
@@ -509,7 +518,13 @@ void Dynamic::bind_message(pTHX_ const string &perl_package, Mapper *mapper, HV 
     }
 
     copy_and_bind(aTHX_ "set_decoder_options", perl_package, mapper);
-    copy_and_bind(aTHX_ "decode", perl_package, mapper);
+    copy_and_bind(aTHX_ "decode_upb", perl_package, mapper);
+    copy_and_bind(aTHX_ "decode_bbpb", perl_package, mapper);
+    if (options.default_decoder == MappingOptions::Upb) {
+        copy_and_bind(aTHX_ "decode_upb", "decode", perl_package, mapper);
+    } else {
+        copy_and_bind(aTHX_ "decode_bbpb", "decode", perl_package, mapper);
+    }
     copy_and_bind(aTHX_ "encode", perl_package, mapper);
     copy_and_bind(aTHX_ "decode_json", perl_package, mapper);
     copy_and_bind(aTHX_ "encode_json", perl_package, mapper);

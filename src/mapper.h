@@ -19,6 +19,7 @@
 
 #include "thx_member.h"
 #include "transform.h"
+#include "pb/decoder.h"
 
 #include <list>
 #include <vector>
@@ -89,10 +90,24 @@ public:
         bool is_map_value() const { return field_target == TARGET_MAP_VALUE; }
     };
 
+    struct MapKey {
+        SV *key_sv;
+        const char *key_buffer;
+        size_t key_len;
+
+        MapKey(SV * _key_sv) : key_sv(_key_sv), key_buffer(NULL) { }
+
+        void set_buffer(const char *_key_buffer, size_t _key_len) {
+            key_buffer = _key_buffer;
+            key_len = _key_len;
+        }
+    };
+
     struct DecoderHandlers {
         DECL_THX_MEMBER;
         SV *target_ref;
         std::vector<SV *> items;
+        std::vector<MapKey> map_keys;
         std::vector<const Mapper *> mappers;
         std::vector<std::vector<bool> > seen_fields;
         std::vector<std::vector<int32_t> > seen_oneof;
@@ -113,15 +128,18 @@ public:
 
         static bool on_end_message(DecoderHandlers *cxt, upb::Status *status);
         static DecoderHandlers *on_start_string(DecoderHandlers *cxt, const int *field_index, size_t size_hint);
-        static size_t on_string(DecoderHandlers *cxt, const int *field_index, const char *buf, size_t len);
+        static size_t on_append_string(DecoderHandlers *cxt, const int *field_index, const char *buf, size_t len);
         static bool on_end_string(DecoderHandlers *cxt, const int *field_index);
+        static void on_string(DecoderHandlers *cxt, const int *field_index, const char *buf, size_t len, bool is_utf8);
         static DecoderHandlers *on_start_sequence(DecoderHandlers *cxt, const int *field_index);
+        static size_t on_string_key(DecoderHandlers *cxt, const int *field_index, const char *buf, size_t len);
         static bool on_end_sequence(DecoderHandlers *cxt, const int *field_index);
         static DecoderHandlers *on_start_map(DecoderHandlers *cxt, const int *field_index);
         static bool on_end_map(DecoderHandlers *cxt, const int *field_index);
         static DecoderHandlers *on_start_sub_message(DecoderHandlers *cxt, const int *field_index);
         static bool on_end_sub_message(DecoderHandlers *cxt, const int *field_index);
         static bool on_end_map_entry(DecoderHandlers *cxt, const int *field_index);
+        static bool on_end_string_map_entry(DecoderHandlers *cxt, const int *field_index);
 
         template<class T>
         static bool on_nv(DecoderHandlers *cxt, const int *field_index, T val);
@@ -163,7 +181,7 @@ public:
     };
 
 public:
-    Mapper(pTHX_ Dynamic *registry, const upb::MessageDef *message_def, HV *stash, const MappingOptions &options);
+    Mapper(pTHX_ Dynamic *registry, const upb::MessageDef *message_def, const gpd::pb::Descriptor *gpd_descriptor, HV *stash, const MappingOptions &options);
     ~Mapper();
 
     const char *full_name() const;
@@ -174,7 +192,8 @@ public:
     void set_decoder_options(HV *options);
 
     SV *encode(SV *ref);
-    SV *decode(const char *buffer, STRLEN bufsize);
+    SV *decode_upb(const char *buffer, STRLEN bufsize);
+    SV *decode_bbpb(const char *buffer, STRLEN bufsize);
     SV *encode_json(SV *ref);
     SV *decode_json(const char *buffer, STRLEN bufsize);
     bool check(SV *ref);
@@ -194,6 +213,8 @@ public:
     void set_bool(SV *target, bool value) const;
 
 private:
+    static bool run_bbpb_decoder(Mapper *root_mapper, const char *buffer, STRLEN bufsize);
+
     bool encode_value(upb::Sink *sink, upb::Status *status, SV *ref) const;
     bool encode_field(upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;
     bool encode_field_nodefaults(upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;
@@ -217,9 +238,46 @@ private:
 
     void set_json_bool(SV *target, bool value) const;
 
+    struct FieldData {
+        enum RepeatedType {
+            SCALAR_FIELD       = 0,
+            REPEATED_FIELD     = 1,
+            MAP_FIELD          = 2,
+        };
+
+        enum Action {
+            STORE_FLOAT                 = 1,
+            STORE_DOUBLE                = 2,
+            STORE_STRING                = 3,
+            STORE_MESSAGE               = 4,
+            STORE_INT32                 = 5,
+            STORE_INT64                 = 6,
+            STORE_UINT32                = 7,
+            STORE_UINT64                = 8,
+            STORE_ZIGZAG                = 9,
+            STORE_PERL_BOOL             = 10,
+            STORE_ENUM                  = 11,
+            STORE_NUMERIC_BOOL          = 12,
+            STORE_MAP_MESSAGE           = 13,
+            STORE_BIG_INT64             = 14,
+            STORE_BIG_UINT64            = 15,
+            STORE_BIG_ZIGZAG            = 16,
+            STORE_STRING_MAP_MESSAGE    = 17,
+            STORE_STRING_KEY            = 18,
+            STORE_BYTES                 = 19,
+            STORE_JSON_BOOL             = 20,
+        };
+
+        int index;
+        RepeatedType repeated_type;
+        Action action;
+    };
+    typedef gpd::pb::DecoderFieldData<FieldData>::Entry FieldDataEntry;
+
     DECL_THX_MEMBER;
     Dynamic *registry;
     const upb::MessageDef *message_def;
+    const gpd::pb::Descriptor *gpd_descriptor;
     int oneof_count; // cached here for performance
     HV *stash;
     upb::reffed_ptr<const upb::Handlers> pb_encoder_handlers, json_encoder_handlers;
@@ -231,6 +289,7 @@ private:
     STD_TR1::unordered_map<std::string, Field *> field_map;
     upb::Status status;
     DecoderHandlers decoder_callbacks;
+    gpd::pb::DecoderFieldData<FieldData> decoder_field_data;
     upb::Sink encoder_sink, decoder_sink;
     std::string output_buffer;
     upb::StringSink string_sink;

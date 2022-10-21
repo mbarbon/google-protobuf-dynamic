@@ -67,13 +67,27 @@ service_descriptor(SV *klass)
   OUTPUT: RETVAL
 
 SV*
-decode(SV *klass, SV *scalar)
+decode_upb(SV *klass, SV *scalar)
   INIT:
     gpd::Mapper *mapper = (gpd::Mapper *) CvXSUBANY(cv).any_ptr;
     STRLEN bufsize;
     const char *buffer = SvPV(scalar, bufsize);
   CODE:
-    RETVAL = mapper->decode(buffer, bufsize);
+    RETVAL = mapper->decode_upb(buffer, bufsize);
+
+    if (!RETVAL) {
+        croak("Deserialization failed: %s", mapper->last_error_message());
+    }
+  OUTPUT: RETVAL
+
+SV*
+decode_bbpb(SV *klass, SV *scalar)
+  INIT:
+    gpd::Mapper *mapper = (gpd::Mapper *) CvXSUBANY(cv).any_ptr;
+    STRLEN bufsize;
+    const char *buffer = SvPV(scalar, bufsize);
+  CODE:
+    RETVAL = mapper->decode_bbpb(buffer, bufsize);
 
     if (!RETVAL) {
         croak("Deserialization failed: %s", mapper->last_error_message());
@@ -87,7 +101,7 @@ static_decode(SV *scalar)
     STRLEN bufsize;
     const char *buffer = SvPV(scalar, bufsize);
   CODE:
-    RETVAL = mapper->decode(buffer, bufsize);
+    RETVAL = mapper->decode_upb(buffer, bufsize);
 
     if (!RETVAL) {
         croak("Deserialization failed: %s", mapper->last_error_message());

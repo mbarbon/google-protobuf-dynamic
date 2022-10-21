@@ -7,6 +7,8 @@
 
 #include "upb/bridge.h"
 
+#include "pb/decoder.h"
+
 #include "descriptorloader.h"
 #include "sourcetree.h"
 #include "ref.h"
@@ -42,6 +44,11 @@ struct MappingOptions {
         GrpcXS = 2,
     };
 
+    enum Decoder {
+        Upb = 0,
+        Bbpb = 1,
+    };
+
     bool use_bigints;
     bool check_required_fields;
     bool explicit_defaults;
@@ -56,6 +63,7 @@ struct MappingOptions {
     BoolStyle boolean_style;
     AccessorStyle accessor_style;
     ClientService client_services;
+    Decoder default_decoder;
     SV *stack_trace;
 
     MappingOptions(pTHX_ SV *options_ref);
@@ -120,6 +128,7 @@ private:
     STD_TR1::unordered_set<const google::protobuf::FileDescriptor *> files;
     std::vector<Mapper *> pending;
     std::vector<MethodMapper *> pending_methods;
+    gpd::pb::DescriptorSet descriptor_set;
 };
 
 // equivalent to FieldDescriptor::has_presence() in src/google/protobuf/descriptor.h

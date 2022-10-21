@@ -78,6 +78,14 @@ my %values = (
             0 => "\x32\x04\x08\x00\x12\x00",
         },
     ],
+    string_string_map_map => [
+        {
+            'x' => StringMap->new({ string_int32_map => { 'b' => 2 } }),
+        },
+        {
+            x => "\x3a\x0c\x0a\x01x\x12\x07\x0a\x05\x0a\x01b\x10\x02",
+        },
+    ],
 );
 
 sub encode {

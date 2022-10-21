@@ -26,6 +26,7 @@ $d->resolve_references();
     decode_throws_ok(
         'Person', $encoded,
         qr/Deserialization failed: Missing required field test.Person.id/,
+        qr/Deserialization failed: Missing required field test.Person.id/,
     );
 
     throws_ok(

@@ -13,6 +13,7 @@ use t::lib::Test;
     decode_throws_ok(
         'Test1::Required', "",
         qr/Deserialization failed: Missing required field test.Required.value/,
+        qr/Deserialization failed: Missing required field test.Required.value/,
         "Missing required field",
     );
 }

@@ -80,6 +80,7 @@ void Mapper::DecoderHandlers::prepare(HV *target) {
     }
     items.resize(1);
     items[0] = (SV *) target;
+    map_keys.clear();
     fieldtable_entries.clear();
     target_ref = newRV_noinc(items[0]);
     error.clear();
@@ -129,6 +130,12 @@ void Mapper::DecoderHandlers::static_clear(DecoderHandlers *cxt) {
     }
 
     cxt->items.clear();
+
+    for (vector<MapKey>::iterator it = cxt->map_keys.begin(), en = cxt->map_keys.end(); it != en; ++it) {
+        SvREFCNT_dec(it->key_sv);
+    }
+
+    cxt->map_keys.clear();
 
     for (vector<Fieldtable::Entry>::iterator it = cxt->fieldtable_entries.begin(), en = cxt->fieldtable_entries.end(); it != en; ++it) {
         SvREFCNT_dec(it->value);
@@ -252,7 +259,7 @@ Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_string(DecoderHandler
     return cxt;
 }
 
-size_t Mapper::DecoderHandlers::on_string(DecoderHandlers *cxt, const int *field_index, const char *buf, size_t len) {
+size_t Mapper::DecoderHandlers::on_append_string(DecoderHandlers *cxt, const int *field_index, const char *buf, size_t len) {
     THX_DECLARE_AND_GET;
 
     STRLEN cur = SvCUR(cxt->string);
@@ -269,6 +276,26 @@ bool Mapper::DecoderHandlers::on_end_string(DecoderHandlers *cxt, const int *fie
     cxt->string = NULL;
 
     return true;
+}
+
+void Mapper::DecoderHandlers::on_string(DecoderHandlers *cxt, const int *field_index, const char *buf, size_t len, bool is_utf8) {
+    THX_DECLARE_AND_GET;
+
+    cxt->mark_seen(field_index);
+
+    SV *string = cxt->get_target(field_index);
+    char *pv = sv_grow(string, len);
+    SvPOK_on(string);
+    memcpy(pv, buf, len);
+    SvCUR_set(string, len);
+    if (is_utf8)
+        SvUTF8_on(string);
+}
+
+size_t Mapper::DecoderHandlers::on_string_key(DecoderHandlers *cxt, const int *field_index, const char *buf, size_t len) {
+    cxt->map_keys.back().set_buffer(buf, len);
+
+    return len;
 }
 
 Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_sequence(DecoderHandlers *cxt, const int *field_index) {
@@ -317,8 +344,8 @@ Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_map(DecoderHandlers *
 
     cxt->push_mapper(mapper->fields[*field_index].mapper);
     cxt->items.push_back((SV *) hv);
-    cxt->items.push_back(newSV(0));
     cxt->items.push_back(NULL);
+    cxt->map_keys.push_back(MapKey(newSV(0)));
 
     return cxt;
 }
@@ -328,10 +355,11 @@ bool Mapper::DecoderHandlers::on_end_map(DecoderHandlers *cxt, const int *field_
 
     cxt->pop_mapper();
 
-    SvREFCNT_dec(cxt->items[cxt->items.size() - 2]);
     cxt->items.pop_back();
     cxt->items.pop_back();
-    cxt->items.pop_back();
+
+    SvREFCNT_dec(cxt->map_keys.back().key_sv);
+    cxt->map_keys.pop_back();
 
     return true;
 }
@@ -408,8 +436,8 @@ bool Mapper::DecoderHandlers::on_end_map_entry(DecoderHandlers *cxt, const int *
     THX_DECLARE_AND_GET;
 
     size_t size = cxt->items.size();
-    HV *hash = (HV *) cxt->items[size - 3];
-    SV *key = (SV *) cxt->items[size - 2];
+    HV *hash = (HV *) cxt->items[size - 2];
+    SV *key = cxt->map_keys.back().key_sv;
     SV *value = (SV *) cxt->items[size - 1];
 
     if (SvOK(key)) {
@@ -426,6 +454,42 @@ bool Mapper::DecoderHandlers::on_end_map_entry(DecoderHandlers *cxt, const int *
     }
 
     SvOK_off(key);
+
+    cxt->items[size - 1] = NULL;
+    if (cxt->track_seen_fields)
+        cxt->seen_fields.back()[1] = false;
+
+    return true;
+}
+
+bool Mapper::DecoderHandlers::on_end_string_map_entry(DecoderHandlers *cxt, const int *field_index) {
+    THX_DECLARE_AND_GET;
+
+    size_t size = cxt->items.size();
+    HV *hash = (HV *) cxt->items[size - 2];
+    const char *key_buffer = cxt->map_keys.back().key_buffer;
+    size_t key_len = cxt->map_keys.back().key_len;
+    SV *value = (SV *) cxt->items[size - 1];
+
+    if (key_buffer) {
+        if (!value) {
+            value = newSV(0);
+
+            cxt->mappers.back()->apply_map_value_default(value);
+        }
+
+        // Scanning through the string in order to set the correct flags makes
+        // hv_common flaster and is an overall win, as silly as it might seem
+        int flags = is_invariant_string((const U8 *) key_buffer, key_len) ? 0 : HVhek_UTF8;
+        hv_common(hash, NULL,
+                  key_buffer, key_len,
+                  flags, HV_FETCH_ISSTORE, value, 0);
+    } else {
+        // having decoding of maps without keys is debatable
+        warn("Incomplete map entry: missing key");
+    }
+
+    cxt->map_keys.back().set_buffer(NULL, 0);
     cxt->items[size - 1] = NULL;
 
     return true;
@@ -573,7 +637,7 @@ SV *Mapper::DecoderHandlers::get_target(const int *field_index) {
 
     switch (field.field_target) {
     case TARGET_MAP_KEY:
-        return items[items.size() - 2];
+        return map_keys.back().key_sv;
     case TARGET_MAP_VALUE: {
         // here we could use sv_newmortal(), it would be equally efficient,
         // but it makes the performance profile a bit more noisy
@@ -654,9 +718,11 @@ void Mapper::DecoderHandlers::finish_add_transform_fieldtable() {
     }
 }
 
-Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_stash, const MappingOptions &options) :
+Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const gpd::pb::Descriptor *_gpd_descriptor, HV *_stash, const MappingOptions &options) :
         registry(_registry),
         message_def(_message_def),
+        gpd_descriptor(_gpd_descriptor),
+        decoder_field_data(_gpd_descriptor),
         stash(_stash),
         decoder_callbacks(aTHX_ this),
         string_sink(&output_buffer) {
@@ -727,6 +793,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
         field.mapper = NULL;
         field.decoder_transform = NULL;
         field.oneof_index = -1;
+        FieldData field_data;
 
         if (map_entry) {
             field.field_target = field_def->number() == 1 ?
@@ -759,23 +826,28 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
             GET_SELECTOR(FLOAT, primitive);
             SET_VALUE_HANDLER(float, on_nv<float>);
             field.default_nv = field_def->default_float();
+            field_data.action = FieldData::STORE_FLOAT;
             break;
         case UPB_TYPE_DOUBLE:
             GET_SELECTOR(DOUBLE, primitive);
             SET_VALUE_HANDLER(double, on_nv<double>);
             field.default_nv = field_def->default_double();
+            field_data.action = FieldData::STORE_DOUBLE;
             break;
         case UPB_TYPE_BOOL:
             GET_SELECTOR(BOOL, primitive);
             switch(MappingOptions::BoolStyle(boolean_style)) {
             case MappingOptions::Perl:
                 SET_VALUE_HANDLER(bool, on_perl_bool);
+                field_data.action = FieldData::STORE_PERL_BOOL;
                 break;
             case MappingOptions::Numeric:
                 SET_VALUE_HANDLER(bool, on_numeric_bool);
+                field_data.action = FieldData::STORE_NUMERIC_BOOL;
                 break;
             case MappingOptions::JSON:
                 SET_VALUE_HANDLER(bool, on_json_bool);
+                field_data.action = FieldData::STORE_JSON_BOOL;
                 break;
             }
             field.default_bool = field_def->default_bool();
@@ -786,9 +858,16 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
             GET_SELECTOR(STRING, str_cont);
             GET_SELECTOR(ENDSTR, str_end);
             SET_HANDLER(StartString, on_start_string);
-            SET_HANDLER(String, on_string);
+            SET_HANDLER(String, on_append_string);
             SET_HANDLER(EndString, on_end_string);
             field.default_str = field_def->default_string(&field.default_str_len);
+            if (field.is_map_key()) {
+                field_data.action = FieldData::STORE_STRING_KEY;
+            } else if (field_def->type() == UPB_TYPE_STRING) {
+                field_data.action = FieldData::STORE_STRING;
+            } else {
+                field_data.action = FieldData::STORE_BYTES;
+            }
             break;
         case UPB_TYPE_MESSAGE:
             GET_SELECTOR(STARTSUBMSG, msg_start);
@@ -800,6 +879,15 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
                 SET_HANDLER(EndSubMessage, on_end_sub_message);
             }
             has_default = false;
+            if (field.is_map) {
+                if (field_def->message_subdef()->FindFieldByNumber(1)->type() == UPB_TYPE_STRING) {
+                    field_data.action = FieldData::STORE_STRING_MAP_MESSAGE;
+                } else {
+                    field_data.action = FieldData::STORE_MAP_MESSAGE;
+                }
+            } else {
+                field_data.action = FieldData::STORE_MESSAGE;
+            }
             break;
         case UPB_TYPE_ENUM: {
             GET_SELECTOR(INT32, primitive);
@@ -808,6 +896,9 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
             else
                 SET_VALUE_HANDLER(int32_t, on_iv<int32_t>);
             field.default_iv = field_def->default_int32();
+            field_data.action = check_enum_values ?
+                                    FieldData::STORE_ENUM :
+                                    FieldData::STORE_INT32;
 
             if (check_enum_values) {
                 const EnumDef *enumdef = field_def->enum_subdef();
@@ -821,11 +912,16 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
             GET_SELECTOR(INT32, primitive);
             SET_VALUE_HANDLER(int32_t, on_iv<int32_t>);
             field.default_iv = field_def->default_int32();
+            field_data.action =
+                field_def->descriptor_type() == UPB_DESCRIPTOR_TYPE_SINT32 ?
+                    FieldData::STORE_ZIGZAG :
+                    FieldData::STORE_INT32;
             break;
         case UPB_TYPE_UINT32:
             GET_SELECTOR(UINT32, primitive);
             SET_VALUE_HANDLER(uint32_t, on_uv<uint32_t>);
             field.default_uv = field_def->default_uint32();
+            field_data.action = FieldData::STORE_UINT32;
             break;
         case UPB_TYPE_INT64:
             GET_SELECTOR(INT64, primitive);
@@ -834,6 +930,16 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
             else
                 SET_VALUE_HANDLER(int64_t, on_iv<int64_t>);
             field.default_i64 = field_def->default_int64();
+            if (options.use_bigints)
+                field_data.action =
+                    field_def->descriptor_type() == UPB_DESCRIPTOR_TYPE_SINT64 ?
+                        FieldData::STORE_BIG_ZIGZAG :
+                        FieldData::STORE_BIG_INT64;
+            else
+                field_data.action =
+                    field_def->descriptor_type() == UPB_DESCRIPTOR_TYPE_SINT64 ?
+                        FieldData::STORE_ZIGZAG :
+                        FieldData::STORE_INT64;
             break;
         case UPB_TYPE_UINT64:
             GET_SELECTOR(UINT64, primitive);
@@ -842,6 +948,10 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
             else
                 SET_VALUE_HANDLER(uint64_t, on_uv<uint64_t>);
             field.default_u64 = field_def->default_uint64();
+            if (options.use_bigints)
+                field_data.action = FieldData::STORE_BIG_UINT64;
+            else
+                field_data.action = FieldData::STORE_UINT64;
             break;
         default:
             croak("Unhandled field type %d for field '%s'", field_def->type(), field.full_name().c_str());
@@ -859,15 +969,23 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
             if (field.is_map) {
                 SET_HANDLER(StartSequence, on_start_map);
                 SET_HANDLER(EndSequence, on_end_map);
+                field_data.repeated_type = FieldData::MAP_FIELD;
             } else {
                 SET_HANDLER(StartSequence, on_start_sequence);
                 SET_HANDLER(EndSequence, on_end_sequence);
+                field_data.repeated_type = FieldData::REPEATED_FIELD;
             }
+        } else {
+            field_data.repeated_type = FieldData::SCALAR_FIELD;
         }
 
 #undef GET_SELECTOR
 #undef SET_VALUE_HANDLER
 #undef SET_HANDLER
+
+        field_data.index = index;
+
+        decoder_field_data.add_field(field_def->number(), field_data);
 
         if (!ok)
             croak("Unable to get upb selector for field %s", field.full_name().c_str());
@@ -894,6 +1012,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
         }
     }
 
+    decoder_field_data.optimize_lookup();
     check_required_fields = has_required && options.check_required_fields;
 }
 
@@ -1155,7 +1274,7 @@ SV *Mapper::encode_json(SV *ref) {
     return result;
 }
 
-SV *Mapper::decode(const char *buffer, STRLEN bufsize) {
+SV *Mapper::decode_upb(const char *buffer, STRLEN bufsize) {
     if (pb_decoder_method.get() == NULL)
         croak("It looks like resolve_references() was not called (and please use map() anyway)");
     upb::Environment *env = make_localized_environment(aTHX_ &status);
@@ -1166,6 +1285,23 @@ SV *Mapper::decode(const char *buffer, STRLEN bufsize) {
 
     SV *result = NULL;
     if (BufferSource::PutBuffer(buffer, bufsize, pb_decoder->input())) {
+        result = decoder_callbacks.get_and_mortalize_target();
+    }
+
+    decoder_callbacks.finish();
+
+    return SvREFCNT_inc(result);
+}
+
+SV *Mapper::decode_bbpb(const char *buffer, STRLEN bufsize) {
+    if (pb_decoder_method.get() == NULL)
+        croak("It looks like resolve_references() was not called (and please use map() anyway)");
+
+    status.Clear();
+    decoder_callbacks.prepare(newHV());
+
+    SV *result = NULL;
+    if (run_bbpb_decoder(this, buffer, bufsize)) {
         result = decoder_callbacks.get_and_mortalize_target();
     }
 
@@ -1190,6 +1326,156 @@ SV *Mapper::decode_json(const char *buffer, STRLEN bufsize) {
     decoder_callbacks.finish();
 
     return SvREFCNT_inc(result);
+}
+
+bool Mapper::run_bbpb_decoder(Mapper *root_mapper, const char *buffer, STRLEN bufsize) {
+    DecoderHandlers *decoder_callbacks = &root_mapper->decoder_callbacks;
+    gpd::pb::Decoder pb_decoder;
+
+    pb_decoder.set_buffer(buffer, bufsize);
+    pb_decoder.start_message(&root_mapper->decoder_field_data);
+
+    const Mapper *mapper = root_mapper;
+    vector<const Mapper *> mappers;
+
+    for (;;) {
+        switch (pb_decoder.next_token()) {
+        case gpd::pb::TOKEN_FIELD: {
+            const FieldDataEntry *entry = pb_decoder.get_field_entry<FieldDataEntry>();
+            int idx = entry->data.index;
+
+            switch (entry->data.action) {
+            case FieldData::STORE_DOUBLE:
+                DecoderHandlers::on_nv(decoder_callbacks, &idx, pb_decoder.get_double());
+                break;
+            case FieldData::STORE_FLOAT:
+                DecoderHandlers::on_nv(decoder_callbacks, &idx, pb_decoder.get_float());
+                break;
+            case FieldData::STORE_INT64:
+                DecoderHandlers::on_iv(decoder_callbacks, &idx, pb_decoder.get_long());
+                break;
+            case FieldData::STORE_BIG_INT64:
+                DecoderHandlers::on_bigiv(decoder_callbacks, &idx, pb_decoder.get_long());
+                break;
+            case FieldData::STORE_INT32:
+                DecoderHandlers::on_iv(decoder_callbacks, &idx, pb_decoder.get_int());
+                break;
+            case FieldData::STORE_UINT64:
+                DecoderHandlers::on_uv(decoder_callbacks, &idx, pb_decoder.get_unsigned_long());
+                break;
+            case FieldData::STORE_BIG_UINT64:
+                DecoderHandlers::on_biguv(decoder_callbacks, &idx, pb_decoder.get_unsigned_long());
+                break;
+            case FieldData::STORE_UINT32:
+                DecoderHandlers::on_uv(decoder_callbacks, &idx, pb_decoder.get_unsigned_int());
+                break;
+            case FieldData::STORE_PERL_BOOL:
+                DecoderHandlers::on_perl_bool(decoder_callbacks, &idx, pb_decoder.get_unsigned_int());
+                break;
+            case FieldData::STORE_NUMERIC_BOOL:
+                DecoderHandlers::on_numeric_bool(decoder_callbacks, &idx, pb_decoder.get_unsigned_int());
+                break;
+            case FieldData::STORE_JSON_BOOL:
+                DecoderHandlers::on_json_bool(decoder_callbacks, &idx, pb_decoder.get_unsigned_int());
+                break;
+            case FieldData::STORE_STRING:
+                DecoderHandlers::on_string(decoder_callbacks, &idx, pb_decoder.get_string_buffer(), pb_decoder.get_string_length(), true);
+                break;
+            case FieldData::STORE_BYTES:
+                DecoderHandlers::on_string(decoder_callbacks, &idx, pb_decoder.get_string_buffer(), pb_decoder.get_string_length(), false);
+                break;
+            case FieldData::STORE_STRING_KEY:
+                DecoderHandlers::on_string_key(decoder_callbacks, &idx, pb_decoder.get_string_buffer(), pb_decoder.get_string_length());
+                break;
+            case FieldData::STORE_MESSAGE: {
+                const Mapper *field_mapper = mapper->fields[idx].mapper;
+
+                DecoderHandlers::on_start_sub_message(decoder_callbacks, &idx);
+
+                pb_decoder.start_message(&field_mapper->decoder_field_data);
+                mappers.push_back(mapper);
+                mapper = field_mapper;
+            }
+                break;
+            case FieldData::STORE_MAP_MESSAGE:
+            case FieldData::STORE_STRING_MAP_MESSAGE: {
+                const Mapper *field_mapper = mapper->fields[idx].mapper;
+
+                pb_decoder.start_message(&field_mapper->decoder_field_data);
+                mappers.push_back(mapper);
+                mapper = field_mapper;
+            }
+                break;
+            case FieldData::STORE_ENUM:
+                DecoderHandlers::on_enum(decoder_callbacks, &idx, pb_decoder.get_long());
+                break;
+            case FieldData::STORE_ZIGZAG:
+                DecoderHandlers::on_iv(decoder_callbacks, &idx, pb_decoder.get_zigzag_long());
+                break;
+            case FieldData::STORE_BIG_ZIGZAG:
+                DecoderHandlers::on_bigiv(decoder_callbacks, &idx, pb_decoder.get_zigzag_long());
+                break;
+            }
+        }
+            break;
+        case gpd::pb::TOKEN_START_SEQUENCE: {
+            const FieldDataEntry *entry = pb_decoder.get_field_entry<FieldDataEntry>();
+
+            if (entry->data.repeated_type == FieldData::REPEATED_FIELD) {
+                DecoderHandlers::on_start_sequence(decoder_callbacks, &entry->data.index);
+            } else {
+                DecoderHandlers::on_start_map(decoder_callbacks, &entry->data.index);
+            }
+        }
+            break;
+        case gpd::pb::TOKEN_END_SEQUENCE: {
+            const FieldDataEntry *entry = pb_decoder.get_field_entry<FieldDataEntry>();
+
+            if (entry->data.repeated_type == FieldData::REPEATED_FIELD) {
+                DecoderHandlers::on_end_sequence(decoder_callbacks, &entry->data.index);
+            } else {
+                DecoderHandlers::on_end_map(decoder_callbacks, &entry->data.index);
+            }
+        }
+            break;
+        case gpd::pb::TOKEN_END_MESSAGE: {
+            if (!DecoderHandlers::on_end_message(decoder_callbacks, &root_mapper->status))
+                return false;
+
+            if (mappers.size() == 0) {
+                return true;
+            }
+
+            pb_decoder.end_message();
+            mapper = mappers.back();
+            mappers.pop_back();
+
+            const FieldDataEntry *entry = pb_decoder.get_field_entry<FieldDataEntry>();
+            switch (entry->data.action) {
+            case FieldData::STORE_MESSAGE:
+                DecoderHandlers::on_end_sub_message(decoder_callbacks, &entry->data.index);
+                break;
+            case FieldData::STORE_MAP_MESSAGE:
+                DecoderHandlers::on_end_map_entry(decoder_callbacks, &entry->data.index);
+                break;
+            case FieldData::STORE_STRING_MAP_MESSAGE:
+                DecoderHandlers::on_end_string_map_entry(decoder_callbacks, &entry->data.index);
+                break;
+            }
+        }
+            break;
+        case gpd::pb::TOKEN_ERROR: {
+            const char *decoder_error = pb_decoder.get_error_message();
+
+            if (decoder_error != NULL) {
+                root_mapper->status.SetErrorMessage(decoder_error);
+            }
+        }
+            return false;
+        }
+    }
+
+    return true;
 }
 
 bool Mapper::check(SV *ref) {

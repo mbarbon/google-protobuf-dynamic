@@ -93,7 +93,7 @@ $d->resolve_references();
         ],
     });
 
-    eq_or_diff(OuterWithGroup->decode($encoded), $decoded);
+    eq_or_diff(OuterWithGroup->decode_upb($encoded), $decoded);
     eq_or_diff(OuterWithGroup->encode($decoded), $encoded);
 }
 

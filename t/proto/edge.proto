@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package test;
+
+message EmptyFields {
+    EmptyMessage empty_message = 1;
+    SomeMessage some_message = 2;
+    repeated int32 packed_int32 = 3;
+    repeated fixed32 packed_fixed32 = 4;
+    repeated fixed64 packed_fixed64 = 5;
+    string some_string = 6;
+    int32 some_varint = 7;
+    double some_fixed64 = 8;
+    float some_fixed32 = 9;
+    repeated string repeated_string = 10;
+}
+
+message EmptyMessage {
+}
+
+message SomeMessage {
+    int32 int32_value = 1;
+}
+
+message OuterMessage {
+    EmptyFields empty_fields = 1;
+}
+
+message UnknownFields {
+    int32 field2 = 2;
+    int32 field1000 = 1000;
+}

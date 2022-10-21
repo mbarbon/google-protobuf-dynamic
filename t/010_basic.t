@@ -41,6 +41,7 @@ eq_or_diff(PersonArray->encode_json($pa), '{"persons":[{"name":"foo","id":31},{"
 decode_throws_ok(
     'Person', "\x0a\x02",
     qr/Deserialization failed: Unexpected EOF inside delimited string/,
+    qr/Deserialization failed: Truncated length-delimited field/,
 );
 
 done_testing();
