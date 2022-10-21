@@ -23,7 +23,10 @@ sub new {
         },
         extra_linker_flags => [Alien::uPB::Core->libs, Alien::ProtoBuf->libs],
         extra_compiler_flags => [$debug_flag, Alien::uPB::Core->cflags, Alien::ProtoBuf->cflags, Alien::ProtoBuf->cxxflags, "-DPERL_NO_GET_CONTEXT"],
-        script_files => [qw(scripts/protoc-gen-perl-gpd)],
+        script_files => [qw(
+            scripts/protoc-gen-perl-gpd
+            scripts/protoc-gen-perl-gpd-add-pragma
+        )],
     );
 
     return $self;
