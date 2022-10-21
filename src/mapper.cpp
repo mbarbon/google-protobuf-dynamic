@@ -93,6 +93,13 @@ void Mapper::DecoderHandlers::prepare(HV *target) {
         sv_bless(target_ref, mappers[0]->stash);
 }
 
+void Mapper::DecoderHandlers::finish() {
+    // this should be a no-op that only resizes the items vector
+    DecoderHandlers::static_clear(this);
+    // this can croak()
+    apply_transforms();
+}
+
 void Mapper::DecoderHandlers::static_clear(DecoderHandlers *cxt) {
     THX_DECLARE_AND_GET;
 
@@ -109,7 +116,7 @@ void Mapper::DecoderHandlers::static_clear(DecoderHandlers *cxt) {
         }
     }
 
-    cxt->items.resize(0);
+    cxt->items.clear();
 }
 
 SV *Mapper::DecoderHandlers::get_and_mortalize_target() {
@@ -369,14 +376,9 @@ bool Mapper::DecoderHandlers::on_end_map_entry(DecoderHandlers *cxt, const int *
 
     if (SvOK(key)) {
         if (!value) {
-            const Mapper *message_mapper = cxt->mappers.back();
-
             value = newSV(0);
-            if (message_mapper->fields[1].is_value) {
-                message_mapper->apply_default(message_mapper->fields[1], value);
-            } else {
-                message_mapper->apply_default(message_mapper->fields[0], value);
-            }
+
+            cxt->mappers.back()->apply_map_value_default(value);
         }
 
         hv_store_ent(hash, key, value, 0);
@@ -1050,10 +1052,8 @@ SV *Mapper::decode(const char *buffer, STRLEN bufsize) {
     if (BufferSource::PutBuffer(buffer, bufsize, pb_decoder->input())) {
         result = decoder_callbacks.get_and_mortalize_target();
     }
-    // this should be a no-op that only resizes the items vector
-    DecoderHandlers::static_clear(&decoder_callbacks);
-    // this can croak()
-    decoder_callbacks.apply_transforms();
+
+    decoder_callbacks.finish();
 
     return SvREFCNT_inc(result);
 }
@@ -1070,10 +1070,8 @@ SV *Mapper::decode_json(const char *buffer, STRLEN bufsize) {
     if (BufferSource::PutBuffer(buffer, bufsize, json_decoder->input())) {
         result = decoder_callbacks.get_and_mortalize_target();
     }
-    // this should be a no-op that only resizes the items vector
-    DecoderHandlers::static_clear(&decoder_callbacks);
-    // this can croak()
-    decoder_callbacks.apply_transforms();
+
+    decoder_callbacks.finish();
 
     return SvREFCNT_inc(result);
 }
@@ -1942,6 +1940,14 @@ void Mapper::apply_default(const Field &field, SV *target) const {
     case UPB_TYPE_UINT64:
         sv_setuv(target, field.field_def->default_uint64());
         break;
+    }
+}
+
+void Mapper::apply_map_value_default(SV *target) const {
+    if (fields[1].is_value) {
+        apply_default(fields[1], target);
+    } else {
+        apply_default(fields[0], target);
     }
 }
 
