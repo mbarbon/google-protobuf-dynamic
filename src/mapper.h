@@ -33,6 +33,13 @@ class ServiceDef;
 
 class Mapper : public Refcounted {
 public:
+    enum FieldTarget {
+        TARGET_MAP_KEY          = 1,
+        TARGET_MAP_VALUE        = 2,
+        TARGET_ARRAY_ITEM       = 3,
+        TARGET_HASH_ITEM        = 4,
+    };
+
     struct Field {
         const upb::FieldDef *field_def;
         struct {
@@ -55,8 +62,7 @@ public:
         U32 name_hash;
         bool has_default;
         bool is_map;
-        bool is_key;
-        bool is_value;
+        FieldTarget field_target;
         const Mapper *mapper; // for Message/Group fields
         DecoderTransform *decoder_transform;
         STD_TR1::unordered_set<int32_t> enum_values;
@@ -77,6 +83,9 @@ public:
         std::string full_name() const;
         upb::FieldDef::Type map_value_type() const;
         const STD_TR1::unordered_set<int32_t> &map_enum_values() const;
+
+        bool is_map_key() const { return field_target == TARGET_MAP_KEY; }
+        bool is_map_value() const { return field_target == TARGET_MAP_VALUE; }
     };
 
     struct DecoderHandlers {

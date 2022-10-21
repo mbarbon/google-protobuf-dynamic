@@ -166,7 +166,7 @@ string Mapper::Field::full_name() const {
 FieldDef::Type Mapper::Field::map_value_type() const {
     const vector<Field> &map_fields = mapper->fields;
 
-    return map_fields[1].is_value ?
+    return map_fields[1].is_map_value() ?
         map_fields[1].field_def->type() :
         map_fields[0].field_def->type();
 }
@@ -174,7 +174,7 @@ FieldDef::Type Mapper::Field::map_value_type() const {
 const STD_TR1::unordered_set<int32_t> &Mapper::Field::map_enum_values() const {
     const vector<Field> &map_fields = mapper->fields;
 
-    return map_fields[1].is_value ?
+    return map_fields[1].is_map_value() ?
         map_fields[1].enum_values :
         map_fields[0].enum_values;
 }
@@ -532,11 +532,11 @@ bool Mapper::DecoderHandlers::on_json_bool(DecoderHandlers *cxt, const int *fiel
 SV *Mapper::DecoderHandlers::get_target(const int *field_index) {
     const Mapper *mapper = mappers.back();
     const Field &field = mapper->fields[*field_index];
-    SV *curr = items.back();
 
-    if (field.is_key) {
+    switch (field.field_target) {
+    case TARGET_MAP_KEY:
         return items[items.size() - 2];
-    } else if (field.is_value) {
+    case TARGET_MAP_VALUE: {
         // here we could use sv_newmortal(), it would be equally efficient,
         // but it makes the performance profile a bit more noisy
         SV *sv = newSV(0);
@@ -544,12 +544,15 @@ SV *Mapper::DecoderHandlers::get_target(const int *field_index) {
         items[items.size() - 1] = sv;
 
         return sv;
-    } else if (SvTYPE(curr) == SVt_PVAV) {
-        AV *av = (AV *) curr;
+    }
+    case TARGET_ARRAY_ITEM: {
+        AV *av = (AV *) items.back();
 
         return *av_store(av, av_top_index(av) + 1, newSV(0));
-    } else {
-        HV *hv = (HV *) curr;
+    }
+    case TARGET_HASH_ITEM:
+    default: {
+        HV *hv = (HV *) items.back();
 
         if (field.oneof_index != -1) {
             int32_t seen = seen_oneof.back()[field.oneof_index];
@@ -563,6 +566,7 @@ SV *Mapper::DecoderHandlers::get_target(const int *field_index) {
         }
 
         return HeVAL(hv_fetch_ent(hv, field.name, 1, field.name_hash));
+    }
     }
 }
 
@@ -649,8 +653,12 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
         field.oneof_index = -1;
 
         if (map_entry) {
-            field.is_key = field_def->number() == 1;
-            field.is_value = field_def->number() == 2;
+            field.field_target = field_def->number() == 1 ?
+                TARGET_MAP_KEY : TARGET_MAP_VALUE;
+        } else if (field_def->label() == UPB_LABEL_REPEATED) {
+            field.field_target = TARGET_ARRAY_ITEM;
+        } else {
+            field.field_target = TARGET_HASH_ITEM;
         }
 
         if (field_def->label() == UPB_LABEL_REPEATED &&
@@ -1674,7 +1682,7 @@ bool Mapper::encode_key(Sink *sink, Status *status, const Field &fd, const char 
 bool Mapper::encode_hash_kv(Sink *sink, Status *status, const char *key, STRLEN keylen, SV *value) const {
     if (!sink->StartMessage())
         return false;
-    if (fields[0].is_key) {
+    if (fields[0].is_map_key()) {
         if (!encode_key(sink, status, fields[0], key, keylen))
             return false;
         if (!encode_field(sink, status, fields[1], value))
@@ -1952,7 +1960,7 @@ void Mapper::apply_default(const Field &field, SV *target) const {
 }
 
 void Mapper::apply_map_value_default(SV *target) const {
-    if (fields[1].is_value) {
+    if (fields[1].is_map_value()) {
         apply_default(fields[1], target);
     } else {
         apply_default(fields[0], target);
