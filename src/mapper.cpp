@@ -517,6 +517,16 @@ bool Mapper::DecoderHandlers::on_numeric_bool(DecoderHandlers *cxt, const int *f
     return true;
 }
 
+bool Mapper::DecoderHandlers::on_json_bool(DecoderHandlers *cxt, const int *field_index, bool val) {
+    THX_DECLARE_AND_GET;
+    const Mapper *root_mapper = cxt->mappers[0];
+
+    cxt->mark_seen(field_index);
+    root_mapper->set_json_bool(cxt->get_target(field_index), val);
+
+    return true;
+}
+
 SV *Mapper::DecoderHandlers::get_target(const int *field_index) {
     const Mapper *mapper = mappers.back();
     const Field &field = mapper->fields[*field_index];
@@ -577,7 +587,15 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
          options.encode_defaults_proto3);
     check_enum_values = options.check_enum_values;
     decode_blessed = options.decode_blessed;
-    numeric_bool = options.numeric_bool;
+    boolean_style = options.boolean_style;
+
+    if (options.boolean_style == MappingOptions::JSON) {
+        load_module(PERL_LOADMOD_NOIMPORT, newSVpvs("JSON"), NULL);
+
+        json_true = gv_fetchpvs("JSON::true", 0, SVt_PVGV);
+        json_false = gv_fetchpvs("JSON::false", 0, SVt_PVGV);
+    }
+
     // on older Perls it is not fully reliable because the check is performed before
     // the SetMAGIC() call, so it is better to disable it entirely
     fail_ref_coercion = HAS_FULL_NOMG ? options.fail_ref_coercion : false;
@@ -655,10 +673,17 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, HV *_st
             break;
         case UPB_TYPE_BOOL:
             GET_SELECTOR(BOOL, primitive);
-            if (numeric_bool)
-                SET_VALUE_HANDLER(bool, on_numeric_bool);
-            else
+            switch(MappingOptions::BoolStyle(boolean_style)) {
+            case MappingOptions::Perl:
                 SET_VALUE_HANDLER(bool, on_perl_bool);
+                break;
+            case MappingOptions::Numeric:
+                SET_VALUE_HANDLER(bool, on_numeric_bool);
+                break;
+            case MappingOptions::JSON:
+                SET_VALUE_HANDLER(bool, on_json_bool);
+                break;
+            }
             field.default_bool = field_def->default_bool();
             break;
         case UPB_TYPE_STRING:
@@ -951,10 +976,21 @@ bool Mapper::get_track_seen_fields() const {
 }
 
 void Mapper::set_bool(SV *target, bool value) const {
-    if (numeric_bool)
-        set_numeric_bool(aTHX_ target, value);
-    else
+    switch (MappingOptions::BoolStyle(boolean_style)) {
+    case MappingOptions::Perl:
         set_perl_bool(aTHX_ target, value);
+        break;
+    case MappingOptions::Numeric:
+        set_numeric_bool(aTHX_ target, value);
+        break;
+    case MappingOptions::JSON:
+        set_json_bool(target, value);
+        break;
+    }
+}
+
+void Mapper::set_json_bool(SV *target, bool value) const {
+    sv_setsv(target, GvSV(value ? json_true : json_false));
 }
 
 SV *Mapper::encode(SV *ref) {

@@ -125,6 +125,7 @@ public:
 
         static bool on_perl_bool(DecoderHandlers *cxt, const int *field_index, bool val);
         static bool on_numeric_bool(DecoderHandlers *cxt, const int *field_index, bool val);
+        static bool on_json_bool(DecoderHandlers *cxt, const int *field_index, bool val);
 
         void push_mapper(const Mapper *mapper);
         void pop_mapper();
@@ -197,6 +198,8 @@ private:
 
     void apply_default(const Field &field, SV *target) const;
 
+    void set_json_bool(SV *target, bool value) const;
+
     DECL_THX_MEMBER;
     Dynamic *registry;
     const upb::MessageDef *message_def;
@@ -214,7 +217,9 @@ private:
     upb::Sink encoder_sink, decoder_sink;
     std::string output_buffer;
     upb::StringSink string_sink;
-    bool check_required_fields, decode_explicit_defaults, encode_defaults, check_enum_values, decode_blessed, fail_ref_coercion, numeric_bool;
+    bool check_required_fields, decode_explicit_defaults, encode_defaults, check_enum_values, decode_blessed, fail_ref_coercion;
+    int boolean_style;
+    GV *json_false, *json_true;
     WarnContext *warn_context;
 };
 

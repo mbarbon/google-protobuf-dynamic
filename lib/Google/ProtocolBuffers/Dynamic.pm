@@ -552,6 +552,11 @@ Maps C<true> to C<1> and C<false> to C<"">.
 
 Maps C<true> to C<1> and C<false> to C<0>.
 
+=item json
+
+Loads L<JSON> and uses C<JSON::true> and C<JSON::false> as
+C<true>/C<false> values.
+
 =back
 
 =head2 check_required_fields

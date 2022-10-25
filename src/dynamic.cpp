@@ -52,7 +52,7 @@ MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
         no_redefine_perl_names(false),
         accessor_style(GetAndSet),
         client_services(Disable),
-        numeric_bool(false),
+        boolean_style(Perl),
         fail_ref_coercion(false) {
     stack_trace = get_stack_trace(aTHX);
 
@@ -110,8 +110,9 @@ MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
     END_STRING_VALUE(client_services);
 
     START_STRING_VALUE(boolean_values);
-    STRING_VALUE(numeric_bool, perl, false);
-    STRING_VALUE(numeric_bool, numeric, true);
+    STRING_VALUE(boolean_style, perl, Perl);
+    STRING_VALUE(boolean_style, numeric, Numeric);
+    STRING_VALUE(boolean_style, json, JSON);
     END_STRING_VALUE(boolean_values);
 
 #undef START_STRING_VALUE

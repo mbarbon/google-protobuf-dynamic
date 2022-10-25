@@ -23,6 +23,12 @@ class MethodMapper;
 class ServiceDef;
 
 struct MappingOptions {
+    enum BoolStyle {
+        Perl = 1,
+        Numeric = 2,
+        JSON = 3,
+    };
+
     enum AccessorStyle {
         GetAndSet = 1,
         PlainAndSet = 2,
@@ -46,8 +52,8 @@ struct MappingOptions {
     bool implicit_maps;
     bool decode_blessed;
     bool fail_ref_coercion;
-    bool numeric_bool;
     bool no_redefine_perl_names;
+    BoolStyle boolean_style;
     AccessorStyle accessor_style;
     ClientService client_services;
     SV *stack_trace;
