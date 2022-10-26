@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package profile;
+
+message StringInt32Map {
+    map<string, int32> string_int32_map = 1;
+}
+
+message StringStringMap {
+    map<string, string> string_string_map = 1;
+}
+
+message Maps {
+    repeated StringInt32Map string_int32_maps = 1;
+    repeated StringStringMap string_string_maps = 2;
+}
