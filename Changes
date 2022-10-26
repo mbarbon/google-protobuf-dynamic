@@ -2,6 +2,14 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.41_03   2022-10-26 12:30:23 CEST
+
+    - Add option to use JSON true/false when decoding boolean values
+    - Detect duplicate package mappings created by different
+      Google::ProtocolBuffers::Dynamic instances, with a better
+      diagnostic message
+    - Improved decoder performance (5-20%, depending on the schema)
+
 0.41_02   2022-10-05 15:15:59 CEST
 
     - Add 3 insertion points to generated code
