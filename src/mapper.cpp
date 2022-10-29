@@ -155,6 +155,20 @@ namespace {
                                     : (*(s)++ + 9))))
 #endif
 
+#if PERL_VERSION < 12
+    bool GPD_is_invariant_string(const U8 *s, STRLEN len) {
+        const U8 *end = s + (len ? len : strlen((const char *) s));
+
+        for (; s < end; ++s) {
+            if (!UTF8_IS_INVARIANT(*s))
+                return false;
+        }
+
+        return true;
+    }
+    #define is_invariant_string(s, len) GPD_is_invariant_string(s, len)
+#endif
+
     inline void set_perl_bool(pTHX_ SV *target, bool value) {
         if (value)
             sv_setiv(target, 1);
