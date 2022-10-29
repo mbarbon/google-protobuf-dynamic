@@ -150,21 +150,9 @@ SV *Mapper::DecoderHandlers::get_and_mortalize_target() {
 
 namespace {
 #if PERL_VERSION < 18
-    inline SSize_t GPD_av_top_index(pTHX_ AV *av) {
-        return AvFILL(av);
-    }
-    #define av_top_index(av) GPD_av_top_index(aTHX_ (av))
-
     #define READ_XDIGIT(s)  ((0xf & (isDIGIT(*(s))     \
                                     ? (*(s)++)         \
                                     : (*(s)++ + 9))))
-#endif
-
-#if PERL_VERSION < 14
-    inline void GPD_warn_sv(pTHX_ SV *mess) {
-        warn("%" SVf, mess);
-    }
-    #define warn_sv(sv) GPD_warn_sv(aTHX_ (sv))
 #endif
 
     inline void set_perl_bool(pTHX_ SV *target, bool value) {
