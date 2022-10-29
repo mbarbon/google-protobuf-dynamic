@@ -124,6 +124,7 @@ void DecoderTransformQueue::apply_transforms() {
 void gpd::transform::fieldtable_debug_transform(pTHX_ SV *target, Fieldtable *fieldtable) {
     AV *res = newAV();
 
+    SvUPGRADE(target, SVt_RV);
     SvROK_on(target);
     SvRV_set(target, (SV *) res);
 

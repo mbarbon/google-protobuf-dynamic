@@ -265,6 +265,7 @@ size_t Mapper::DecoderHandlers::on_append_string(DecoderHandlers *cxt, const int
     THX_DECLARE_AND_GET;
 
     STRLEN cur = SvCUR(cxt->string);
+    SvGROW(cxt->string, cur + len); // necessary for JSON, where the size hint is 0
     memcpy(SvPVX(cxt->string) + cur, buf, len);
     SvCUR_set(cxt->string, cur + len);
 
