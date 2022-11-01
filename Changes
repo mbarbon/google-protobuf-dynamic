@@ -2,6 +2,10 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.41_04   2022-11-01 14:08:23 CET
+
+    - Fix bug in JSON decoding introduced in 0.41_03
+
 0.41_03   2022-10-26 12:30:23 CEST
 
     - Add option to use JSON true/false when decoding boolean values
