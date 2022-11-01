@@ -150,4 +150,10 @@ my %map_values = (
     eq_or_diff($decoded->{double_f}, 0.125);
 }
 
+{
+    my $decoded = Test::Basic->decode_json('{"stringF":"' . ('X' x 8192) . '"}');
+
+    eq_or_diff($decoded->{string_f}, 'X' x 8192, 'long string');
+}
+
 done_testing();
