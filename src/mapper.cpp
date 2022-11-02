@@ -254,7 +254,7 @@ Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_string(DecoderHandler
 
     cxt->mark_seen(field_index);
     cxt->string = cxt->get_target(field_index);
-    sv_grow(cxt->string, size_hint);
+    sv_grow(cxt->string, size_hint + 1);
     SvPOK_on(cxt->string);
     SvCUR_set(cxt->string, 0);
 
@@ -265,8 +265,9 @@ size_t Mapper::DecoderHandlers::on_append_string(DecoderHandlers *cxt, const int
     THX_DECLARE_AND_GET;
 
     STRLEN cur = SvCUR(cxt->string);
-    SvGROW(cxt->string, cur + len); // necessary for JSON, where the size hint is 0
-    memcpy(SvPVX(cxt->string) + cur, buf, len);
+    char * pv = SvGROW(cxt->string, cur + len); // necessary for JSON, where the size hint is 0
+    memcpy(pv + cur, buf, len);
+    pv[cur + len] = 0;
     SvCUR_set(cxt->string, cur + len);
 
     return len;
@@ -287,9 +288,10 @@ void Mapper::DecoderHandlers::on_string(DecoderHandlers *cxt, const int *field_i
     cxt->mark_seen(field_index);
 
     SV *string = cxt->get_target(field_index);
-    char *pv = sv_grow(string, len);
+    char *pv = sv_grow(string, len + 1);
     SvPOK_on(string);
     memcpy(pv, buf, len);
+    pv[len] = 0;
     SvCUR_set(string, len);
     if (is_utf8)
         SvUTF8_on(string);
