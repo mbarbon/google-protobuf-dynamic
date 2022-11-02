@@ -2,6 +2,10 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.41_05   2022-11-02 12:23:49 CET
+
+    - Make sure decoded strings have a NUL after the last character
+
 0.41_04   2022-11-01 14:08:23 CET
 
     - Fix bug in JSON decoding introduced in 0.41_03
