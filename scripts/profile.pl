@@ -12,6 +12,7 @@ use Getopt::Long;
     my $d = Google::ProtocolBuffers::Dynamic->new('scripts/profile');
 
     $d->load_file("map.proto");
+    $d->load_file("person.proto");
     $d->map({
         package => 'profile',
         prefix  => 'GPD::Profile',
@@ -27,6 +28,7 @@ exit main();
 sub main {
     my %suites = (
         decode_maps     => \&profile_decode_maps,
+        decode_objects  => \&profile_decode_objects,
     );
 
     my %callgrind_benchmarks = (
@@ -103,6 +105,7 @@ sub random_chars {
 }
 
 sub setup {
+    setup_decode_objects();
     setup_decode_maps();
 }
 
@@ -146,6 +149,37 @@ sub profile_decode_maps {
     cmpthese($repeat_count, filter_benchmarks($which_benchmarks, {
         protobuf_upb    => sub { GPD::Profile::Maps->decode_upb($data->{protobuf}) },
         protobuf_bbpb   => sub { GPD::Profile::Maps->decode_bbpb($data->{protobuf}) },
+        sereal          => sub { $sereal_decoder->decode($data->{sereal}) },
+        json            => sub { $json_decoder->decode($data->{json}) },
+    }));
+}
+
+sub setup_decode_objects {
+    my $make_random_person = sub {
+        my ($id) = @_;
+
+        return {
+            id      => $id,
+            name    => random_chars(3, 16) . ' ' . random_chars(6, 12),
+            email   => random_chars(7, 12) . '@test.com',
+        };
+    };
+    my $persons = {
+        persons => [map $make_random_person->($_), 1 .. 100 ],
+    };
+
+    $benchmarks{decode}{objects}{protobuf} = GPD::Profile::PersonArray->encode($persons);
+    $benchmarks{decode}{objects}{sereal} = $sereal_encoder->encode($persons);
+    $benchmarks{decode}{objects}{json} = $json_decoder->encode($persons);
+}
+
+sub profile_decode_objects {
+    my ($repeat_count, $which_benchmarks) = @_;
+    my $data = $benchmarks{decode}{objects};
+
+    cmpthese($repeat_count, filter_benchmarks($which_benchmarks, {
+        protobuf_upb    => sub { GPD::Profile::PersonArray->decode_upb($data->{protobuf}) },
+        protobuf_bbpb   => sub { GPD::Profile::PersonArray->decode_bbpb($data->{protobuf}) },
         sereal          => sub { $sereal_decoder->decode($data->{sereal}) },
         json            => sub { $json_decoder->decode($data->{json}) },
     }));
