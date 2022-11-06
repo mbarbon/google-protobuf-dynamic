@@ -13,10 +13,15 @@ use Getopt::Long;
 
     $d->load_file("map.proto");
     $d->load_file("person.proto");
+    $d->load_file("transform.proto");
     $d->map({
         package => 'profile',
         prefix  => 'GPD::Profile',
         options => { decode_blessed => 0 },
+    });
+    GPD::Profile::Any->set_decoder_options({
+        fieldtable  => 1,
+        transform   => $Google::ProtocolBuffers::Dynamic::Fieldtable::profile_transform,
     });
 }
 my $sereal_encoder = Sereal::Encoder->new;
@@ -27,8 +32,9 @@ exit main();
 
 sub main {
     my %suites = (
-        decode_maps     => \&profile_decode_maps,
-        decode_objects  => \&profile_decode_objects,
+        decode_maps         => \&profile_decode_maps,
+        decode_objects      => \&profile_decode_objects,
+        decode_transform    => \&profile_decode_transform,
     );
 
     my %callgrind_benchmarks = (
@@ -107,6 +113,7 @@ sub random_chars {
 sub setup {
     setup_decode_objects();
     setup_decode_maps();
+    setup_decode_transform();
 }
 
 sub setup_decode_maps {
@@ -180,6 +187,62 @@ sub profile_decode_objects {
     cmpthese($repeat_count, filter_benchmarks($which_benchmarks, {
         protobuf_upb    => sub { GPD::Profile::PersonArray->decode_upb($data->{protobuf}) },
         protobuf_bbpb   => sub { GPD::Profile::PersonArray->decode_bbpb($data->{protobuf}) },
+        sereal          => sub { $sereal_decoder->decode($data->{sereal}) },
+        json            => sub { $json_decoder->decode($data->{json}) },
+    }));
+}
+
+sub setup_decode_transform {
+    my $make_random_any; $make_random_any = sub {
+        my ($level) = @_;
+        my $which = rand;
+
+        if ($which < .10 / $level) {
+            my ($map, $map_pb) = ({}, {});
+
+            for my $i (0 .. rand(10)) {
+                my $key = random_chars 2, 4;
+
+                ($map->{$key}, $map_pb->{$key}) = $make_random_any->($level + 1);
+            }
+
+            return ($map, { map_value => $map_pb });
+        } elsif ($which < .20 / $level) {
+            my ($array, $array_pb) = ([], []);
+
+            for my $i (0 .. rand(10)) {
+                ($array->[$i], $array_pb->[$i]) = $make_random_any->($level + 1);
+            }
+
+            return ($array, { array_value => $array_pb });
+        } elsif ($which < .50) {
+            my $value = int(rand 100);
+
+            return ($value, { int64_value => $value });
+        } else {
+            my $string = random_chars(6, 12);
+
+            return ($string, { string_value => $string });
+        }
+    };
+
+    my ($values, $values_pb);
+    for my $i (1 .. 100) {
+        ($values->{$i}, $values_pb->{$i}) = $make_random_any->(1);
+    }
+
+    $benchmarks{decode}{transform}{protobuf} = GPD::Profile::Values->encode({ values => $values_pb });
+    $benchmarks{decode}{transform}{sereal} = $sereal_encoder->encode({ values => $values });
+    $benchmarks{decode}{transform}{json} = $json_decoder->encode({ values => $values });
+}
+
+sub profile_decode_transform {
+    my ($repeat_count, $which_benchmarks) = @_;
+    my $data = $benchmarks{decode}{transform};
+
+    cmpthese($repeat_count, filter_benchmarks($which_benchmarks, {
+        protobuf_upb    => sub { GPD::Profile::Values->decode_upb($data->{protobuf}) },
+        protobuf_bbpb   => sub { GPD::Profile::Values->decode_bbpb($data->{protobuf}) },
         sereal          => sub { $sereal_decoder->decode($data->{sereal}) },
         json            => sub { $json_decoder->decode($data->{json}) },
     }));

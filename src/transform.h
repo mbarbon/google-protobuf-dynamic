@@ -80,6 +80,7 @@ private:
 };
 
 void fieldtable_debug_transform(pTHX_ SV *target, Fieldtable *fieldtable);
+void fieldtable_profile_transform(pTHX_ SV *target, Fieldtable *fieldtable);
 
 }
 }

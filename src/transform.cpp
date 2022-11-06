@@ -139,3 +139,13 @@ void gpd::transform::fieldtable_debug_transform(pTHX_ SV *target, Fieldtable *fi
         av_push(res, newRV_noinc((SV *) item));
     }
 }
+
+// the only use for this transform is to be able to benchmark fieldtable trnasformations overhead
+void gpd::transform::fieldtable_profile_transform(pTHX_ SV *target, Fieldtable *fieldtable) {
+    Fieldtable::Entry *entry = fieldtable->entries;
+
+    sv_setsv(target, entry->value);
+    SvREFCNT_dec(entry->value);
+    entry->value = NULL;
+}
+

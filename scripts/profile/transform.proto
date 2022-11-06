@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package profile;
+
+message Any {
+    sint64 int64_value = 1;
+    string string_value = 2;
+    repeated Any array_value = 3;
+    map<string, Any> map_value = 4;
+}
+
+message Values {
+    map<string, Any> values = 1;
+}
