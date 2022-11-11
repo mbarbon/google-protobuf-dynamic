@@ -216,7 +216,7 @@ sub setup_decode_transform {
 
             return ($array, { array_value => $array_pb });
         } elsif ($which < .50) {
-            my $value = int(rand 100);
+            my $value = 1 + int(rand 100);
 
             return ($value, { int64_value => $value });
         } else {
