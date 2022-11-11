@@ -75,7 +75,11 @@ sub _dump {
 }
 
 sub _stack_trace {
-    my (undef, $filename, $line) = caller(0);
+    my ($package, $filename, $line);
+    for (my $level = 0; $level < 4; ++$level) {
+        ($package, $filename, $line) = caller($level);
+        last if $package ne __PACKAGE__;
+    }
 
     return "$filename line $line";
 }

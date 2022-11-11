@@ -55,13 +55,13 @@ use t::lib::Test;
 
     throws_ok(
         sub { $d->map_message("test1.Message2", "Test2::FirstMessage") },
-        qr/Package 'Test2::FirstMessage' has already been mapped/,
+        qr/Package 'Test2::FirstMessage' is being remapped/,
         "duplicate package mapping",
     );
 
     throws_ok(
         sub { $d->map_enum('test1.Enum', 'Test2::FirstMessage') },
-        qr/Package 'Test2::FirstMessage' has already been mapped/,
+        qr/Package 'Test2::FirstMessage' is being remapped/,
         "enum/message clash",
     );
 

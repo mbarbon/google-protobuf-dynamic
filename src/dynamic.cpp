@@ -457,8 +457,8 @@ void Dynamic::check_package(pTHX_ const string &perl_package, const string &pb_n
     if (!marker_sv || !SvOK(marker_sv))
         return;
 
-    croak("Package '%s' has already been mapped from %s",
-          perl_package.c_str(), SvPV_nolen(marker_sv));
+    croak("Package '%s' is being remapped from %" SVf " but has already been mapped from %" SVf,
+          perl_package.c_str(), get_stack_trace(aTHX), marker_sv);
 }
 
 void Dynamic::mark_package(pTHX_ const string &perl_package, SV *stack_trace) {
