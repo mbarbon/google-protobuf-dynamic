@@ -2,6 +2,10 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.41_06   2022-11-11 19:40:44 CET
+
+    - Improve error message for duplicate package mapping
+
 0.41_05   2022-11-02 12:23:49 CET
 
     - Make sure decoded strings have a NUL after the last character
