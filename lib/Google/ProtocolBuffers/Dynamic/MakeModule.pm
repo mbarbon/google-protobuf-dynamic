@@ -115,6 +115,7 @@ my %boolean_options = map +($_ => [$_, 1], "no_$_" => [$_, 0]), qw(
 my %string_options = map { $_ => 1 } qw(
     accessor_style
     client_services
+    boolean_values
 );
 
 sub _to_option {
