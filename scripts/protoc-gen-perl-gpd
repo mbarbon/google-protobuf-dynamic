@@ -55,6 +55,16 @@ The C<prefix> sub-option is mandatory.
 C<OPTIONS> is a comma-separated list, see L</Mapping options> for
 available options.
 
+=head2 map_message=MESSAGE,<to=PACKAGE|prefix=PREFIX>[,OPTIONS]
+
+Equivalent to either the C<map_message> or C<map_message_prefix>
+mapping of L<Google::ProtocolBuffers::Dynamic/map>.
+
+Either C<to> or C<prefix> sub-option is mandatory.
+
+C<OPTIONS> is a comma-separated list, see L</Mapping options> for
+available options.
+
 =head2 Mapping options
 
 The following options map one to one to the C<options> key of
@@ -67,8 +77,8 @@ C<generic_extension_methods>. When specified they set the option value
 to 1, when prefixed with C<no_> (e.g. C<no_use_bigints>) they set the
 option value to 0.
 
-String options: C<accessor_style>, C<client_services> set the
-corresponding option to the specified value
+String options: C<accessor_style>, C<client_services> and C<boolean_values>
+set the corresponding option to the specified value
 
 =head1 INSERTION POINTS
 
