@@ -2,6 +2,10 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.41_09   2022-12-07 10:55:52 CET
+
+    - Fix per-mapping parameters in protoc plugin
+
 0.41_08   2022-12-02 11:14:07 CET
 
     - Support map_message/map_message_prefix options in protoc plugin
