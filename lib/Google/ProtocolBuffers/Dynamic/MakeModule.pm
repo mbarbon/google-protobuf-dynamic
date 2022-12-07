@@ -171,7 +171,7 @@ sub generate_codegen_request {
             $mapping->{pb_prefix} = $value;
         } elsif ($key eq 'prefix' || $key eq 'to') {
             $mapping->{$key} = _perlify_package($value);
-        } elsif (!_to_option(($mapping ? $mapping->{options} : \%global_options), $key, $value)) {
+        } elsif (!_to_option(($mapping ? $mapping->{options} //= {} : \%global_options), $key, $value)) {
             return error("Unrecognized option key '$key'");
         }
     }
