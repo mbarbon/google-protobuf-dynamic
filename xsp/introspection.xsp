@@ -1,8 +1,8 @@
 %module{Google::ProtocolBuffers::Dynamic};
 
+#define _GPD_XS_DYNAMIC_IN_XS
 #include "servicedef.h"
-#include "upbwrapper.h"
-#include "dynamic.h" // for has_presence
+#include "introspection.h"
 
 %typemap{const Google::ProtocolBuffers::Dynamic::MessageDef *}{simple}{
     %xs_type{O_OBJECT};
@@ -84,43 +84,7 @@
     %name{value_type} int type() const;
 
     SV *default_value() const %code{%
-        switch (THIS->type()) {
-        case UPB_TYPE_FLOAT:
-            RETVAL = newSVnv(THIS->default_float());
-            break;
-        case UPB_TYPE_DOUBLE:
-            RETVAL = newSVnv(THIS->default_double());
-            break;
-        case UPB_TYPE_BOOL:
-            RETVAL = THIS->default_bool() ? &PL_sv_yes : &PL_sv_no;
-            break;
-        case UPB_TYPE_STRING:
-        case UPB_TYPE_BYTES: {
-             size_t length;
-             const char *bytes = THIS->default_string(&length);
-
-             RETVAL = newSVpv(bytes, length);
-             if (THIS->type() == UPB_TYPE_STRING)
-                SvUTF8_on(RETVAL);
-        }
-            break;
-        case UPB_TYPE_MESSAGE:
-            RETVAL = &PL_sv_undef;
-            break;
-        case UPB_TYPE_ENUM:
-        case UPB_TYPE_INT32:
-            RETVAL = newSViv(THIS->default_int32());
-            break;
-        case UPB_TYPE_INT64:
-            RETVAL = newSViv(THIS->default_int64());
-            break;
-        case UPB_TYPE_UINT32:
-            RETVAL = newSVuv(THIS->default_uint32());
-            break;
-        case UPB_TYPE_UINT64:
-            RETVAL = newSVuv(THIS->default_uint64());
-            break;
-        }
+        RETVAL = gpd::intr::field_default_value(aTHX_ THIS);
     %};
 
     const Google::ProtocolBuffers::Dynamic::MessageDef *containing_type() const;
@@ -133,7 +97,7 @@
     %name{message_type} const Google::ProtocolBuffers::Dynamic::MessageDef *message_subdef() const;
 
     bool has_presence() const %code{%
-      RETVAL = gpd::has_presence(THIS);
+      RETVAL = gpd::intr::has_presence(THIS);
     %};
 };
 
@@ -233,11 +197,11 @@
 %{
 
 #define DESCRIPTOR_TYPE(name) \
-    gpd::define_constant(aTHX_ "DESCRIPTOR_" #name, "descriptor", UPB_DESCRIPTOR_TYPE_##name);
+    gpd::intr::define_constant(aTHX_ "DESCRIPTOR_" #name, "descriptor", UPB_DESCRIPTOR_TYPE_##name);
 #define VALUE_TYPE(name) \
-    gpd::define_constant(aTHX_ "VALUE_" #name, "values", UPB_TYPE_##name);
+    gpd::intr::define_constant(aTHX_ "VALUE_" #name, "values", UPB_TYPE_##name);
 #define LABEL_TYPE(name) \
-    gpd::define_constant(aTHX_ "LABEL_" #name, "labels", UPB_LABEL_##name);
+    gpd::intr::define_constant(aTHX_ "LABEL_" #name, "labels", UPB_LABEL_##name);
 
 BOOT:
     LABEL_TYPE(OPTIONAL);
