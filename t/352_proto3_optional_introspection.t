@@ -12,7 +12,7 @@ is($basic->field_count, 22);
 is($basic->oneof_count, 11);
 
 my $fields = [@{$basic->fields}[2, 12, 20]];
-my $oneofs = [@{$basic->oneofs}[1, 10]];
+my $oneofs = [@{$basic->oneofs}[3, 0]];
 
 is($fields->[0]->name, 'int32_f');
 is($fields->[0]->has_presence, '');

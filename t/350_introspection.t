@@ -34,7 +34,7 @@ eq_or_diff([sort map $_->name, @$fields], [qw(
 )]);
 
 my $bool_f = $basic->find_field_by_name('bool_f');
-is($bool_f->full_name, 'bool_f');
+is($bool_f->full_name, 'test.Basic.bool_f');
 is($bool_f->containing_type->full_name, 'test.Basic');
 is($bool_f->descriptor_type, DESCRIPTOR_BOOL);
 is($bool_f->value_type, VALUE_BOOL);

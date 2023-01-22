@@ -30,7 +30,6 @@ class Dynamic;
 class MappingOptions;
 class MapperField;
 class WarnContext;
-class ServiceDef;
 
 class Mapper : public Refcounted {
 public:
@@ -351,33 +350,6 @@ private:
 
     const Mapper::Field *field;
     const Mapper *mapper;
-};
-
-class EnumMapper : public Refcounted {
-public:
-    EnumMapper(pTHX_ Dynamic *registry, const upb::EnumDef *enum_def);
-    ~EnumMapper();
-
-    SV *enum_descriptor() const;
-
-private:
-    DECL_THX_MEMBER;
-    Dynamic *registry;
-    const upb::EnumDef *enum_def;
-};
-
-// for introspection only
-class ServiceMapper : public Refcounted {
-public:
-    ServiceMapper(pTHX_ Dynamic *registry, const gpd::ServiceDef *service_def);
-    ~ServiceMapper();
-
-    SV *service_descriptor() const;
-
-private:
-    DECL_THX_MEMBER;
-    Dynamic *registry;
-    const gpd::ServiceDef *service_def;
 };
 
 class MethodMapper : public Refcounted {

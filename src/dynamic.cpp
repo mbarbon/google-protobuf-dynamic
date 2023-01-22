@@ -197,7 +197,7 @@ namespace {
         NULL, // local
     };
 
-    void copy_and_bind(pTHX_ const char *name, const char *target, const string &perl_package, Refcounted *refcounted) {
+    void copy_and_bind(pTHX_ const char *name, const char *target, const string &perl_package, Refcounted *refcounted, void *obj) {
         static const char prefix[] = "Google::ProtocolBuffers::Dynamic::Mapper::";
         size_t length = strlen(name);
         char buffer[sizeof(prefix) + length + 1];
@@ -208,15 +208,23 @@ namespace {
         CV *src = get_cv(buffer, 0);
         CV *new_xs = newXS((perl_package + "::" + target).c_str(), CvXSUB(src), __FILE__);
 
-        CvXSUBANY(new_xs).any_ptr = refcounted;
+        CvXSUBANY(new_xs).any_ptr = obj;
         sv_magicext((SV *) new_xs, NULL,
                     PERL_MAGIC_ext, &manage_refcounted,
                     (const char *) refcounted, 0);
         refcounted->ref();
     }
 
+    void copy_and_bind(pTHX_ const char *name, const char *target, const string &perl_package, Refcounted *refcounted) {
+        copy_and_bind(aTHX_ name, target, perl_package, refcounted, refcounted);
+    }
+
     void copy_and_bind(pTHX_ const char *name, const string &perl_package, Refcounted *refcounted) {
         copy_and_bind(aTHX_ name, name, perl_package, refcounted);
+    }
+
+    void copy_and_bind(pTHX_ const char *name, const string &perl_package, Refcounted *refcounted, void *obj) {
+        copy_and_bind(aTHX_ name, name, perl_package, refcounted, obj);
     }
 
     void copy_and_bind(pTHX_ const char *name, const char *prefix, const char *suffix, const string &perl_package, Mapper *mapper) {
@@ -499,10 +507,10 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
     pending.push_back(mapper);
 
     if (define_perl_names)
-        bind_message(aTHX_ perl_package, mapper, stash, options);
+        bind_message(aTHX_ perl_package, mapper, descriptor, stash, options);
 }
 
-void Dynamic::bind_message(pTHX_ const string &perl_package, Mapper *mapper, HV *stash, const MappingOptions &options) {
+void Dynamic::bind_message(pTHX_ const string &perl_package, Mapper *mapper, const Descriptor *descriptor, HV *stash, const MappingOptions &options) {
     bool plain_accessor = false;
     const char *getter_prefix, *setter_prefix;
 
@@ -530,7 +538,7 @@ void Dynamic::bind_message(pTHX_ const string &perl_package, Mapper *mapper, HV 
     copy_and_bind(aTHX_ "encode_json", perl_package, mapper);
     copy_and_bind(aTHX_ "new", perl_package, mapper);
     copy_and_bind(aTHX_ "new_and_check", perl_package, mapper);
-    copy_and_bind(aTHX_ "message_descriptor", perl_package, mapper);
+    copy_and_bind(aTHX_ "message_descriptor", perl_package, this, const_cast<Descriptor *>(descriptor));
 
     // for Grpc::Client
     copy_and_bind(aTHX_ "static_decode", "_static_decode", perl_package, mapper);
@@ -626,15 +634,12 @@ void Dynamic::map_enum(pTHX_ const EnumDescriptor *descriptor, const string &per
     if (mapped_enums.find(descriptor->full_name()) != mapped_enums.end())
         croak("Enum '%s' has already been mapped", descriptor->full_name().c_str());
 
-    const EnumDef *enum_def = def_builder.GetEnumDef(descriptor);
-    EnumMapper *mapper = new EnumMapper(aTHX_ this, enum_def);
-
     mapped_enums.insert(descriptor->full_name());
     mark_package(aTHX_ perl_package, options.stack_trace);
 
     HV *stash = gv_stashpvn(perl_package.data(), perl_package.size(), GV_ADD);
 
-    copy_and_bind(aTHX_ "enum_descriptor", perl_package, mapper);
+    copy_and_bind(aTHX_ "enum_descriptor", perl_package, this, const_cast<EnumDescriptor *>(descriptor));
 
     for (int i = 0, max = descriptor->value_count(); i < max; ++i) {
         const EnumValueDescriptor *value = descriptor->value(i);
@@ -668,9 +673,7 @@ void Dynamic::map_service(pTHX_ const ServiceDescriptor *descriptor, const strin
         croak("Unhandled client_service option %d", options.client_services);
     }
 
-    ServiceMapper *mapper = new ServiceMapper(aTHX_ this, service_def);
-
-    copy_and_bind(aTHX_ "service_descriptor", perl_package, mapper);
+    copy_and_bind(aTHX_ "service_descriptor", perl_package, this, const_cast<ServiceDescriptor *>(descriptor));
 }
 
 void Dynamic::map_service_noop(pTHX_ const ServiceDescriptor *descriptor, const string &perl_package, const MappingOptions &options, ServiceDef *service_def) {

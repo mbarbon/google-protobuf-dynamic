@@ -1,37 +1,111 @@
 #include "introspection.h"
 
-SV *gpd::intr::field_default_value(pTHX_ const upb::FieldDef *field_def) {
-     switch (field_def->type()) {
-     case UPB_TYPE_FLOAT:
-         return newSVnv(field_def->default_float());
-     case UPB_TYPE_DOUBLE:
-         return newSVnv(field_def->default_double());
-     case UPB_TYPE_BOOL:
-         return field_def->default_bool() ? &PL_sv_yes : &PL_sv_no;
-     case UPB_TYPE_STRING:
-     case UPB_TYPE_BYTES: {
-          size_t length;
-          const char *bytes = field_def->default_string(&length);
-          SV *result = newSVpv(bytes, length);
+#include <google/protobuf/descriptor.h>
 
-          if (field_def->type() == UPB_TYPE_STRING)
-             SvUTF8_on(result);
+using namespace gpd;
+using namespace gpd::intr;
+using namespace google::protobuf;
 
-          return result;
-     }
-     case UPB_TYPE_MESSAGE:
-         return &PL_sv_undef;
-     case UPB_TYPE_ENUM:
-     case UPB_TYPE_INT32:
-         return newSViv(field_def->default_int32());
-     case UPB_TYPE_INT64:
-         return newSViv(field_def->default_int64());
-     case UPB_TYPE_UINT32:
-         return newSVuv(field_def->default_uint32());
-     case UPB_TYPE_UINT64:
-         return newSVuv(field_def->default_uint64());
-     }
-     return NULL; // should not happen
+ValueType gpd::intr::field_value_type(const FieldDescriptor *field_def) {
+    using CppType = FieldDescriptor::CppType;
+    using Type = FieldDescriptor::Type;
+
+    switch (field_def->cpp_type()) {
+    case CppType::CPPTYPE_INT32:
+        return VALUE_INT32;
+    case CppType::CPPTYPE_INT64:
+        return VALUE_INT64;
+    case CppType::CPPTYPE_UINT32:
+        return VALUE_UINT32;
+    case CppType::CPPTYPE_UINT64:
+        return VALUE_UINT64;
+    case CppType::CPPTYPE_DOUBLE:
+        return VALUE_DOUBLE;
+    case CppType::CPPTYPE_FLOAT:
+        return VALUE_FLOAT;
+    case CppType::CPPTYPE_BOOL:
+        return VALUE_BOOL;
+    case CppType::CPPTYPE_ENUM:
+        return VALUE_ENUM;
+    case CppType::CPPTYPE_STRING:
+        return field_def->type() == Type::TYPE_STRING ?
+            VALUE_STRING : VALUE_BYTES;;
+    case CppType::CPPTYPE_MESSAGE:
+        return VALUE_MESSAGE;
+    }
+    return VALUE_INVALID; // should not happen
+}
+
+bool gpd::intr::field_is_primitive(const FieldDescriptor *field_def) {
+    using CppType = FieldDescriptor::CppType;
+    using Type = FieldDescriptor::Type;
+
+    switch (field_def->cpp_type()) {
+    case CppType::CPPTYPE_STRING:
+    case CppType::CPPTYPE_MESSAGE:
+        return false;
+    default:
+        return true;
+    }
+}
+
+SV *gpd::intr::field_default_value(pTHX_ const FieldDescriptor *field_def) {
+    using CppType = FieldDescriptor::CppType;
+    using Type = FieldDescriptor::Type;
+
+    switch (field_def->cpp_type()) {
+    case CppType::CPPTYPE_FLOAT:
+        return newSVnv(field_def->default_value_float());
+    case CppType::CPPTYPE_DOUBLE:
+        return newSVnv(field_def->default_value_double());
+    case CppType::CPPTYPE_BOOL:
+        return field_def->default_value_bool() ? &PL_sv_yes : &PL_sv_no;
+    case CppType::CPPTYPE_STRING: {
+        const std::string &value = field_def->default_value_string();
+        SV *result = newSVpv(value.data(), value.length());
+
+        if (field_def->type() == Type::TYPE_STRING)
+            SvUTF8_on(result);
+
+        return result;
+    }
+    case CppType::CPPTYPE_MESSAGE:
+        return &PL_sv_undef;
+    case CppType::CPPTYPE_ENUM: {
+        auto enumvalue_def = field_def->default_value_enum();
+
+        return enumvalue_def != NULL ? newSViv(enumvalue_def->number()) : 0;
+    }
+    case CppType::CPPTYPE_INT32:
+        return newSViv(field_def->default_value_int32());
+    case CppType::CPPTYPE_INT64:
+        return newSViv(field_def->default_value_int64());
+    case CppType::CPPTYPE_UINT32:
+        return newSVuv(field_def->default_value_uint32());
+    case CppType::CPPTYPE_UINT64:
+        return newSVuv(field_def->default_value_uint64());
+    }
+    return NULL; // should not happen
+}
+
+int gpd::intr::enum_default_value(const EnumDescriptor *enum_def) {
+    if (enum_def->value_count() > 0) {
+        return enum_def->value(0)->number();
+    }
+
+    return 0;
+}
+
+const FieldDescriptor *gpd::intr::oneof_find_field_by_number(const OneofDescriptor *oneof_def, int number) {
+    const FieldDescriptor *field_def = oneof_def->containing_type()->FindFieldByNumber(number);
+
+    return field_def->containing_oneof() == oneof_def ? field_def : NULL;
+}
+
+const FieldDescriptor *gpd::intr::oneof_find_field_by_name(const OneofDescriptor *oneof_def, const std::string &name) {
+    const FieldDescriptor *field_def = oneof_def->containing_type()->FindFieldByName(name);
+
+    return field_def->containing_oneof() == oneof_def ? field_def : NULL;
 }
 
 #if PERL_VERSION < 10
