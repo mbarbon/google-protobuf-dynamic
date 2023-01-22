@@ -8,11 +8,11 @@ $d->map({ package => 'test', prefix => 'Test' });
 
 my $basic = Test::Optional1->message_descriptor();
 
-is($basic->field_count, 21);
+is($basic->field_count, 22);
 is($basic->oneof_count, 11);
 
 my $fields = [@{$basic->fields}[2, 12, 20]];
-my $oneofs = [@{$basic->oneofs}[2, 10]];
+my $oneofs = [@{$basic->oneofs}[1, 10]];
 
 is($fields->[0]->name, 'int32_f');
 is($fields->[0]->has_presence, '');
@@ -21,10 +21,29 @@ is($fields->[1]->has_presence, 1);
 is($fields->[2]->name, 'int32_of');
 is($fields->[2]->has_presence, 1);
 
-is($oneofs->[0]->name, '_int32_pf');
-is($oneofs->[0]->is_synthetic, 1);
-is($oneofs->[1]->name, 'test');
-is($oneofs->[1]->is_synthetic, '');
+{
+    my $oneof = $oneofs->[0];
+
+    is($oneof->name, '_int32_pf');
+    is($oneof->is_synthetic, 1);
+    is($oneof->field_count, 1);
+    eq_or_diff([qw(int32_pf)], [map $_->name, @{$oneof->fields}]);
+}
+
+{
+    my $oneof = $oneofs->[1];
+
+    is($oneof->name, 'test');
+    is($oneof->is_synthetic, '');
+    is($oneof->field_count, 2);
+    eq_or_diff([qw(int32_of string_of)], [map $_->name, @{$oneof->fields}]);
+
+    is($oneof->find_field_by_number(68)->name, 'string_of');
+    is($oneof->find_field_by_number(42), undef);
+
+    is($oneof->find_field_by_name('int32_of')->number, 67);
+    is($oneof->find_field_by_name('int64_pf'), undef);
+}
 
 is($fields->[0]->containing_oneof, undef);
 is($fields->[1]->containing_oneof->name, '_int32_pf');

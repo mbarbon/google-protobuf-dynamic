@@ -33,5 +33,6 @@ message Optional1 {
     
     oneof test {
         int32 int32_of = 67;
+        string string_of = 68;
     }
 }
