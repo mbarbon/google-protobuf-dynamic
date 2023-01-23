@@ -32,7 +32,9 @@ public:
 private:
     google::protobuf::compiler::SourceTreeDescriptorDatabase source_database;
     google::protobuf::DescriptorPoolDatabase binary_database;
-    google::protobuf::MergedDescriptorDatabase merged_database;
+    google::protobuf::DescriptorPoolDatabase generated_database;
+    google::protobuf::MergedDescriptorDatabase merged_source_binary_database;
+    google::protobuf::MergedDescriptorDatabase merged_generated_source_binary_database;
     google::protobuf::DescriptorPool binary_pool, merged_pool;
 };
 
