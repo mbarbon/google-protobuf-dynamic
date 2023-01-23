@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+import "options.proto";
+
+package test;
+
+message MessageWithOptions {
+    option (options.msg_string)  = "Custom message option";
+    option (options.msg_integer) = -2;
+
+    int32 int32_f = 1 [(options.fld_string) = "Custom field option"];
+    string string_f = 2;
+}

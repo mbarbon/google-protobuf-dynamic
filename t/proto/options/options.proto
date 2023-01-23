@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+import "google/protobuf/descriptor.proto";
+
+package options;
+
+extend google.protobuf.MessageOptions {
+    string msg_string  = 51234;
+    sint32 msg_integer = 51235;
+}
+
+extend google.protobuf.FieldOptions {
+    string fld_string  = 52234;
+    sint32 fld_integer = 52235;
+}

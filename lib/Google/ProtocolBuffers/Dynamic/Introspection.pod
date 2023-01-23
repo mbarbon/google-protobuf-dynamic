@@ -91,6 +91,13 @@ Returns all fields/oneof as an array reference.
 True if this message is a key/value pair that Protocol Buffers 3 uses
 to represent a map entry.
 
+=head2 options
+
+    $options = $message_def->options;
+
+Describes the options set on the message, see L<OPTIONS|/OPTIONS>.
+Always returns a value, even if no options are set.
+
 =head1 Google::ProtocolBuffers::Dynamic::FieldDef
 
 =head2 name
@@ -182,6 +189,13 @@ definition, or undef if the fields is not a message/enum.
 
 Returns whether the field supports L<field presence|https://github.com/protocolbuffers/protobuf/blob/master/docs/field_presence.md#application-note-field-presence>.
 
+=head2 options
+
+    $options = $field_def->options;
+
+Describes the options set on the field, see L<OPTIONS|/OPTIONS>.
+Always returns a value, even if no options are set.
+
 =head1 Google::ProtocolBuffers::Dynamic::OneofDef
 
 =head2 name
@@ -234,6 +248,13 @@ Containing message.
 C<true> for oneof definitions that have been created by proto3
 C<optional> implementation.
 
+=head2 options
+
+    $options = $oneof_def->options;
+
+Describes the options set on the oneof, see L<OPTIONS|/OPTIONS>.
+Always returns a value, even if no options are set.
+
 =head1 Google::ProtocolBuffers::Dynamic::EnumDef
 
 =head2 name
@@ -275,6 +296,13 @@ Returns the name of the enum entry with the given value, or C<undef>.
 Returns a hash reference containing all name/value pairs for this
 enum.
 
+=head2 options
+
+    $options = $enum_def->options;
+
+Describes the options set on the enum, see L<OPTIONS|/OPTIONS>.
+Always returns a value, even if no options are set.
+
 =head1 Google::ProtocolBuffers::Dynamic::ServiceDef
 
 =head2 name
@@ -294,6 +322,13 @@ The fully-qualified name of this service (including package).
     $method_defs = $service_def->methods;
 
 Returns all methods as an array reference.
+
+=head2 options
+
+    $options = $service_def->options;
+
+Describes the options set on the service, see L<OPTIONS|/OPTIONS>.
+Always returns a value, even if no options are set.
 
 =head1 Google::ProtocolBuffers::Dynamic::MethodDef
 
@@ -340,6 +375,42 @@ the C<stream> annotation in the method definition).
 
 True if the service produces streaming output (i.e. the output type has
 the C<stream> annotation in the method definition).
+
+=head2 options
+
+    $options = $method_def->options;
+
+Describes the options set on the method, see L<OPTIONS|/OPTIONS>.
+Always returns a value, even if no options are set.
+
+=head1 OPTIONS
+
+This section documents the option objects returned by the vairous
+C<options()> methods.
+
+All option objects provide the following methods.
+
+=head2 deprecated
+
+    $deprecated = $options->deprecated;
+
+Whether the entity has the C<[deprecated = true]> option.
+
+=head2 custom_option_by_name
+
+    $option_value = $options->custom_option_by_name('myoptions.some_option');
+
+Return the value of a custom option. If the option is not set on this
+entity, returns the default value. If the option name does not match
+an existing custom option, return C<undef>.
+
+=head2 custom_option_by_number
+
+    $option_value = $options->custom_option_by_name(51234);
+
+Return the value of a custom option. If the option is not set on this
+entity, returns the default value. If the option name does not match
+an existing custom option, return C<undef>.
 
 =head1 CONSTANTS
 

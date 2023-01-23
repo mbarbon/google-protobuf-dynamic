@@ -1,6 +1,7 @@
 #include "descriptorloader.h"
 #include "unordered_map.h"
 
+#include <google/protobuf/descriptor.pb.h>
 #include <google/protobuf/duration.pb.h>
 #include <google/protobuf/timestamp.pb.h>
 #include <google/protobuf/wrappers.pb.h>

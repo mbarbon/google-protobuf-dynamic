@@ -1,6 +1,9 @@
 #include "introspection.h"
 
 #include <google/protobuf/descriptor.h>
+#include <google/protobuf/descriptor.pb.h>
+#include <google/protobuf/message.h>
+#include <google/protobuf/dynamic_message.h>
 
 using namespace gpd;
 using namespace gpd::intr;
@@ -106,6 +109,145 @@ const FieldDescriptor *gpd::intr::oneof_find_field_by_name(const OneofDescriptor
     const FieldDescriptor *field_def = oneof_def->containing_type()->FindFieldByName(name);
 
     return field_def->containing_oneof() == oneof_def ? field_def : NULL;
+}
+
+// this function jumps through various hoops:
+// - takes an options message (FieldOptions, MessageOptions, ...)
+// - looks up a descriptor by name in the pool the message came from
+// - builds a dynamic message from the descriptor
+// - serializes the original message, and parses it via the dynamic message
+//
+// What seems to be happening is that loading the descriptors dynamically
+// creates a separate set of descriptors for the messages in descriptor.proto,
+// and the extensions get associated with this new instance, while the methods
+// in the various descriptor objects return a message that uses the compiled-in
+// descriptor.
+//
+// This means that the extension fields can't be looked up directly in the
+// object returned by the descriptor API, hence the serialize/deserialize
+// round trip.
+bool gpd::intr::options_make_wrapper(const DescriptorPool *descriptor_pool, const Message &options_def, DynamicMessageFactory **factory, Message **options) {
+    // calling options_def.GetDescriptor() will return a different descriptor
+    // pointer (from the generated pool, I think) than looking the descriptor
+    // up in the merged pool, and the extensions are associated with the latter
+    const std::string &options_name = options_def.GetDescriptor()->full_name();
+    const Descriptor *options_descriptor = descriptor_pool->FindMessageTypeByName(options_name);
+
+    // creating a new DynamicFactory every time is wastful, but this code
+    // is not performance critical
+    DynamicMessageFactory *factory_dyn = new DynamicMessageFactory(descriptor_pool);
+    Message *options_dyn = factory_dyn->GetPrototype(options_descriptor)->New();
+
+    string serialized;
+    if (!options_def.SerializeToString(&serialized)) {
+        return false;
+    }
+    if (!options_dyn->ParseFromString(serialized)) {
+        return false;
+    }
+
+    *factory = factory_dyn;
+    *options = options_dyn;
+
+    return true;
+}
+
+// DescriptorOptionsWrapper
+
+DescriptorOptionsWrapper::DescriptorOptionsWrapper(pTHX_ DynamicMessageFactory *_factory, const Message *_options) :
+        factory(_factory),
+        options(_options) {
+    SET_THX_MEMBER;
+}
+
+DescriptorOptionsWrapper::~DescriptorOptionsWrapper() {
+    delete factory;
+}
+
+SV *DescriptorOptionsWrapper::custom_option_by_name(const string &name) {
+    const Reflection *reflection = options->GetReflection();
+    const FieldDescriptor *extension_field = reflection->FindKnownExtensionByName(name);
+
+    if (extension_field == NULL) {
+        return &PL_sv_undef;
+    }
+
+    return get_field(extension_field);
+}
+
+SV *DescriptorOptionsWrapper::custom_option_by_number(int number) {
+    const Reflection *reflection = options->GetReflection();
+    const FieldDescriptor *extension_field = reflection->FindKnownExtensionByNumber(number);
+
+    if (extension_field == NULL) {
+        return &PL_sv_undef;
+    }
+
+    return get_field(extension_field);
+}
+
+SV *DescriptorOptionsWrapper::get_field(const FieldDescriptor *field) {
+    using CppType = FieldDescriptor::CppType;
+    using Type = FieldDescriptor::Type;
+
+    const Reflection *reflection = options->GetReflection();
+
+    switch (field->cpp_type()) {
+    case CppType::CPPTYPE_FLOAT:
+        return newSVnv(reflection->GetFloat(*options, field));
+    case CppType::CPPTYPE_DOUBLE:
+        return newSVnv(reflection->GetDouble(*options, field));
+    case CppType::CPPTYPE_BOOL:
+        return reflection->GetBool(*options, field) ? &PL_sv_yes : &PL_sv_no;
+    case CppType::CPPTYPE_STRING: {
+        const std::string &value = reflection->GetString(*options, field);
+        SV *result = newSVpv(value.data(), value.length());
+
+        if (field->type() == Type::TYPE_STRING)
+            SvUTF8_on(result);
+
+        return result;
+    }
+    case CppType::CPPTYPE_MESSAGE:
+        return &PL_sv_undef;
+    case CppType::CPPTYPE_ENUM: {
+        auto enumvalue_def = reflection->GetEnum(*options, field);
+
+        return enumvalue_def != NULL ? newSViv(enumvalue_def->number()) : 0;
+    }
+    case CppType::CPPTYPE_INT32:
+        return newSViv(reflection->GetInt32(*options, field));
+    case CppType::CPPTYPE_INT64:
+        return newSViv(reflection->GetInt64(*options, field));
+    case CppType::CPPTYPE_UINT32:
+        return newSVuv(reflection->GetUInt32(*options, field));
+    case CppType::CPPTYPE_UINT64:
+        return newSVuv(reflection->GetUInt64(*options, field));
+    }
+
+    return NULL; // should not happen
+}
+
+// Other options objects wrappers
+
+bool MessageOptionsWrapper::deprecated() {
+    return options->deprecated();
+}
+
+bool FieldOptionsWrapper::deprecated() {
+    return options->deprecated();
+}
+
+bool EnumOptionsWrapper::deprecated() {
+    return options->deprecated();
+}
+
+bool ServiceOptionsWrapper::deprecated() {
+    return options->deprecated();
+}
+
+bool MethodOptionsWrapper::deprecated() {
+    return options->deprecated();
 }
 
 #if PERL_VERSION < 10

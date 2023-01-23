@@ -8,20 +8,45 @@
 %typemap{const Google::ProtocolBuffers::Dynamic::MessageDef *}{simple}{
     %xs_type{O_OBJECT};
 };
+%typemap{const Google::ProtocolBuffers::Dynamic::MessageOptionsDef *}{simple}{
+    %xs_type{O_OBJECT};
+};
 %typemap{const Google::ProtocolBuffers::Dynamic::FieldDef *}{simple}{
+    %xs_type{O_OBJECT};
+};
+%typemap{const Google::ProtocolBuffers::Dynamic::FieldOptionsDef *}{simple}{
     %xs_type{O_OBJECT};
 };
 %typemap{const Google::ProtocolBuffers::Dynamic::OneofDef *}{simple}{
     %xs_type{O_OBJECT};
 };
+%typemap{const Google::ProtocolBuffers::Dynamic::OneofOptionsDef *}{simple}{
+    %xs_type{O_OBJECT};
+};
 %typemap{const Google::ProtocolBuffers::Dynamic::EnumDef *}{simple}{
+    %xs_type{O_OBJECT};
+};
+%typemap{const Google::ProtocolBuffers::Dynamic::EnumOptionsDef *}{simple}{
     %xs_type{O_OBJECT};
 };
 %typemap{const Google::ProtocolBuffers::Dynamic::ServiceDef *}{simple}{
     %xs_type{O_OBJECT};
 };
+%typemap{const Google::ProtocolBuffers::Dynamic::ServiceOptionsDef *}{simple}{
+    %xs_type{O_OBJECT};
+};
 %typemap{const Google::ProtocolBuffers::Dynamic::MethodDef *}{simple}{
     %xs_type{O_OBJECT};
+};
+%typemap{const Google::ProtocolBuffers::Dynamic::MethodOptionsDef *}{simple}{
+    %xs_type{O_OBJECT};
+};
+
+%name{Google::ProtocolBuffers::Dynamic::DescriptorOptionsDef} class gpd::intr::DescriptorOptionsWrapper {
+    ~DescriptorOptionsWrapper();
+
+    SV *custom_option_by_name(const std::string &name);
+    SV *custom_option_by_number(int numbere);
 };
 
 %name{Google::ProtocolBuffers::Dynamic::MessageDef} class google::protobuf::Descriptor {
@@ -64,6 +89,14 @@
     bool is_map_entry() const %code{%
         RETVAL = THIS->options().map_entry();
     %};
+
+    const Google::ProtocolBuffers::Dynamic::MessageOptionsDef *options() const %code%{
+        RETVAL = gpd::intr::options_make_wrapper<gpd::intr::MessageOptionsWrapper>(aTHX_ THIS);
+    %};
+};
+
+%name{Google::ProtocolBuffers::Dynamic::MessageOptionsDef} class gpd::intr::MessageOptionsWrapper : public %name{Google::ProtocolBuffers::Dynamic::DescriptorOptionsDef} gpd::intr::DescriptorOptionsWrapper {
+    bool deprecated();
 };
 
 %name{Google::ProtocolBuffers::Dynamic::FieldDef} class google::protobuf::FieldDescriptor {
@@ -107,6 +140,14 @@
     const Google::ProtocolBuffers::Dynamic::MessageDef *message_type() const;
 
     bool has_presence() const;
+
+    const Google::ProtocolBuffers::Dynamic::FieldOptionsDef *options() const %code%{
+        RETVAL = gpd::intr::options_make_wrapper<gpd::intr::FieldOptionsWrapper>(aTHX_ THIS);
+    %};
+};
+
+%name{Google::ProtocolBuffers::Dynamic::FieldOptionsDef} class gpd::intr::FieldOptionsWrapper : public %name{Google::ProtocolBuffers::Dynamic::DescriptorOptionsDef} gpd::intr::DescriptorOptionsWrapper {
+    bool deprecated();
 };
 
 %name{Google::ProtocolBuffers::Dynamic::OneofDef} class google::protobuf::OneofDescriptor {
@@ -139,6 +180,13 @@
     const Google::ProtocolBuffers::Dynamic::MessageDef *containing_type() const;
 
     bool is_synthetic() const;
+
+    const Google::ProtocolBuffers::Dynamic::OneofOptionsDef *options() const %code%{
+        RETVAL = gpd::intr::options_make_wrapper<gpd::intr::OneofOptionsWrapper>(aTHX_ THIS);
+    %};
+};
+
+%name{Google::ProtocolBuffers::Dynamic::OneofOptionsDef} class gpd::intr::OneofOptionsWrapper : public %name{Google::ProtocolBuffers::Dynamic::DescriptorOptionsDef} gpd::intr::DescriptorOptionsWrapper {
 };
 
 %name{Google::ProtocolBuffers::Dynamic::EnumDef} class google::protobuf::EnumDescriptor {
@@ -181,6 +229,14 @@
 
         RETVAL = newRV_noinc((SV *) values);
     %};
+
+    const Google::ProtocolBuffers::Dynamic::EnumOptionsDef *options() const %code%{
+        RETVAL = gpd::intr::options_make_wrapper<gpd::intr::EnumOptionsWrapper>(aTHX_ THIS);
+    %};
+};
+
+%name{Google::ProtocolBuffers::Dynamic::EnumOptionsDef} class gpd::intr::EnumOptionsWrapper : public %name{Google::ProtocolBuffers::Dynamic::DescriptorOptionsDef} gpd::intr::DescriptorOptionsWrapper {
+    bool deprecated();
 };
 
 %name{Google::ProtocolBuffers::Dynamic::ServiceDef} class google::protobuf::ServiceDescriptor {
@@ -199,6 +255,14 @@
 
         RETVAL = newRV_noinc((SV*) methods);
     %};
+
+    const Google::ProtocolBuffers::Dynamic::ServiceOptionsDef *options() const %code%{
+        RETVAL = gpd::intr::options_make_wrapper<gpd::intr::ServiceOptionsWrapper>(aTHX_ THIS);
+    %};
+};
+
+%name{Google::ProtocolBuffers::Dynamic::ServiceOptionsDef} class gpd::intr::ServiceOptionsWrapper : public %name{Google::ProtocolBuffers::Dynamic::DescriptorOptionsDef} gpd::intr::DescriptorOptionsWrapper {
+    bool deprecated();
 };
 
 %name{Google::ProtocolBuffers::Dynamic::MethodDef} class google::protobuf::MethodDescriptor {
@@ -211,6 +275,14 @@
 
     bool client_streaming();
     bool server_streaming();
+
+    const Google::ProtocolBuffers::Dynamic::MethodOptionsDef *options() const %code%{
+        RETVAL = gpd::intr::options_make_wrapper<gpd::intr::MethodOptionsWrapper>(aTHX_ THIS);
+    %};
+};
+
+%name{Google::ProtocolBuffers::Dynamic::MethodOptionsDef} class gpd::intr::MethodOptionsWrapper : public %name{Google::ProtocolBuffers::Dynamic::DescriptorOptionsDef} gpd::intr::DescriptorOptionsWrapper {
+    bool deprecated();
 };
 
 %package{Google::ProtocolBuffers::Dynamic::Mapper};
