@@ -42,6 +42,28 @@
     %xs_type{O_OBJECT};
 };
 
+%{
+
+#define GPD_INTROSPECTION_RETURN_ARRAY(descriptor_field, package)   \
+        int count = THIS->descriptor_field ## _count();         \
+        AV *array = newAV();                                    \
+                                                                \
+        av_extend(array, count);                                \
+        for (int i = 0; i < count; ++i) {                       \
+            SV *item = newSV(0);                                \
+                                                                \
+            sv_setref_iv(                                       \
+                item,                                           \
+                "Google::ProtocolBuffers::Dynamic::" #package,  \
+                (IV) THIS->descriptor_field(i)                  \
+            );;                                                 \
+            av_push(array, item);                               \
+        }                                                       \
+                                                                \
+        RETVAL = newRV_noinc((SV*) array);
+
+%}
+
 %name{Google::ProtocolBuffers::Dynamic::DescriptorOptionsDef} class gpd::intr::DescriptorOptionsWrapper {
     ~DescriptorOptionsWrapper();
 
@@ -61,29 +83,11 @@
     %name{find_oneof_by_name} const Google::ProtocolBuffers::Dynamic::OneofDef *FindOneofByName(const std::string &name) const;
 
     SV* fields() const %code{%
-        AV *fields = newAV();
-
-        for (int i = 0, count = THIS->field_count(); i < count; ++i) {
-            SV *field = newSV(0);
-
-            sv_setref_iv(field, "Google::ProtocolBuffers::Dynamic::FieldDef", (IV) THIS->field(i));;
-            av_push(fields, field);
-        }
-
-        RETVAL = newRV_noinc((SV*) fields);
+        GPD_INTROSPECTION_RETURN_ARRAY(field, FieldDef);
     %};
 
     SV* oneofs() const %code{%
-        AV *oneofs = newAV();
-
-        for (int i = 0, count = THIS->oneof_decl_count(); i < count; ++i) {
-            SV *field = newSV(0);
-
-            sv_setref_iv(field, "Google::ProtocolBuffers::Dynamic::OneofDef", (IV) THIS->oneof_decl(i));
-            av_push(oneofs, field);
-        }
-
-        RETVAL = newRV_noinc((SV*) oneofs);
+        GPD_INTROSPECTION_RETURN_ARRAY(oneof_decl, OneofDef);
     %};
 
     bool is_map_entry() const %code{%
@@ -165,16 +169,7 @@
     %};
 
     SV* fields() const %code{%
-        AV *fields = newAV();
-
-        for (int i = 0, max = THIS->field_count(); i < max; ++i) {
-            SV *field = newSV(0);
-
-            sv_setref_iv(field, "Google::ProtocolBuffers::Dynamic::FieldDef", (IV) THIS->field(i));
-            av_push(fields, field);
-        }
-
-        RETVAL = newRV_noinc((SV*) fields);
+        GPD_INTROSPECTION_RETURN_ARRAY(field, FieldDef);
     %};
 
     const Google::ProtocolBuffers::Dynamic::MessageDef *containing_type() const;
@@ -244,16 +239,7 @@
     std::string full_name();
 
     SV* methods() const %code{%
-        AV *methods = newAV();
-
-        for (int i = 0, max = THIS->method_count(); i < max; ++i) {
-            SV *method = newSV(0);
-
-            sv_setref_iv(method, "Google::ProtocolBuffers::Dynamic::MethodDef", (IV) THIS->method(i));
-            av_push(methods, method);
-        }
-
-        RETVAL = newRV_noinc((SV*) methods);
+        GPD_INTROSPECTION_RETURN_ARRAY(method, MethodDef);
     %};
 
     const Google::ProtocolBuffers::Dynamic::ServiceOptionsDef *options() const %code%{
