@@ -38,6 +38,13 @@ DescriptorLoader::DescriptorLoader(SourceTree *source_tree,
         merged_pool(&merged_source_binary_database, source_database.GetValidationErrorCollector()) {
     merged_pool.EnforceWeakDependencies(true);
     source_database.RecordErrorsTo(error_collector);
+
+    // make sure the descriptors are available in the generated pool (doing this for one descriptor
+    // pulls in all the descriptors in the same file)
+    Duration::descriptor();
+    Timestamp::descriptor();
+    FloatValue::descriptor();
+    DescriptorProto::descriptor();
 }
 
 DescriptorLoader::~DescriptorLoader() { }
