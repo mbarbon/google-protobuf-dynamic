@@ -8,6 +8,7 @@
 using namespace gpd;
 using namespace gpd::intr;
 using namespace google::protobuf;
+using namespace std;
 
 ValueType gpd::intr::field_value_type(const FieldDescriptor *field_def) {
     using CppType = FieldDescriptor::CppType;
@@ -64,7 +65,7 @@ SV *gpd::intr::field_default_value(pTHX_ const FieldDescriptor *field_def) {
     case CppType::CPPTYPE_BOOL:
         return field_def->default_value_bool() ? &PL_sv_yes : &PL_sv_no;
     case CppType::CPPTYPE_STRING: {
-        const std::string &value = field_def->default_value_string();
+        const string &value = field_def->default_value_string();
         SV *result = newSVpv(value.data(), value.length());
 
         if (field_def->type() == Type::TYPE_STRING)
@@ -105,7 +106,7 @@ const FieldDescriptor *gpd::intr::oneof_find_field_by_number(const OneofDescript
     return field_def->containing_oneof() == oneof_def ? field_def : NULL;
 }
 
-const FieldDescriptor *gpd::intr::oneof_find_field_by_name(const OneofDescriptor *oneof_def, const std::string &name) {
+const FieldDescriptor *gpd::intr::oneof_find_field_by_name(const OneofDescriptor *oneof_def, const string &name) {
     const FieldDescriptor *field_def = oneof_def->containing_type()->FindFieldByName(name);
 
     return field_def->containing_oneof() == oneof_def ? field_def : NULL;
@@ -130,7 +131,7 @@ bool gpd::intr::options_make_wrapper(const DescriptorPool *descriptor_pool, cons
     // calling options_def.GetDescriptor() will return a different descriptor
     // pointer (from the generated pool, I think) than looking the descriptor
     // up in the merged pool, and the extensions are associated with the latter
-    const std::string &options_name = options_def.GetDescriptor()->full_name();
+    const string &options_name = options_def.GetDescriptor()->full_name();
     const Descriptor *options_descriptor = descriptor_pool->FindMessageTypeByName(options_name);
 
     // creating a new DynamicFactory every time is wastful, but this code
@@ -200,7 +201,7 @@ SV *DescriptorOptionsWrapper::get_field(const FieldDescriptor *field) {
     case CppType::CPPTYPE_BOOL:
         return reflection->GetBool(*options, field) ? &PL_sv_yes : &PL_sv_no;
     case CppType::CPPTYPE_STRING: {
-        const std::string &value = reflection->GetString(*options, field);
+        const string &value = reflection->GetString(*options, field);
         SV *result = newSVpv(value.data(), value.length());
 
         if (field->type() == Type::TYPE_STRING)
