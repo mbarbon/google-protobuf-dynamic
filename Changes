@@ -2,6 +2,10 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.41_11   2023-01-24 11:44:03 CET
+
+    - Compilation fix
+
 0.41_10   2023-01-24 10:52:32 CET
 
     - Initial support for reading options via the introspection API
