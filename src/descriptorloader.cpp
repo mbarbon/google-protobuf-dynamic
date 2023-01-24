@@ -31,12 +31,11 @@ void DescriptorLoader::ErrorCollector::AddWarning(const string &filename, const 
 
 DescriptorLoader::DescriptorLoader(SourceTree *source_tree,
                                    MultiFileErrorCollector *error_collector) :
-        source_database(source_tree),
-        binary_database(binary_pool),
         generated_database(*DescriptorPool::generated_pool()),
+        source_database(source_tree, &generated_database),
+        binary_database(binary_pool),
         merged_source_binary_database(&binary_database, &source_database),
-        merged_generated_source_binary_database(&generated_database, &merged_source_binary_database),
-        merged_pool(&merged_generated_source_binary_database, source_database.GetValidationErrorCollector()) {
+        merged_pool(&merged_source_binary_database, source_database.GetValidationErrorCollector()) {
     merged_pool.EnforceWeakDependencies(true);
     source_database.RecordErrorsTo(error_collector);
 }
