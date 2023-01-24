@@ -25,6 +25,7 @@
 };
 
 %name{Google::ProtocolBuffers::Dynamic::MessageDef} class google::protobuf::Descriptor {
+    std::string name();
     std::string full_name() const;
 
     int field_count() const;
@@ -68,6 +69,7 @@
 %name{Google::ProtocolBuffers::Dynamic::FieldDef} class google::protobuf::FieldDescriptor {
     std::string name() const;
     std::string full_name() const;
+
     uint32_t number() const;
     bool is_extension() const;
     int label();
@@ -109,6 +111,7 @@
 
 %name{Google::ProtocolBuffers::Dynamic::OneofDef} class google::protobuf::OneofDescriptor {
     std::string name() const;
+    std::string full_name() const;
 
     int field_count();
 
@@ -139,6 +142,7 @@
 };
 
 %name{Google::ProtocolBuffers::Dynamic::EnumDef} class google::protobuf::EnumDescriptor {
+    std::string name();
     std::string full_name() const;
 
     int default_value() const %code%{
@@ -180,6 +184,7 @@
 };
 
 %name{Google::ProtocolBuffers::Dynamic::ServiceDef} class google::protobuf::ServiceDescriptor {
+    std::string name();
     std::string full_name();
 
     SV* methods() const %code{%

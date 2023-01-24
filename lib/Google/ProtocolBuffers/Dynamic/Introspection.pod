@@ -13,7 +13,7 @@
 
 =head1 DESCRIPTION
 
-A simple introspection API wrapping uPB descriptor API.
+Introspection API wrapping Protocol Buffers descriptor API.
 
 Note that this API does not respect referential integrity; for example
 this snippet
@@ -26,7 +26,7 @@ this snippet
 
 C<die()>s because even if C<$message_def> and C<$containing_def>
 represent the same underlying entity, their are two distinct objects
-in Perl. This is true for all methods below returning an object.
+in Perl. This is true for all methods returning an object.
 
 The same applies to multiple invocations of the same method, for example
 
@@ -37,6 +37,12 @@ The same applies to multiple invocations of the same method, for example
     die "Oops" if $field_def != $field_def_again;
 
 =head1 Google::ProtocolBuffers::Dynamic::MessageDef
+
+=head2 name
+
+    $name = $message_def->name;
+
+The short name of this message (the one used in the message definition).
 
 =head2 full_name
 
@@ -97,8 +103,8 @@ The short name of this field (the one used in the message definition).
 
     $name = $field_def->full_name;
 
-Same as C<name> for regular fields, returns the fully-qualified name
-for extension fields.
+The fully-qualified name of this field (including package and outer
+messages).
 
 =head2 number
 
@@ -182,13 +188,14 @@ Returns whether the field supports L<field presence|https://github.com/protocolb
 
     $name = $oneof_def->name;
 
-The short name of this field (the one used in the message definition).
+The short name of this oneof (the one used in the message definition).
 
 =head2 full_name
 
     $name = $oneof_def->full_name;
 
-Same as C<name>.
+The fully-qualified name of this oneof (including package and outer
+messages).
 
 =head2 field_count
 
@@ -229,6 +236,12 @@ C<optional> implementation.
 
 =head1 Google::ProtocolBuffers::Dynamic::EnumDef
 
+=head2 name
+
+    $name = $enum_def->name;
+
+The short name of this enum (the one used in the message definition).
+
 =head2 full_name
 
     $name = $enum_def->full_name;
@@ -263,6 +276,12 @@ Returns a hash reference containing all name/value pairs for this
 enum.
 
 =head1 Google::ProtocolBuffers::Dynamic::ServiceDef
+
+=head2 name
+
+    $name = $service_def->name;
+
+The short name of this service (the one used in the message definition).
 
 =head2 full_name
 
