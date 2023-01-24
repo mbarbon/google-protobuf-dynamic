@@ -2,6 +2,11 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.41_10   2023-01-24 10:52:32 CET
+
+    - Initial support for reading options via the introspection API
+    - Re-implemented introspection API (as part of other changes)
+
 0.41_09   2022-12-07 10:55:52 CET
 
     - Fix per-mapping parameters in protoc plugin
