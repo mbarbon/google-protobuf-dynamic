@@ -2,6 +2,10 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.41_13   2023-01-24 20:00:10 CET
+
+    - Actual fix for WKT test failure
+
 0.41_12   2023-01-24 17:34:38 CET
 
     - Blind fix for WKT test failure
