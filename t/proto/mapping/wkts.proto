@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
+import "google/protobuf/descriptor.proto";
+
+package wkts;
+
+message TestWKTs {
+    google.protobuf.DescriptorProto descriptor_f = 1;
+    google.protobuf.Timestamp timestamp_f = 2;
+    google.protobuf.Duration duration_f = 3;
+    google.protobuf.DoubleValue double_f = 4;
+}

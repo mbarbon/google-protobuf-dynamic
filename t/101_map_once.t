@@ -30,7 +30,9 @@ my ($mapping1_file, $mapping1_line, $mapping2_file, $mapping2_line);
     my $d = Google::ProtocolBuffers::Dynamic->new('t/proto/mapping');
 
     $d->load_file("test1.proto");
-    $d->map({ package => 'test1', prefix => 'Test1_1' }); BEGIN { ($mapping1_file, $mapping1_line) = (__FILE__, __LINE__) }
+    warning_is(sub {
+        $d->map({ package => 'test1', prefix => 'Test1_1' }); BEGIN { ($mapping1_file, $mapping1_line) = (__FILE__, __LINE__) }
+    }, undef);
 }
 
 {
@@ -40,6 +42,26 @@ my ($mapping1_file, $mapping1_line, $mapping2_file, $mapping2_line);
     throws_ok(sub {
         $d->map({ package => 'test1', prefix => 'Test1_1' }); BEGIN { ($mapping2_file, $mapping2_line) = (__FILE__, __LINE__) }
     }, qr/Package 'Test1_1::Message1' is being remapped from $mapping2_file line $mapping2_line but has already been mapped from $mapping1_file line $mapping1_line/, 'better file/line numbers from ->map');
+}
+
+{
+    my $d = Google::ProtocolBuffers::Dynamic->new('t/proto/mapping');
+
+    $d->load_file("wkts.proto");
+
+    warning_is(sub {
+        $d->map({ package => 'wkts', prefix => 'WKTs_1' })
+    }, undef);
+}
+
+{
+    my $d = Google::ProtocolBuffers::Dynamic->new('t/proto/mapping');
+
+    $d->load_file("wkts.proto");
+
+    warning_is(sub {
+        $d->map({ package => 'wkts', prefix => 'WKTs_2' });
+    }, undef);
 }
 
 done_testing();

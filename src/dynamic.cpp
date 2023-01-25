@@ -487,6 +487,7 @@ void Dynamic::mark_package(pTHX_ const string &perl_package, SV *stack_trace) {
 
 void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl_package, const MappingOptions &options) {
     bool define_perl_names = !options.no_redefine_perl_names || gv_stashpvn(perl_package.data(), perl_package.size(), 0) == NULL;
+
     if (define_perl_names)
         check_package(aTHX_ perl_package, descriptor->full_name());
     if (descriptor_map.find(descriptor->full_name()) != descriptor_map.end())
@@ -630,13 +631,21 @@ void Dynamic::bind_message(pTHX_ const string &perl_package, Mapper *mapper, con
 }
 
 void Dynamic::map_enum(pTHX_ const EnumDescriptor *descriptor, const string &perl_package, const MappingOptions &options) {
-    check_package(aTHX_ perl_package, descriptor->full_name());
+    bool define_perl_names = !options.no_redefine_perl_names || gv_stashpvn(perl_package.data(), perl_package.size(), 0) == NULL;
+
+    if (define_perl_names)
+        check_package(aTHX_ perl_package, descriptor->full_name());
     if (mapped_enums.find(descriptor->full_name()) != mapped_enums.end())
         croak("Enum '%s' has already been mapped", descriptor->full_name().c_str());
 
     mapped_enums.insert(descriptor->full_name());
     mark_package(aTHX_ perl_package, options.stack_trace);
 
+    if (define_perl_names)
+        bind_enum(aTHX_ perl_package, descriptor, options);
+}
+
+void Dynamic::bind_enum(pTHX_ const string &perl_package, const EnumDescriptor *descriptor, const MappingOptions &options) {
     HV *stash = gv_stashpvn(perl_package.data(), perl_package.size(), GV_ADD);
 
     copy_and_bind(aTHX_ "enum_descriptor", perl_package, this, const_cast<EnumDescriptor *>(descriptor));
@@ -653,13 +662,21 @@ void Dynamic::map_service(pTHX_ const ServiceDescriptor *descriptor, const strin
     if (options.client_services == MappingOptions::Disable)
         return;
 
-    check_package(aTHX_ perl_package, descriptor->full_name());
+    bool define_perl_names = !options.no_redefine_perl_names || gv_stashpvn(perl_package.data(), perl_package.size(), 0) == NULL;
+
+    if (define_perl_names)
+        check_package(aTHX_ perl_package, descriptor->full_name());
     if (mapped_services.find(descriptor->full_name()) != mapped_services.end())
         croak("Service '%s' has already been mapped", descriptor->full_name().c_str());
 
     mapped_services.insert(descriptor->full_name());
     mark_package(aTHX_ perl_package, options.stack_trace);
 
+    if (define_perl_names)
+        bind_service(aTHX_ perl_package, descriptor, options);
+}
+
+void Dynamic::bind_service(pTHX_ const string &perl_package, const ServiceDescriptor *descriptor, const MappingOptions &options) {
     ServiceDef *service_def = new ServiceDef(descriptor->full_name());
 
     switch (options.client_services) {
