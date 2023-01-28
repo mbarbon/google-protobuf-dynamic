@@ -3,14 +3,11 @@
 
 #include "perl_unpollute.h"
 
-#include <google/protobuf/compiler/importer.h>
-
 #include "upb/bridge.h"
 
 #include "pb/decoder.h"
 
 #include "descriptorloader.h"
-#include "sourcetree.h"
 #include "ref.h"
 
 #include "unordered_map.h"
@@ -70,10 +67,6 @@ struct MappingOptions {
 };
 
 class Dynamic : public Refcounted {
-    class CollectErrors : public google::protobuf::compiler::MultiFileErrorCollector {
-        virtual void AddError(const std::string &filename, int line, int column, const std::string &message);
-    };
-
 public:
     Dynamic(const std::string &root_directory);
     ~Dynamic();
@@ -118,12 +111,8 @@ private:
     void mark_package(pTHX_ const std::string &perl_package, SV *stack_trace);
     std::string pbname_to_package(pTHX_ const std::string &pb_name, const std::string &perl_package_prefix);
 
-    OverlaySourceTree overlay_source_tree;
     DescriptorLoader descriptor_loader;
-    google::protobuf::compiler::DiskSourceTree disk_source_tree;
-    MemorySourceTree memory_source_tree;
     upb::googlepb::DefBuilder def_builder;
-    CollectErrors die_on_error;
     STD_TR1::unordered_map<std::string, const Mapper *> descriptor_map;
     STD_TR1::unordered_set<std::string> mapped_enums;
     STD_TR1::unordered_set<std::string> mapped_services;

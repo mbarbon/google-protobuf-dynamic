@@ -37,10 +37,6 @@ namespace {
     }
 }
 
-void Dynamic::CollectErrors::AddError(const string &filename, int line, int column, const string &message) {
-    croak("Error during protobuf parsing: %s:%d:%d: %s", filename.c_str(), line, column, message.c_str());
-}
-
 MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
         use_bigints(sizeof(IV) < sizeof(int64_t)),
         check_required_fields(true),
@@ -129,10 +125,9 @@ MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
 }
 
 Dynamic::Dynamic(const string &root_directory) :
-        overlay_source_tree(&memory_source_tree, &disk_source_tree),
-        descriptor_loader(&overlay_source_tree, &die_on_error) {
+        descriptor_loader() {
     if (!root_directory.empty())
-        disk_source_tree.MapPath("", root_directory);
+        descriptor_loader.map_disk_path("", root_directory);
 }
 
 Dynamic::~Dynamic() {
@@ -158,7 +153,7 @@ void Dynamic::load_string(pTHX_ const string &file, SV *sv) {
     const char *data = SvPV(sv, len);
     string actual_file = file.empty() ? "<string>" : file;
 
-    memory_source_tree.AddFile(actual_file, data, len);
+    descriptor_loader.add_memory_file(actual_file, data, len);
     load_file(aTHX_ actual_file);
 }
 
