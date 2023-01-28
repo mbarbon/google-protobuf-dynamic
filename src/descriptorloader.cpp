@@ -14,6 +14,43 @@ using namespace google::protobuf;
 using namespace gpd;
 using namespace std;
 
+namespace {
+    void PerlLogHandler(LogLevel level, const char *filename, int line,
+                        const std::string &message) {
+        const char *level_str = NULL;
+
+        switch (level) {
+        case LOGLEVEL_WARNING:
+            level_str = "";
+            break;
+        case LOGLEVEL_ERROR:
+            level_str = " error";
+            break;
+        case LOGLEVEL_FATAL:
+            level_str = " fatal error";
+            break;
+        default:
+            return;
+        }
+
+        warn("protobuf%s: %s [%s:%d]", level_str, message.c_str(), filename, line);
+    }
+
+    class CaptureWarnings {
+    public:
+        CaptureWarnings() {
+            previous = SetLogHandler(PerlLogHandler);
+        }
+
+        ~CaptureWarnings() {
+            SetLogHandler(previous);
+        }
+
+    private:
+        LogHandler *previous;
+    };
+}
+
 void DescriptorLoader::CollectMultiFileErrors::AddError(const string &filename, int line, int column, const string &message) {
     if (!errors.empty())
         errors += "\n";
@@ -75,10 +112,13 @@ DescriptorLoader::DescriptorLoader() :
 DescriptorLoader::~DescriptorLoader() { }
 
 const FileDescriptor *DescriptorLoader::load_proto(const string &filename) {
+    CaptureWarnings capture_warnings;
+
     return merged_pool.FindFileByName(filename);
 }
 
 const vector<const FileDescriptor *> DescriptorLoader::load_serialized(const char *buffer, size_t length) {
+    CaptureWarnings capture_warnings;
     FileDescriptorSet fds;
     DescriptorLoader::ErrorCollector collector;
 
