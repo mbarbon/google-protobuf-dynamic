@@ -76,26 +76,10 @@ void DescriptorLoader::CollectMultiFileErrors::maybe_croak() {
     croak("%s", copy.c_str());
 }
 
-void DescriptorLoader::ErrorCollector::AddError(const string &filename, const string &element_name, const Message *descriptor, DescriptorPool::ErrorCollector::ErrorLocation location, const string &message) {
-    if (!errors.empty())
-        errors += "\n";
-
-    errors +=
-        "Error processing serialized protobuf descriptor: " +
-        filename +
-        ": " +
-        message;
-}
-
-void DescriptorLoader::ErrorCollector::AddWarning(const string &filename, const string &element_name, const Message *descriptor, DescriptorPool::ErrorCollector::ErrorLocation location, const string &message) {
-    warn("Processing serialized protobuf descriptor: %s: %s", filename.c_str(), message.c_str());
-}
-
 DescriptorLoader::DescriptorLoader() :
         overlay_source_tree(&memory_source_tree, &disk_source_tree),
         generated_database(*DescriptorPool::generated_pool()),
         source_database(&overlay_source_tree, &generated_database),
-        binary_database(binary_pool),
         merged_source_binary_database(&binary_database, &source_database),
         merged_pool(&merged_source_binary_database, source_database.GetValidationErrorCollector()) {
     merged_pool.EnforceWeakDependencies(true);
@@ -120,17 +104,22 @@ const FileDescriptor *DescriptorLoader::load_proto(const string &filename) {
 const vector<const FileDescriptor *> DescriptorLoader::load_serialized(const char *buffer, size_t length) {
     CaptureWarnings capture_warnings;
     FileDescriptorSet fds;
-    DescriptorLoader::ErrorCollector collector;
 
     if (!fds.ParseFromArray(buffer, length))
         croak("Error deserializing message descriptors");
     vector<const FileDescriptor *> result;
 
-    for (int i = 0, max = fds.file_size(); i < max; ++i)
-        result.push_back(binary_pool.BuildFileCollectingErrors(fds.file(i), &collector));
+    for (int i = 0, max = fds.file_size(); i < max; ++i) {
+        const FileDescriptorProto &file = fds.file(i);
 
-    if (!collector.errors.empty())
-        croak("%s", collector.errors.c_str());
+        if (!binary_database.Add(file))
+            break;
+
+        const FileDescriptor *file_def = merged_pool.FindFileByName(file.name());
+        if (file_def == NULL)
+            break;
+        result.push_back(file_def);
+    }
 
     return result;
 }

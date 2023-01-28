@@ -22,14 +22,6 @@ class DescriptorLoader {
         std::string errors;
     };
 
-    class ErrorCollector : public google::protobuf::DescriptorPool::ErrorCollector {
-    public:
-        virtual void AddError(const std::string &filename, const std::string &element_name, const google::protobuf::Message *descriptor, google::protobuf::DescriptorPool::ErrorCollector::ErrorLocation location, const std::string &message);
-        virtual void AddWarning(const std::string &filename, const std::string &element_name, const google::protobuf::Message *descriptor, google::protobuf::DescriptorPool::ErrorCollector::ErrorLocation location, const std::string &message);
-
-        std::string errors;
-    };
-
 public:
     DescriptorLoader();
     ~DescriptorLoader();
@@ -59,10 +51,10 @@ private:
     MemorySourceTree memory_source_tree;
     google::protobuf::compiler::DiskSourceTree disk_source_tree;
     google::protobuf::compiler::SourceTreeDescriptorDatabase source_database;
-    google::protobuf::DescriptorPoolDatabase binary_database;
+    google::protobuf::SimpleDescriptorDatabase binary_database;
     google::protobuf::DescriptorPoolDatabase generated_database;
     google::protobuf::MergedDescriptorDatabase merged_source_binary_database;
-    google::protobuf::DescriptorPool binary_pool, merged_pool;
+    google::protobuf::DescriptorPool merged_pool;
 };
 
 }
