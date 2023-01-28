@@ -15,7 +15,28 @@ using namespace gpd;
 using namespace std;
 
 void DescriptorLoader::CollectMultiFileErrors::AddError(const string &filename, int line, int column, const string &message) {
-    croak("Error during protobuf parsing: %s:%d:%d: %s", filename.c_str(), line, column, message.c_str());
+    if (!errors.empty())
+        errors += "\n";
+
+    errors +=
+        "Error during protobuf parsing: " +
+        filename + ":" + to_string(line) + ":" + to_string(column) + ": " +
+        message;
+}
+
+void DescriptorLoader::CollectMultiFileErrors::AddWarning(const string &filename, int line, int column, const string &message) {
+    // seems to never be called, warnings go to log
+    warn("Parsing protobuf file: %s:%d:%d: %s", filename.c_str(), line, column, message.c_str());
+}
+
+void DescriptorLoader::CollectMultiFileErrors::maybe_croak() {
+    if (errors.empty())
+        return;
+
+    string copy = errors;
+
+    errors.clear();
+    croak("%s", copy.c_str());
 }
 
 void DescriptorLoader::ErrorCollector::AddError(const string &filename, const string &element_name, const Message *descriptor, DescriptorPool::ErrorCollector::ErrorLocation location, const string &message) {

@@ -12,7 +12,14 @@ namespace gpd {
 // a reimplementation of Importer, with a different DescriptorPool
 class DescriptorLoader {
     class CollectMultiFileErrors : public google::protobuf::compiler::MultiFileErrorCollector {
+    public:
         virtual void AddError(const std::string &filename, int line, int column, const std::string &message);
+        virtual void AddWarning(const std::string &filename, int line, int column, const std::string &message);
+
+        void maybe_croak();
+
+    private:
+        std::string errors;
     };
 
     class ErrorCollector : public google::protobuf::DescriptorPool::ErrorCollector {
@@ -40,6 +47,10 @@ public:
 
     void add_memory_file(const std::string &file_name, const char *data, size_t length) {
         memory_source_tree.AddFile(file_name, data, length);
+    }
+
+    void maybe_croak() {
+        multifile_error_collector.maybe_croak();
     }
 
 private:

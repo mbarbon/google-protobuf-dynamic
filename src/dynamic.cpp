@@ -146,6 +146,7 @@ void Dynamic::load_file(pTHX_ const string &file) {
 
     if (loaded)
         add_file_recursively(aTHX_ loaded);
+    descriptor_loader.maybe_croak();
 }
 
 void Dynamic::load_string(pTHX_ const string &file, SV *sv) {
@@ -164,6 +165,7 @@ void Dynamic::load_serialized_string(pTHX_ SV *sv) {
 
     for (vector<const FileDescriptor *>::const_iterator it = loaded.begin(), en = loaded.end(); it != en; ++it)
         add_file_recursively(aTHX_ *it);
+    descriptor_loader.maybe_croak();
 }
 
 void Dynamic::map_wkts(pTHX_ const MappingOptions &options) {
