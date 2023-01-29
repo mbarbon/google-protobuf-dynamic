@@ -20,6 +20,8 @@ class ServiceDescriptor;
 class ServiceOptions;
 class MethodDescriptor;
 class MethodOptions;
+class FileDescriptor;
+class FileOptions;
 class DescriptorPool;
 class DynamicMessageFactory;
 }
@@ -138,6 +140,12 @@ class MethodOptionsWrapper : public DescriptorOptionsWrapper {
     bool deprecated();
 };
 
+class FileOptionsWrapper : public DescriptorOptionsWrapper {
+    OPTIONS_WRAPPER_SCAFFOLDING(File);
+
+    bool deprecated();
+};
+
 #undef OPTIONS_WRAPPER_SCAFFOLDING
 
 }
@@ -159,6 +167,8 @@ namespace Google {
             typedef gpd::intr::ServiceOptionsWrapper ServiceOptionsDef;
             typedef google::protobuf::MethodDescriptor MethodDef;
             typedef gpd::intr::MethodOptionsWrapper MethodOptionsDef;
+            typedef google::protobuf::FileDescriptor FileDef;
+            typedef gpd::intr::FileOptionsWrapper FileOptionsDef;
         }
     }
 }

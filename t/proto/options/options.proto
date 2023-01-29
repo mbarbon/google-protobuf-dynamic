@@ -4,6 +4,10 @@ import "google/protobuf/descriptor.proto";
 
 package options;
 
+extend google.protobuf.FileOptions {
+    int32 file_int32 = 51234;
+}
+
 extend google.protobuf.MessageOptions {
     string msg_string  = 51234;
     sint32 msg_integer = 51235;

@@ -27,4 +27,12 @@ $d->map({ package => 'test', prefix => 'Test' });
     is($options->custom_option_by_name('options.fld_integer'), 0);
 }
 
+{
+    my $message = Test::MessageWithOptions->message_descriptor();
+    my $file = $message->file;
+    my $options = $file->options;
+
+    is($options->custom_option_by_name('options.file_int32'), 7);
+}
+
 done_testing();

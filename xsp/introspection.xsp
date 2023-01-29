@@ -41,6 +41,12 @@
 %typemap{const Google::ProtocolBuffers::Dynamic::MethodOptionsDef *}{simple}{
     %xs_type{O_OBJECT};
 };
+%typemap{const Google::ProtocolBuffers::Dynamic::FileDef *}{simple}{
+    %xs_type{O_OBJECT};
+};
+%typemap{const Google::ProtocolBuffers::Dynamic::FileOptionsDef *}{simple}{
+    %xs_type{O_OBJECT};
+};
 
 %{
 
@@ -94,6 +100,8 @@
         RETVAL = THIS->options().map_entry();
     %};
 
+    const Google::ProtocolBuffers::Dynamic::FileDef *file() const;
+
     const Google::ProtocolBuffers::Dynamic::MessageOptionsDef *options() const %code%{
         RETVAL = gpd::intr::options_make_wrapper<gpd::intr::MessageOptionsWrapper>(aTHX_ THIS);
     %};
@@ -145,6 +153,8 @@
 
     bool has_presence() const;
 
+    const Google::ProtocolBuffers::Dynamic::FileDef *file() const;
+
     const Google::ProtocolBuffers::Dynamic::FieldOptionsDef *options() const %code%{
         RETVAL = gpd::intr::options_make_wrapper<gpd::intr::FieldOptionsWrapper>(aTHX_ THIS);
     %};
@@ -175,6 +185,8 @@
     const Google::ProtocolBuffers::Dynamic::MessageDef *containing_type() const;
 
     bool is_synthetic() const;
+
+    const Google::ProtocolBuffers::Dynamic::FileDef *file() const;
 
     const Google::ProtocolBuffers::Dynamic::OneofOptionsDef *options() const %code%{
         RETVAL = gpd::intr::options_make_wrapper<gpd::intr::OneofOptionsWrapper>(aTHX_ THIS);
@@ -225,6 +237,8 @@
         RETVAL = newRV_noinc((SV *) values);
     %};
 
+    const Google::ProtocolBuffers::Dynamic::FileDef *file() const;
+
     const Google::ProtocolBuffers::Dynamic::EnumOptionsDef *options() const %code%{
         RETVAL = gpd::intr::options_make_wrapper<gpd::intr::EnumOptionsWrapper>(aTHX_ THIS);
     %};
@@ -241,6 +255,8 @@
     SV* methods() const %code{%
         GPD_INTROSPECTION_RETURN_ARRAY(method, MethodDef);
     %};
+
+    const Google::ProtocolBuffers::Dynamic::FileDef *file() const;
 
     const Google::ProtocolBuffers::Dynamic::ServiceOptionsDef *options() const %code%{
         RETVAL = gpd::intr::options_make_wrapper<gpd::intr::ServiceOptionsWrapper>(aTHX_ THIS);
@@ -262,6 +278,8 @@
     bool client_streaming();
     bool server_streaming();
 
+    const Google::ProtocolBuffers::Dynamic::FileDef *file() const;
+
     const Google::ProtocolBuffers::Dynamic::MethodOptionsDef *options() const %code%{
         RETVAL = gpd::intr::options_make_wrapper<gpd::intr::MethodOptionsWrapper>(aTHX_ THIS);
     %};
@@ -271,9 +289,55 @@
     bool deprecated();
 };
 
+%name{Google::ProtocolBuffers::Dynamic::FileDef} class google::protobuf::FileDescriptor {
+    std::string name();
+
+    std::string package();
+
+    SV* dependencies() const %code{%
+        GPD_INTROSPECTION_RETURN_ARRAY(dependency, FileDef);
+    %};
+
+    SV* public_dependencies() const %code{%
+        GPD_INTROSPECTION_RETURN_ARRAY(public_dependency, FileDef);
+    %};
+
+    SV* messages() const %code{%
+        GPD_INTROSPECTION_RETURN_ARRAY(message_type, MessageDef);
+    %};
+
+    SV* enums() const %code{%
+        GPD_INTROSPECTION_RETURN_ARRAY(enum_type, EnumDef);
+    %};
+
+    SV* services() const %code{%
+        GPD_INTROSPECTION_RETURN_ARRAY(service, ServiceDef);
+    %};
+
+    SV* extensions() const %code{%
+        GPD_INTROSPECTION_RETURN_ARRAY(extension, FieldDef);
+    %};
+
+    const Google::ProtocolBuffers::Dynamic::FileOptionsDef *options() const %code%{
+        google::protobuf::DynamicMessageFactory *factory;
+        google::protobuf::Message *options_dyn;
+
+        RETVAL = NULL;
+        if (gpd::intr::options_make_wrapper(THIS->pool(), THIS->options(), &factory, &options_dyn)) {
+            RETVAL = new gpd::intr::FileOptionsWrapper(aTHX_ factory, options_dyn, &THIS->options());
+        }
+    %};
+};
+
+%name{Google::ProtocolBuffers::Dynamic::FileOptionsDef} class gpd::intr::FileOptionsWrapper : public %name{Google::ProtocolBuffers::Dynamic::DescriptorOptionsDef} gpd::intr::DescriptorOptionsWrapper {
+    bool deprecated();
+};
+
 %package{Google::ProtocolBuffers::Dynamic::Mapper};
 
 %{
+
+#undef GPD_INTROSPECTION_RETURN_ARRAY
 
 const Google::ProtocolBuffers::Dynamic::MessageDef*
 message_descriptor(SV *klass)

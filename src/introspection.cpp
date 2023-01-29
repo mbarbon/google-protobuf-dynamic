@@ -251,6 +251,10 @@ bool MethodOptionsWrapper::deprecated() {
     return options->deprecated();
 }
 
+bool FileOptionsWrapper::deprecated() {
+    return options->deprecated();
+}
+
 #if PERL_VERSION < 10
     #undef  newCONSTSUB
     #define newCONSTSUB(a, b,c) Perl_newCONSTSUB(aTHX_ a, const_cast<char *>(b), c)

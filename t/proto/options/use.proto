@@ -4,6 +4,8 @@ import "options.proto";
 
 package test;
 
+option (options.file_int32) = 7;
+
 message MessageWithOptions {
     option (options.msg_string)  = "Custom message option";
     option (options.msg_integer) = -2;

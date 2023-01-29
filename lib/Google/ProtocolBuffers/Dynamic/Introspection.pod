@@ -91,6 +91,12 @@ Returns all fields/oneof as an array reference.
 True if this message is a key/value pair that Protocol Buffers 3 uses
 to represent a map entry.
 
+=head2 file
+
+    $file_def = $message_def->file;
+
+Returns the file this message was defined in.
+
 =head2 options
 
     $options = $message_def->options;
@@ -189,6 +195,12 @@ definition, or undef if the fields is not a message/enum.
 
 Returns whether the field supports L<field presence|https://github.com/protocolbuffers/protobuf/blob/master/docs/field_presence.md#application-note-field-presence>.
 
+=head2 file
+
+    $file_def = $field_def->file;
+
+Returns the file this field was defined in.
+
 =head2 options
 
     $options = $field_def->options;
@@ -248,6 +260,12 @@ Containing message.
 C<true> for oneof definitions that have been created by proto3
 C<optional> implementation.
 
+=head2 file
+
+    $file_def = $oneof_def->file;
+
+Returns the file this oneof was defined in.
+
 =head2 options
 
     $options = $oneof_def->options;
@@ -296,6 +314,12 @@ Returns the name of the enum entry with the given value, or C<undef>.
 Returns a hash reference containing all name/value pairs for this
 enum.
 
+=head2 file
+
+    $file_def = $enum_def->file;
+
+Returns the file this enum was defined in.
+
 =head2 options
 
     $options = $enum_def->options;
@@ -322,6 +346,12 @@ The fully-qualified name of this service (including package).
     $method_defs = $service_def->methods;
 
 Returns all methods as an array reference.
+
+=head2 file
+
+    $file_def = $service_def->file;
+
+Returns the file this service was defined in.
 
 =head2 options
 
@@ -376,11 +406,50 @@ the C<stream> annotation in the method definition).
 True if the service produces streaming output (i.e. the output type has
 the C<stream> annotation in the method definition).
 
+=head2 file
+
+    $file_def = $method_def->file;
+
+Returns the file this method was defined in.
+
 =head2 options
 
     $options = $method_def->options;
 
 Describes the options set on the method, see L<OPTIONS|/OPTIONS>.
+Always returns a value, even if no options are set.
+
+=head1 Google::ProtocolBuffers::Dynamic::FileDef
+
+=head2 name
+
+    $name = $file_def->name;
+
+The file name relative to the search path.
+
+=head2 package
+
+    $package = $file_def->package;
+
+The Protocol Buffers package declared in the file.
+
+=head2 dependencies, public_dependencies, messages, enums, services, extensions
+
+    $message_defs = $file_def->messages;
+    $enum_defs = $file_def->enums;
+    $service_defs = $file_def->servicess;
+    $field_defs = $file_def->extensionss;
+    $file_defs = $file_def->dependencies;
+    $file_defs = $file_def->public_dependencies;
+
+Returns all messages/enums/services/extensions/dependencies and
+public dependencies as an array reference.
+
+=head2 options
+
+    $options = $file_def->options;
+
+Describes the options set on the file, see L<OPTIONS|/OPTIONS>.
 Always returns a value, even if no options are set.
 
 =head1 OPTIONS
