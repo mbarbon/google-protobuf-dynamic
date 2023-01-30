@@ -3,7 +3,7 @@ use t::lib::Test;
 use Google::ProtocolBuffers::Dynamic;
 
 my $d = Google::ProtocolBuffers::Dynamic->new('t/proto/options');
-$d->load_file("use.proto");
+$d->load_file("custom_options_use.proto");
 $d->map({ package => 'test', prefix => 'Test' });
 
 {

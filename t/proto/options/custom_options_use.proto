@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-import "options.proto";
+import "custom_options.proto";
 
 package test;
 
