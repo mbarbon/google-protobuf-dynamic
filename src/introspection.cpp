@@ -134,6 +134,17 @@ bool gpd::intr::options_make_wrapper(const DescriptorPool *descriptor_pool, cons
     const string &options_name = options_def.GetDescriptor()->full_name();
     const Descriptor *options_descriptor = descriptor_pool->FindMessageTypeByName(options_name);
 
+    // if no descriptor is found in the pool, google/protobuf/descrptor.proto
+    // has not been loaded, so there aren't any custom options
+    if (!options_descriptor) {
+        // make a copy of the message, just to make code more uniform
+        *options = options_def.New();
+        (*options)->CopyFrom(options_def);
+        *factory = NULL;
+
+        return true;
+    }
+
     // creating a new DynamicFactory every time is wastful, but this code
     // is not performance critical
     DynamicMessageFactory *factory_dyn = new DynamicMessageFactory(descriptor_pool);
