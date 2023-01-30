@@ -119,6 +119,7 @@ public:
         std::vector<gpd::transform::Fieldtable::Entry> fieldtable_entries;
 
         DecoderHandlers(pTHX_ const Mapper *mapper);
+        ~DecoderHandlers();
 
         void prepare(HV *target);
         void finish();

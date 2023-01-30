@@ -39,10 +39,17 @@ public:
     DecoderTransform(CDecoderTransformFieldtable c_transform_fieldtable);
     DecoderTransform(SV *perl_transform);
 
+    // clear and delete this object, it is needed just to avoid
+    // having a THX member in this object
+    void destroy(pTHX);
+
     void transform(pTHX_ SV *target) const;
     void transform_fieldtable(pTHX_ SV *target, Fieldtable *fieldtable) const;
 
 private:
+    // private to make sure deletion goes through destroy()
+    ~DecoderTransform() {}
+
     CDecoderTransform c_transform;
     CDecoderTransformFieldtable c_transform_fieldtable;
     SV *perl_transform;

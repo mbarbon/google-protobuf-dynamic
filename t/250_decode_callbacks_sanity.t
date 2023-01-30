@@ -8,9 +8,15 @@ my @no_blessed = (options => { decode_blessed => 0 });
     $d->load_file("transform/decoder.proto");
     $d->map({ package => 'test', prefix => 'Test1', @no_blessed });
 
-    my $strip_repeated_wrapper = { transform => sub { $_[0] = $_[0]->{values} } };
-    Test1::Int32Array->set_decoder_options($strip_repeated_wrapper);
-    Test1::Int32ArrayArray->set_decoder_options($strip_repeated_wrapper);
+    {
+        # using this variable is just to force the callback to be a closure
+        # as opposed to just an anonymous function, this, together with
+        # the extra scope is to test proper reference counting of callbacks
+        my $key = 'values';
+        my $strip_repeated_wrapper = { transform => sub { $_[0] = $_[0]->{$key} } };
+        Test1::Int32Array->set_decoder_options($strip_repeated_wrapper);
+        Test1::Int32ArrayArray->set_decoder_options($strip_repeated_wrapper);
+    }
 
     # nested messages
     decode_eq_or_diff('Test1::Message', Test1::Message->encode({

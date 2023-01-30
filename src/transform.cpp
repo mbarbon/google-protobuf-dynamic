@@ -22,6 +22,11 @@ DecoderTransform::DecoderTransform(SV *_perl_transform) :
         perl_transform(_perl_transform)
 {}
 
+void DecoderTransform::destroy(pTHX) {
+    SvREFCNT_dec(perl_transform);
+    delete this;
+}
+
 void DecoderTransform::transform(pTHX_ SV *target) const {
     if (c_transform) {
         c_transform(aTHX_ target);

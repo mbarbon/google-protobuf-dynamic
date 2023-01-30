@@ -53,6 +53,11 @@ Mapper::DecoderHandlers::DecoderHandlers(pTHX_ const Mapper *mapper) :
     mappers.push_back(mapper);
 }
 
+Mapper::DecoderHandlers::~DecoderHandlers() {
+    if (decoder_transform)
+        decoder_transform->destroy(aTHX);
+}
+
 void Mapper::DecoderHandlers::push_mapper(const Mapper *mapper) {
     mappers.push_back(mapper);
     track_seen_fields = mapper->get_track_seen_fields();
@@ -1024,7 +1029,8 @@ Mapper::~Mapper() {
     for (vector<Field>::iterator it = fields.begin(), en = fields.end(); it != en; ++it) {
         if (it->mapper)
             it->mapper->unref();
-        delete it->decoder_transform;
+        if (it->decoder_transform)
+            it->decoder_transform->destroy(aTHX);
     }
     for (vector<MapperField *>::iterator it = extension_mapper_fields.begin(), en = extension_mapper_fields.end(); it != en; ++it)
         // this will make the mapper ref count to go negative, but it's OK
@@ -1145,7 +1151,7 @@ static DecoderTransform *make_transform(pTHX_ SV *scalar, bool fieldtable) {
         if (fieldtable)
             croak("Fieldtable transformation function must be written in C");
 
-        return new DecoderTransform(maybe_cv);
+        return new DecoderTransform(SvREFCNT_inc(maybe_cv));
     }
 
     if (SvIOK(scalar)) {
@@ -1166,6 +1172,8 @@ void Mapper::set_decoder_options(HV *options) {
     bool fieldtable = fieldtable_sv ? SvTRUE(fieldtable_sv) : false;
 
     if (transform) {
+        if (decoder_callbacks.decoder_transform)
+            decoder_callbacks.decoder_transform->destroy(aTHX);
         decoder_callbacks.decoder_transform = make_transform(aTHX_ transform, fieldtable);
     }
 
@@ -1203,6 +1211,8 @@ void Mapper::set_decoder_options(HV *options) {
                 croak("Can't apply transformation to field %s", field_name.c_str());
             }
 
+            if (field->decoder_transform)
+                field->decoder_transform->destroy(aTHX);
             field->decoder_transform = make_transform(aTHX_ value, fieldtable);
         }
     }
