@@ -162,6 +162,7 @@ DescriptorOptionsWrapper::DescriptorOptionsWrapper(pTHX_ DynamicMessageFactory *
 }
 
 DescriptorOptionsWrapper::~DescriptorOptionsWrapper() {
+    delete options;
     delete factory;
 }
 
