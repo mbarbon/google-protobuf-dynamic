@@ -86,6 +86,8 @@ public:
     SV *custom_option_by_name(const std::string &name);
     SV *custom_option_by_number(int number);
 
+    bool get_attribute(CV *autoload_cv, SV **retval);
+
 private:
     SV *get_field(const google::protobuf::FieldDescriptor *field);
 

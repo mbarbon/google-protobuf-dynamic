@@ -3,6 +3,7 @@ syntax = "proto3";
 package test;
 
 option deprecated = true;
+option java_package = "org.test";
 
 message MessageWithOptions {
     option deprecated = true;

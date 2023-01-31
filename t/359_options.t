@@ -25,7 +25,11 @@ $d->map({ package => 'test', prefix => 'Test' });
     my $options = $file->options;
 
     is($options->deprecated, 1);
+    is($options->java_package, 'org.test');
     is($options->custom_option_by_name('not.there'), undef);
+
+    throws_ok(sub { $options->nope },
+              qr/Unknown option 'nope'/);
 }
 
 done_testing();

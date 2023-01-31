@@ -199,6 +199,20 @@ SV *DescriptorOptionsWrapper::custom_option_by_number(int number) {
     return get_field(extension_field);
 }
 
+bool DescriptorOptionsWrapper::get_attribute(CV *autoload_cv, SV **retval) {
+    string attribute(SvPVX(autoload_cv), SvCUR(autoload_cv));
+    const Descriptor *descriptor = options->GetDescriptor();
+    const FieldDescriptor *field = descriptor->FindFieldByName(attribute);
+
+    if (field == NULL) {
+        return false;
+    }
+
+    *retval = get_field(field);
+
+    return true;
+}
+
 SV *DescriptorOptionsWrapper::get_field(const FieldDescriptor *field) {
     using CppType = FieldDescriptor::CppType;
     using Type = FieldDescriptor::Type;

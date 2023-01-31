@@ -75,6 +75,12 @@
 
     SV *custom_option_by_name(const std::string &name);
     SV *custom_option_by_number(int numbere);
+
+    SV *AUTOLOAD() %code%{
+        if (!THIS->get_attribute(cv, &RETVAL)) {
+            croak("Unknown option '%.*s'", SvCUR(cv), SvPVX(cv));
+        }
+    %};
 };
 
 %name{Google::ProtocolBuffers::Dynamic::MessageDef} class google::protobuf::Descriptor {

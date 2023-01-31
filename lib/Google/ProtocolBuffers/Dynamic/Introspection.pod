@@ -457,13 +457,10 @@ Always returns a value, even if no options are set.
 This section documents the option objects returned by the vairous
 C<options()> methods.
 
-All option objects provide the following methods.
+Standard Protocol Buffers options can be accessed by using a method
+with the same name of the option (e.g. C<<< $options->java_package >>>.
 
-=head2 deprecated
-
-    $deprecated = $options->deprecated;
-
-Whether the entity has the C<[deprecated = true]> option.
+In addition to that, all option objects provide the following methods.
 
 =head2 custom_option_by_name
 
