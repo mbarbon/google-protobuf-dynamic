@@ -733,6 +733,8 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const g
         gpd_descriptor(_gpd_descriptor),
         decoder_field_data(_gpd_descriptor),
         stash(_stash),
+        json_true(NULL),
+        json_false(NULL),
         decoder_callbacks(aTHX_ this),
         string_sink(&output_buffer) {
     SET_THX_MEMBER;
@@ -759,6 +761,13 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const g
 
         json_true = gv_fetchpvs("JSON::true", 0, SVt_PVGV);
         json_false = gv_fetchpvs("JSON::false", 0, SVt_PVGV);
+
+        if (json_true == NULL || json_false == NULL) {
+            croak("Unable to get JSON true/false values for %s", message_def->full_name());
+        }
+
+        SvREFCNT_inc(json_true);
+        SvREFCNT_inc(json_false);
     }
 
     // on older Perls it is not fully reliable because the check is performed before
@@ -1039,6 +1048,8 @@ Mapper::~Mapper() {
     // make sure this only goes away after inner destructors have completed
     refcounted_mortalize(aTHX_ registry);
     SvREFCNT_dec(stash);
+    SvREFCNT_dec(json_true);
+    SvREFCNT_dec(json_false);
 }
 
 const char *Mapper::full_name() const {
