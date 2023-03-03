@@ -5,3 +5,7 @@ package test;
 message Bool {
     optional bool bool_f = 7;
 }
+
+message OuterBool {
+    optional Bool bool = 8;
+}

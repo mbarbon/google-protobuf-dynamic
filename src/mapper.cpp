@@ -632,10 +632,10 @@ bool Mapper::DecoderHandlers::on_numeric_bool(DecoderHandlers *cxt, const int *f
 
 bool Mapper::DecoderHandlers::on_json_bool(DecoderHandlers *cxt, const int *field_index, bool val) {
     THX_DECLARE_AND_GET;
-    const Mapper *root_mapper = cxt->mappers[0];
+    const Mapper *mapper = cxt->mappers.back();
 
     cxt->mark_seen(field_index);
-    root_mapper->set_json_bool(cxt->get_target(field_index), val);
+    mapper->set_json_bool(cxt->get_target(field_index), val);
 
     return true;
 }
