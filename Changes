@@ -2,6 +2,10 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.41_15   2023-03-03 22:35:37 CET
+
+    - Support reading all standard options via the introspection API
+
 0.41_14   2023-01-29 21:52:20 CET
 
     - Implement introspection API for file descriptors
