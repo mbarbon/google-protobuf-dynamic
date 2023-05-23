@@ -2,6 +2,10 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.42      2023-05-23 14:51:59 CEST
+
+    - Release 0.41_15 as stable without changes
+
 0.41_15   2023-03-03 22:35:37 CET
 
     - Support reading all standard options via the introspection API
