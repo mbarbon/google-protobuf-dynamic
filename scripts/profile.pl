@@ -21,7 +21,7 @@ use Getopt::Long;
     });
     GPD::Profile::Any->set_decoder_options({
         fieldtable  => 1,
-        transform   => $Google::ProtocolBuffers::Dynamic::Fieldtable::profile_transform,
+        transform   => $Google::ProtocolBuffers::Dynamic::Fieldtable::profile_decoder_transform,
     });
 }
 my $sereal_encoder = Sereal::Encoder->new;

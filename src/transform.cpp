@@ -44,7 +44,7 @@ void DecoderTransform::transform(pTHX_ SV *target) const {
     }
 }
 
-void DecoderTransform::transform_fieldtable(pTHX_ SV *target, Fieldtable *fieldtable) const {
+void DecoderTransform::transform_fieldtable(pTHX_ SV *target, DecoderFieldtable *fieldtable) const {
     if (c_transform_fieldtable) {
         c_transform_fieldtable(aTHX_ target, fieldtable);
     } else {
@@ -71,7 +71,7 @@ void DecoderTransformQueue::clear() {
 
     pending_transforms.clear();
 
-    for (std::vector<Fieldtable::Entry>::iterator it = fieldtable.begin(), en = fieldtable.end(); it != en; ++it) {
+    for (std::vector<DecoderFieldtable::Entry>::iterator it = fieldtable.begin(), en = fieldtable.end(); it != en; ++it) {
         SvREFCNT_dec(it->value);
     }
 
@@ -88,7 +88,7 @@ size_t DecoderTransformQueue::add_transform(SV *target, const DecoderTransform *
     return pending_transforms.size() - 1;
 }
 
-void DecoderTransformQueue::finish_add_transform(size_t index, int size, Fieldtable::Entry *entries) {
+void DecoderTransformQueue::finish_add_transform(size_t index, int size, DecoderFieldtable::Entry *entries) {
     int fieldtable_offset = fieldtable.size();
 
     fieldtable.insert(fieldtable.end(), entries, entries + size);
@@ -99,7 +99,7 @@ void DecoderTransformQueue::finish_add_transform(size_t index, int size, Fieldta
 
 void DecoderTransformQueue::apply_transforms() {
     STD_TR1::unordered_set<SV *> already_mapped;
-    Fieldtable table;
+    DecoderFieldtable table;
 
     for (std::vector<PendingTransform>::reverse_iterator it = pending_transforms.rbegin(), en = pending_transforms.rend(); it != en; ++it) {
         SV *target = it->target;
@@ -126,7 +126,7 @@ void DecoderTransformQueue::apply_transforms() {
 }
 
 // the only use for this transform is to be able to test fieldtable trnasformations
-void gpd::transform::fieldtable_debug_transform(pTHX_ SV *target, Fieldtable *fieldtable) {
+void gpd::transform::fieldtable_debug_decoder_transform(pTHX_ SV *target, DecoderFieldtable *fieldtable) {
     AV *res = newAV();
 
     SvUPGRADE(target, SVt_RV);
@@ -146,8 +146,8 @@ void gpd::transform::fieldtable_debug_transform(pTHX_ SV *target, Fieldtable *fi
 }
 
 // the only use for this transform is to be able to benchmark fieldtable trnasformations overhead
-void gpd::transform::fieldtable_profile_transform(pTHX_ SV *target, Fieldtable *fieldtable) {
-    Fieldtable::Entry *entry = fieldtable->entries;
+void gpd::transform::fieldtable_profile_decoder_transform(pTHX_ SV *target, DecoderFieldtable *fieldtable) {
+    DecoderFieldtable::Entry *entry = fieldtable->entries;
 
     sv_setsv(target, entry->value);
     SvREFCNT_dec(entry->value);

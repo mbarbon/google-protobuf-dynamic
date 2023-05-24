@@ -15,7 +15,7 @@
 namespace gpd {
 namespace transform {
 
-struct Fieldtable {
+struct DecoderFieldtable {
     struct Entry {
         unsigned int field;
         SV *value;
@@ -31,7 +31,7 @@ struct Fieldtable {
 };
 
 typedef void (*CDecoderTransform)(pTHX_ SV *target);
-typedef void (*CDecoderTransformFieldtable)(pTHX_ SV *target, Fieldtable *fieldtable);
+typedef void (*CDecoderTransformFieldtable)(pTHX_ SV *target, DecoderFieldtable *fieldtable);
 
 class DecoderTransform {
 public:
@@ -44,7 +44,7 @@ public:
     void destroy(pTHX);
 
     void transform(pTHX_ SV *target) const;
-    void transform_fieldtable(pTHX_ SV *target, Fieldtable *fieldtable) const;
+    void transform_fieldtable(pTHX_ SV *target, DecoderFieldtable *fieldtable) const;
 
 private:
     // private to make sure deletion goes through destroy()
@@ -75,7 +75,7 @@ public:
 
     void clear();
     size_t add_transform(SV *target, const DecoderTransform *message_transform, const DecoderTransform *field_transform);
-    void finish_add_transform(size_t index, int size, Fieldtable::Entry *entries);
+    void finish_add_transform(size_t index, int size, DecoderFieldtable::Entry *entries);
     void apply_transforms();
 
     static void static_clear(DecoderTransformQueue *queue);
@@ -83,11 +83,11 @@ public:
 private:
     DECL_THX_MEMBER;
     std::vector<PendingTransform> pending_transforms;
-    std::vector<Fieldtable::Entry> fieldtable;
+    std::vector<DecoderFieldtable::Entry> fieldtable;
 };
 
-void fieldtable_debug_transform(pTHX_ SV *target, Fieldtable *fieldtable);
-void fieldtable_profile_transform(pTHX_ SV *target, Fieldtable *fieldtable);
+void fieldtable_debug_decoder_transform(pTHX_ SV *target, DecoderFieldtable *fieldtable);
+void fieldtable_profile_decoder_transform(pTHX_ SV *target, DecoderFieldtable *fieldtable);
 
 }
 }

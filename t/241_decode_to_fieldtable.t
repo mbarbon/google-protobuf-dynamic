@@ -1,7 +1,7 @@
 use t::lib::Test;
 
 {
-    my $mtt = $Google::ProtocolBuffers::Dynamic::Fieldtable::debug_transform;
+    my $mtt = $Google::ProtocolBuffers::Dynamic::Fieldtable::debug_decoder_transform;
 
     my $d = Google::ProtocolBuffers::Dynamic->new('t/proto');
     $d->load_file("person3.proto");

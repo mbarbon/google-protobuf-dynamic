@@ -144,11 +144,11 @@ public:
         std::vector<std::vector<int32_t> > seen_oneof;
         gpd::transform::DecoderTransformQueue pending_transforms;
         gpd::transform::DecoderTransform *decoder_transform;
-        bool transform_fieldtable;
+        bool decoder_transform_fieldtable;
         std::string error;
         SV *string;
         bool track_seen_fields;
-        std::vector<gpd::transform::Fieldtable::Entry> fieldtable_entries;
+        std::vector<gpd::transform::DecoderFieldtable::Entry> fieldtable_entries;
 
         DecoderHandlers(pTHX_ const Mapper *mapper);
         ~DecoderHandlers();

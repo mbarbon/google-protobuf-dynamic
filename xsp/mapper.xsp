@@ -438,8 +438,8 @@ get_or_set_map(HV *self, SV *ref = NULL)
 BOOT:
     gpd::WarnContext::setup(aTHX);
 
-    sv_setiv(get_sv("Google::ProtocolBuffers::Dynamic::Fieldtable::debug_transform", GV_ADDMULTI), PTR2IV(gpd::transform::fieldtable_debug_transform));
-    sv_setiv(get_sv("Google::ProtocolBuffers::Dynamic::Fieldtable::profile_transform", GV_ADDMULTI), PTR2IV(gpd::transform::fieldtable_profile_transform));
+    sv_setiv(get_sv("Google::ProtocolBuffers::Dynamic::Fieldtable::debug_decoder_transform", GV_ADDMULTI), PTR2IV(gpd::transform::fieldtable_debug_decoder_transform));
+    sv_setiv(get_sv("Google::ProtocolBuffers::Dynamic::Fieldtable::profile_decoder_transform", GV_ADDMULTI), PTR2IV(gpd::transform::fieldtable_profile_decoder_transform));
 
 SV *
 grpc_xs_call_service_passthrough(SV *self, ...)
