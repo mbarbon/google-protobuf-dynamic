@@ -1836,7 +1836,7 @@ bool Mapper::encode_from_message_array(Sink *sink, Status *status, const Mapper:
 
         if (!sub.StartSubMessage(fd.selector.msg_start, &submsg))
             return false;
-        if (!encode_value(&submsg, status, *item))
+        if (!encode_message(&submsg, status, *item))
             return false;
         if (!sub.EndSubMessage(fd.selector.msg_end))
             return false;
@@ -1855,7 +1855,7 @@ namespace {
     }
 }
 
-bool Mapper::encode_value(Sink *sink, Status *status, SV *ref) const {
+bool Mapper::encode_message(Sink *sink, Status *status, SV *ref) const {
 #if !HAS_FULL_NOMG
     SvGETMAGIC(ref);
 #endif
@@ -1940,7 +1940,7 @@ bool Mapper::encode_field(Sink *sink, Status *status, const Field &fd, SV *ref) 
         Sink sub;
         if (!sink->StartSubMessage(fd.selector.msg_start, &sub))
             return false;
-        if (!fd.mapper->encode_value(&sub, status, ref))
+        if (!fd.mapper->encode_message(&sub, status, ref))
             return false;
         return sink->EndSubMessage(fd.selector.msg_end);
     }

@@ -215,7 +215,7 @@ public:
 private:
     static bool run_bbpb_decoder(Mapper *root_mapper, const char *buffer, STRLEN bufsize);
 
-    bool encode_value(upb::Sink *sink, upb::Status *status, SV *ref) const;
+    bool encode_message(upb::Sink *sink, upb::Status *status, SV *ref) const;
     bool encode_field(upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;
     bool encode_field_nodefaults(upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;
     bool encode_key(upb::Sink *sink, upb::Status *status, const Field &fd, const char *key, I32 keylen) const;
