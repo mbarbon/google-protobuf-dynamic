@@ -735,8 +735,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const g
         stash(_stash),
         json_true(NULL),
         json_false(NULL),
-        decoder_callbacks(aTHX_ this),
-        string_sink(&output_buffer) {
+        decoder_callbacks(aTHX_ this) {
     SET_THX_MEMBER;
 
     SvREFCNT_inc(stash);
@@ -1259,9 +1258,8 @@ SV *Mapper::encode(SV *ref) {
     if (pb_decoder_method.get() == NULL)
         croak("It looks like resolve_references() was not called (and please use map() anyway)");
     upb::Environment *env = make_localized_environment(aTHX_ &status);
-    upb::pb::Encoder *pb_encoder = upb::pb::Encoder::Create(env, pb_encoder_handlers.get(), string_sink.input());
+    upb::pb::Encoder *pb_encoder = upb::pb::Encoder::Create(env, pb_encoder_handlers.get(), vector_sink.input());
     status.Clear();
-    output_buffer.clear();
     warn_context->clear();
     warn_context->localize_warning_handler(aTHX);
     SV *result = NULL;
@@ -1270,9 +1268,8 @@ SV *Mapper::encode(SV *ref) {
     SvGETMAGIC(ref);
 #endif
 
-    if (encode_value(pb_encoder->input(), &status, ref))
-        result = newSVpvn(output_buffer.data(), output_buffer.size());
-    output_buffer.clear();
+    if (encode_message(pb_encoder->input(), &status, ref))
+        result = newSVpvn(vector_sink.data(), vector_sink.size());
 
     return result;
 }
@@ -1281,9 +1278,8 @@ SV *Mapper::encode_json(SV *ref) {
     if (json_decoder_method.get() == NULL)
         croak("It looks like resolve_references() was not called (and please use map() anyway)");
     upb::Environment *env = make_localized_environment(aTHX_ &status);
-    upb::json::Printer *json_encoder = upb::json::Printer::Create(env, json_encoder_handlers.get(), string_sink.input());
+    upb::json::Printer *json_encoder = upb::json::Printer::Create(env, json_encoder_handlers.get(), vector_sink.input());
     status.Clear();
-    output_buffer.clear();
     warn_context->clear();
     warn_context->localize_warning_handler(aTHX);
     SV *result = NULL;
@@ -1292,9 +1288,8 @@ SV *Mapper::encode_json(SV *ref) {
     SvGETMAGIC(ref);
 #endif
 
-    if (encode_value(json_encoder->input(), &status, ref))
-        result = newSVpvn(output_buffer.data(), output_buffer.size());
-    output_buffer.clear();
+    if (encode_message(json_encoder->input(), &status, ref))
+        result = newSVpvn(vector_sink.data(), vector_sink.size());
 
     return result;
 }

@@ -9,7 +9,6 @@
 #include <upb/pb/decoder.h>
 #include <upb/json/printer.h>
 #include <upb/json/parser.h>
-#include <upb/bindings/stdc++/string.h>
 
 #include "unordered_map.h"
 
@@ -19,6 +18,7 @@
 
 #include "thx_member.h"
 #include "transform.h"
+#include "vectorsink.h"
 #include "pb/decoder.h"
 
 #include <list>
@@ -291,8 +291,7 @@ private:
     DecoderHandlers decoder_callbacks;
     gpd::pb::DecoderFieldData<FieldData> decoder_field_data;
     upb::Sink encoder_sink, decoder_sink;
-    std::string output_buffer;
-    upb::StringSink string_sink;
+    gpd::VectorSink vector_sink;
     bool check_required_fields, decode_explicit_defaults, encode_defaults, check_enum_values, decode_blessed, fail_ref_coercion;
     int boolean_style;
     GV *json_false, *json_true;
