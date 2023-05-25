@@ -41,6 +41,37 @@ public:
         TARGET_FIELDTABLE_ITEM  = 5,
     };
 
+    enum ValueAction {
+        ACTION_INVALID          = 0,
+
+        // scalar values
+        ACTION_PUT_FLOAT        = 1,
+        ACTION_PUT_FLOAT_ND     = 2,
+        ACTION_PUT_DOUBLE       = 3,
+        ACTION_PUT_DOUBLE_ND    = 4,
+        ACTION_PUT_BOOL         = 5,
+        ACTION_PUT_BOOL_ND      = 6,
+        ACTION_PUT_STRING       = 7,
+        ACTION_PUT_STRING_ND    = 8,
+        ACTION_PUT_BYTES        = 9,
+        ACTION_PUT_BYTES_ND     = 10,
+        ACTION_PUT_ENUM         = 11,
+        ACTION_PUT_ENUM_ND      = 12,
+        ACTION_PUT_INT32        = 13,
+        ACTION_PUT_INT32_ND     = 14,
+        ACTION_PUT_UINT32       = 15,
+        ACTION_PUT_UINT32_ND    = 16,
+        ACTION_PUT_INT64        = 17,
+        ACTION_PUT_INT64_ND     = 18,
+        ACTION_PUT_UINT64       = 19,
+        ACTION_PUT_UINT64_ND    = 20,
+
+        // non-scalar values
+        ACTION_PUT_MESSAGE      = 21,
+        ACTION_PUT_REPEATED     = 22,
+        ACTION_PUT_MAP          = 23,
+    };
+
     struct Field {
         const upb::FieldDef *field_def;
         struct {
@@ -64,6 +95,7 @@ public:
         bool has_default;
         bool is_map;
         FieldTarget field_target;
+        ValueAction field_action, value_action;
         const Mapper *mapper; // for Message/Group fields
         gpd::transform::DecoderTransform *decoder_transform;
         STD_TR1::unordered_set<int32_t> enum_values;
@@ -217,7 +249,6 @@ private:
 
     bool encode_message(upb::Sink *sink, upb::Status *status, SV *ref) const;
     bool encode_field(upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;
-    bool encode_field_nodefaults(upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;
     bool encode_key(upb::Sink *sink, upb::Status *status, const Field &fd, const char *key, I32 keylen) const;
     bool encode_hash_kv(upb::Sink *sink, upb::Status *status, const char *key, STRLEN keylen, SV *value) const;
     bool encode_from_perl_array(upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;
