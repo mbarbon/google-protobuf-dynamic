@@ -35,6 +35,7 @@ sub main {
         decode_maps         => \&profile_decode_maps,
         decode_objects      => \&profile_decode_objects,
         decode_transform    => \&profile_decode_transform,
+        encode_objects      => \&profile_encode_objects,
     );
 
     my %callgrind_benchmarks = (
@@ -111,6 +112,7 @@ sub random_chars {
 }
 
 sub setup {
+    setup_encode_objects();
     setup_decode_objects();
     setup_decode_maps();
     setup_decode_transform();
@@ -162,18 +164,7 @@ sub profile_decode_maps {
 }
 
 sub setup_decode_objects {
-    my $make_random_person = sub {
-        my ($id) = @_;
-
-        return {
-            id      => $id,
-            name    => random_chars(3, 16) . ' ' . random_chars(6, 12),
-            email   => random_chars(7, 12) . '@test.com',
-        };
-    };
-    my $persons = {
-        persons => [map $make_random_person->($_), 1 .. 100 ],
-    };
+    my $persons = $benchmarks{encode}{objects};
 
     $benchmarks{decode}{objects}{protobuf} = GPD::Profile::PersonArray->encode($persons);
     $benchmarks{decode}{objects}{sereal} = $sereal_encoder->encode($persons);
@@ -245,6 +236,34 @@ sub profile_decode_transform {
         protobuf_bbpb   => sub { GPD::Profile::Values->decode_bbpb($data->{protobuf}) },
         sereal          => sub { $sereal_decoder->decode($data->{sereal}) },
         json            => sub { $json_decoder->decode($data->{json}) },
+    }));
+}
+
+sub setup_encode_objects {
+    my $make_random_person = sub {
+        my ($id) = @_;
+
+        return {
+            id      => $id,
+            name    => random_chars(3, 16) . ' ' . random_chars(6, 12),
+            email   => random_chars(7, 12) . '@test.com',
+        };
+    };
+    my $persons = {
+        persons => [map $make_random_person->($_), 1 .. 100 ],
+    };
+
+    $benchmarks{encode}{objects} = $persons;
+}
+
+sub profile_encode_objects {
+    my ($repeat_count, $which_benchmarks) = @_;
+    my $data = $benchmarks{encode}{objects};
+
+    cmpthese($repeat_count, filter_benchmarks($which_benchmarks, {
+        protobuf_upb    => sub { GPD::Profile::PersonArray->encode($data) },
+        sereal          => sub { $sereal_encoder->encode($data) },
+        json            => sub { $json_decoder->encode($data) },
     }));
 }
 
