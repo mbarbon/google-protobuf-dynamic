@@ -1047,7 +1047,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const g
             extension_mapper_fields.push_back(new MapperField(aTHX_ this, &*it));
             unref(); // to avoid ref loop
         }
-        field_map[SvPV_nolen(it->name)] = &*it;
+        field_map.add(aTHX_ it->name, it->field_def->number(), &*it);
     }
 
     int oneof_index = 0;
@@ -1065,6 +1065,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const g
     decoder_field_data.optimize_lookup();
     check_required_fields = has_required && options.check_required_fields;
     ignore_undef_fields = options.ignore_undef_fields;
+    field_map.optimize_lookup();
 }
 
 Mapper::~Mapper() {
@@ -1242,17 +1243,15 @@ void Mapper::set_decoder_options(HV *options) {
         char *key;
         hv_iterinit(transform_fields);
         while (SV *value = hv_iternextsv(transform_fields, &key, &keylen)) {
-            string field_name = string(key, keylen);
-            STD_TR1::unordered_map<std::string, Field *>::const_iterator field_it = field_map.find(field_name);
-            if (field_it == field_map.end()) {
-                croak("Unknown field name %s", field_name.c_str());
+            Field *field = field_map.find_by_name(aTHX_ key, keylen);
+            if (field == NULL) {
+                croak("Unknown field name %.*s", keylen, key);
             }
 
-            Field *field = field_it->second;
             if (field->is_map ||
                     field->field_def->label() == UPB_LABEL_REPEATED ||
                     field->field_def->type() != UPB_TYPE_MESSAGE) {
-                croak("Can't apply transformation to field %s", field_name.c_str());
+                croak("Can't apply transformation to field %.*s", keylen, key);
             }
 
             if (field->decoder_transform)
@@ -2340,19 +2339,15 @@ bool Mapper::check(Status *status, SV *ref) const {
         char *key;
         I32 keylen;
         SV *value = hv_iternextsv(hv, &key, &keylen);
-        // if the key is marked as UTF-8 and contains non-ASCII characters,
-        // it will not be there anyway in the lookup
-        string name(key, keylen < 0 ? -keylen : keylen);
-        STD_TR1::unordered_map<string, Field *>::const_iterator it = field_map.find(name);
+        const Field *field = field_map.find_by_name(aTHX_ key, keylen);
 
-        if (it == field_map.end()) {
+        if (field == NULL) {
             status->SetFormattedErrorMessage(
-                "Unknown field '%s' during check",
-                name.c_str());
+                "Unknown field '%.*s' during check",
+                keylen, key);
             return false;
         }
 
-        Field *field = it->second;
         if (field->field_def->label() == UPB_LABEL_REPEATED)
             ok = ok && check_from_perl_array(status, *field, value);
         else

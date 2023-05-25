@@ -19,6 +19,7 @@
 #include "thx_member.h"
 #include "transform.h"
 #include "vectorsink.h"
+#include "fieldmap.h"
 #include "pb/decoder.h"
 
 #include <list>
@@ -331,7 +332,7 @@ private:
     upb::reffed_ptr<const upb::json::ParserMethod> json_decoder_method;
     std::vector<Field> fields;
     std::vector<MapperField *> extension_mapper_fields;
-    STD_TR1::unordered_map<std::string, Field *> field_map;
+    gpd::FieldMap<Field> field_map;
     upb::Status status;
     EncoderState encoder_state;
     DecoderHandlers decoder_callbacks;
