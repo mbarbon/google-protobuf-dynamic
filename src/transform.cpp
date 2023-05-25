@@ -52,6 +52,55 @@ void DecoderTransform::transform_fieldtable(pTHX_ SV *target, DecoderFieldtable 
     }
 }
 
+EncoderTransform::EncoderTransform(CEncoderTransform _c_transform) :
+        c_transform(_c_transform),
+        c_transform_fieldtable(NULL),
+        perl_transform(NULL) {
+}
+
+EncoderTransform::EncoderTransform(CEncoderTransformFieldtable _c_transform_fieldtable) :
+        c_transform(NULL),
+        c_transform_fieldtable(_c_transform_fieldtable),
+        perl_transform(NULL) {
+}
+
+EncoderTransform::EncoderTransform(SV *_perl_transform) :
+        c_transform(NULL),
+        c_transform_fieldtable(NULL),
+        perl_transform(_perl_transform) {
+}
+
+void EncoderTransform::EncoderTransform::destroy(pTHX) {
+    SvREFCNT_dec(perl_transform);
+    delete this;
+}
+
+void EncoderTransform::transform(pTHX_ SV *target, SV *value) const {
+    if (c_transform) {
+        c_transform(aTHX_ target, value);
+    } else if (perl_transform) {
+        dSP;
+
+        PUSHMARK(SP);
+        XPUSHs(target);
+        XPUSHs(value);
+        PUTBACK;
+
+        // return value is always 1 because of G_SCALAR
+        call_sv(perl_transform, G_VOID|G_DISCARD);
+    } else {
+        croak("Internal error: transform function not provided");
+    }
+}
+
+void EncoderTransform::transform_fieldtable(pTHX_ EncoderFieldtable **target, SV *value) const {
+    if (c_transform_fieldtable) {
+        c_transform_fieldtable(aTHX_ target, value);
+    } else {
+        croak("Internal error: fieldtable transform function not provided");
+    }
+}
+
 DecoderTransformQueue::DecoderTransformQueue(pTHX) {
     SET_THX_MEMBER;
 }
@@ -125,7 +174,7 @@ void DecoderTransformQueue::apply_transforms() {
     }
 }
 
-// the only use for this transform is to be able to test fieldtable trnasformations
+// the only use for this transform is to be able to test fieldtable transformations
 void gpd::transform::fieldtable_debug_decoder_transform(pTHX_ SV *target, DecoderFieldtable *fieldtable) {
     AV *res = newAV();
 
@@ -154,3 +203,24 @@ void gpd::transform::fieldtable_profile_decoder_transform(pTHX_ SV *target, Deco
     entry->value = NULL;
 }
 
+// the only use for this transform is to be able to test fieldtable trnasformations
+namespace {
+    EncoderFieldtable::Entry debug_fieldentries[5];
+    EncoderFieldtable debug_fieldtable;
+}
+
+void gpd::transform::fieldtable_debug_encoder_transform(pTHX_ EncoderFieldtable **fieldtable, SV *value) {
+    AV *av = (AV *) SvRV(value);
+    debug_fieldtable.size = av_top_index(av) + 1;
+    debug_fieldtable.entries = debug_fieldentries;
+
+    for (int i = 0; i <= av_top_index(av); ++i) {
+        AV *item = (AV *) SvRV(*av_fetch(av, i, 0));
+
+        debug_fieldentries[i].field = SvIV(*av_fetch(item, 0, 0));
+        debug_fieldentries[i].name = SvPV_nolen(*av_fetch(item, 1, 0));
+        debug_fieldentries[i].value = SvREFCNT_inc(*av_fetch(item, 2, 0));
+    }
+
+    *fieldtable = &debug_fieldtable;
+}

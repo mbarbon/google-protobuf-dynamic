@@ -23,6 +23,13 @@ set_decoder_options(SV *klass, HV *options)
   CODE:
     mapper->set_decoder_options(options);
 
+void
+set_encoder_options(SV *klass, HV *options)
+  INIT:
+    gpd::Mapper *mapper = (gpd::Mapper *) CvXSUBANY(cv).any_ptr;
+  CODE:
+    mapper->set_encoder_options(options);
+
 SV*
 new(SV *klass, SV *ref = NULL)
   INIT:
@@ -440,6 +447,7 @@ BOOT:
 
     sv_setiv(get_sv("Google::ProtocolBuffers::Dynamic::Fieldtable::debug_decoder_transform", GV_ADDMULTI), PTR2IV(gpd::transform::fieldtable_debug_decoder_transform));
     sv_setiv(get_sv("Google::ProtocolBuffers::Dynamic::Fieldtable::profile_decoder_transform", GV_ADDMULTI), PTR2IV(gpd::transform::fieldtable_profile_decoder_transform));
+    sv_setiv(get_sv("Google::ProtocolBuffers::Dynamic::Fieldtable::debug_encoder_transform", GV_ADDMULTI), PTR2IV(gpd::transform::fieldtable_debug_encoder_transform));
 
 SV *
 grpc_xs_call_service_passthrough(SV *self, ...)

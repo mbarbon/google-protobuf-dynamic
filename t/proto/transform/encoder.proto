@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package test;
+
+message Int32Array {
+    repeated int32 values = 1;
+}
+
+message Int32ArrayArray {
+    repeated Int32Array values = 1;
+}
+
+message ContainerMessage {
+    ItemMessage scalar = 1;
+    Int32ArrayArray array_wrapper = 2;
+}
+
+message ItemMessage {
+    int32 id = 1;
+    string name = 2;
+}

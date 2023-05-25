@@ -526,6 +526,7 @@ void Dynamic::bind_message(pTHX_ const string &perl_package, Mapper *mapper, con
     }
 
     copy_and_bind(aTHX_ "set_decoder_options", perl_package, mapper);
+    copy_and_bind(aTHX_ "set_encoder_options", perl_package, mapper);
     copy_and_bind(aTHX_ "decode_upb", perl_package, mapper);
     copy_and_bind(aTHX_ "decode_bbpb", perl_package, mapper);
     if (options.default_decoder == MappingOptions::Upb) {

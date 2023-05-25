@@ -72,6 +72,7 @@ public:
         ACTION_PUT_MESSAGE      = 21,
         ACTION_PUT_REPEATED     = 22,
         ACTION_PUT_MAP          = 23,
+        ACTION_PUT_FIELDTABLE   = 24,
     };
 
     struct Field {
@@ -100,8 +101,9 @@ public:
         ValueAction field_action, value_action;
         const Mapper *mapper; // for Message/Group fields
         gpd::transform::DecoderTransform *decoder_transform;
+        gpd::transform::EncoderTransform *encoder_transform;
         STD_TR1::unordered_set<int32_t> enum_values;
-        int oneof_index;
+        int field_index, oneof_index;
         union {
             struct {
                 size_t default_str_len;
@@ -240,6 +242,7 @@ public:
     void resolve_mappers();
     void create_encoder_decoder();
     void set_decoder_options(HV *options);
+    void set_encoder_options(HV *options);
 
     SV *encode(SV *ref);
     SV *decode_upb(const char *buffer, STRLEN bufsize);
@@ -265,7 +268,21 @@ public:
 private:
     static bool run_bbpb_decoder(Mapper *root_mapper, const char *buffer, STRLEN bufsize);
 
-    bool encode_message(EncoderState &state, SV *ref) const;
+    bool encode_message(EncoderState &state, SV *ref) const {
+        if (encoder_transform) {
+            if (encoder_transform_fieldtable) {
+                return encode_transformed_fieldtable_message(state, ref, encoder_transform);
+            } else {
+                return encode_transformed_message(state, ref, encoder_transform);
+            }
+        } else {
+            return encode_simple_message(state, ref);
+        }
+    }
+
+    bool encode_simple_message(EncoderState &state, SV *ref) const;
+    bool encode_transformed_message(EncoderState &state, SV *ref, gpd::transform::EncoderTransform *encoder_transform) const;
+    bool encode_transformed_fieldtable_message(EncoderState &state, SV *ref, gpd::transform::EncoderTransform *encoder_transform) const;
     bool encode_field(EncoderState &state, const Field &fd, SV *ref) const;
     bool encode_key(EncoderState &state, const Field &fd, const char *key, I32 keylen) const;
     bool encode_hash_kv(EncoderState &state, const char *key, STRLEN keylen, SV *value) const;
@@ -340,6 +357,8 @@ private:
     EncoderState encoder_state;
     DecoderHandlers decoder_callbacks;
     gpd::pb::DecoderFieldData<FieldData> decoder_field_data;
+    gpd::transform::EncoderTransform *encoder_transform;
+    bool encoder_transform_fieldtable;
     upb::Sink decoder_sink;
     gpd::VectorSink vector_sink;
     bool check_required_fields, decode_explicit_defaults, encode_defaults, check_enum_values, decode_blessed, fail_ref_coercion, ignore_undef_fields;

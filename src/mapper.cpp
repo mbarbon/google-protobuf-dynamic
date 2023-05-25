@@ -741,6 +741,8 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const g
         gpd_descriptor(_gpd_descriptor),
         encoder_state(&status, &mapper_context),
         decoder_field_data(_gpd_descriptor),
+        encoder_transform(NULL),
+        encoder_transform_fieldtable(false),
         stash(_stash),
         json_true(NULL),
         json_false(NULL),
@@ -819,6 +821,8 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const g
         field.has_default = field.is_map = false;
         field.mapper = NULL;
         field.decoder_transform = NULL;
+        field.encoder_transform = NULL;
+        field.field_index = index;
         field.oneof_index = -1;
         FieldData field_data;
 
@@ -1074,10 +1078,15 @@ Mapper::~Mapper() {
             it->mapper->unref();
         if (it->decoder_transform)
             it->decoder_transform->destroy(aTHX);
+        if (it->encoder_transform)
+            it->encoder_transform->destroy(aTHX);
     }
     for (vector<MapperField *>::iterator it = extension_mapper_fields.begin(), en = extension_mapper_fields.end(); it != en; ++it)
         // this will make the mapper ref count to go negative, but it's OK
         (*it)->unref();
+
+    if (encoder_transform)
+        encoder_transform->destroy(aTHX);
 
     // make sure this only goes away after inner destructors have completed
     refcounted_mortalize(aTHX_ registry);
@@ -1210,11 +1219,37 @@ static DecoderTransform *make_decoder_transform(pTHX_ SV *scalar, bool fieldtabl
     croak("Transformation function must be either a code reference or an integer representing a C function pointer");
 }
 
+static EncoderTransform *make_encoder_transform(pTHX_ SV *scalar, bool fieldtable) {
+    if (SvROK(scalar)) {
+        SV *maybe_cv = SvRV(scalar);
+        if (SvTYPE(maybe_cv) != SVt_PVCV)
+            croak("Transformation function is a reference but not a code reference");
+        if (fieldtable)
+            croak("Fieldtable transformation function must be written in C");
+
+        return new EncoderTransform(SvREFCNT_inc(maybe_cv));
+    }
+
+    if (SvIOK(scalar)) {
+        if (fieldtable) {
+            return new EncoderTransform(INT2PTR(CEncoderTransformFieldtable, SvIV(scalar)));
+        } else {
+            return new EncoderTransform(INT2PTR(CEncoderTransform, SvIV(scalar)));
+        }
+    }
+
+    croak("Transformation function must be an integer representing a C function pointer");
+}
+
 void Mapper::set_decoder_options(HV *options) {
     SV *transform = scalar_option(aTHX_ options, "transform");
     SV *fieldtable_sv = scalar_option(aTHX_ options, "fieldtable");
     HV *transform_fields = hash_option(aTHX_ options, "transform_fields");
     bool fieldtable = fieldtable_sv ? SvTRUE(fieldtable_sv) : false;
+
+    if (fieldtable && (!transform && !transform_fields)) {
+        croak("Can't use fieldtable without transform");
+    }
 
     if (transform) {
         if (decoder_callbacks.decoder_transform)
@@ -1225,8 +1260,6 @@ void Mapper::set_decoder_options(HV *options) {
     if (fieldtable) {
         if (message_def->mapentry()) {
             croak("Can't use fieldtable for map messages");
-        } else if (!transform) {
-            croak("Can't use fieldtable without transform");
         }
 
         decoder_callbacks.decoder_transform_fieldtable = true;
@@ -1257,6 +1290,57 @@ void Mapper::set_decoder_options(HV *options) {
             if (field->decoder_transform)
                 field->decoder_transform->destroy(aTHX);
             field->decoder_transform = make_decoder_transform(aTHX_ value, fieldtable);
+        }
+    }
+}
+
+void Mapper::set_encoder_options(HV *options) {
+    SV *transform = scalar_option(aTHX_ options, "transform");
+    SV *fieldtable_sv = scalar_option(aTHX_ options, "fieldtable");
+    HV *transform_fields = hash_option(aTHX_ options, "transform_fields");
+    bool fieldtable = fieldtable_sv ? SvTRUE(fieldtable_sv) : false;
+
+    if (fieldtable && (!transform && !transform_fields)) {
+        croak("Can't use fieldtable without transform");
+    }
+
+    if (transform) {
+        if (encoder_transform)
+            encoder_transform->destroy(aTHX);
+        encoder_transform = make_encoder_transform(aTHX_ transform, fieldtable);
+    }
+
+    if (fieldtable) {
+        if (message_def->mapentry()) {
+            croak("Can't use fieldtable for map messages");
+        }
+
+        encoder_transform_fieldtable = true;
+    }
+
+    if (transform_fields) {
+        I32 keylen;
+        char *key;
+        hv_iterinit(transform_fields);
+        while (SV *value = hv_iternextsv(transform_fields, &key, &keylen)) {
+            Field *field = field_map.find_by_name(aTHX_ key, keylen);
+            if (field == NULL) {
+                croak("Unknown field name %.*s", keylen, key);
+            }
+
+            if (field->is_map ||
+                    field->field_def->label() == UPB_LABEL_REPEATED ||
+                    field->field_def->type() != UPB_TYPE_MESSAGE) {
+                croak("Can't apply transformation to field %.*s", keylen, key);
+            }
+
+            if (field->encoder_transform)
+                field->encoder_transform->destroy(aTHX);
+            field->encoder_transform = make_encoder_transform(aTHX_ value, fieldtable);
+            if (field->field_action == ACTION_PUT_MESSAGE)
+                field->field_action = ACTION_PUT_FIELDTABLE;
+            if (field->value_action == ACTION_PUT_MESSAGE)
+                field->value_action = ACTION_PUT_FIELDTABLE;
         }
     }
 }
@@ -1918,9 +2002,49 @@ namespace {
     private:
         vector<bool> seen_oneof;
     };
+
+    class TrackSeen {
+        typedef Mapper::Field Field;
+
+    public:
+        TrackSeen(bool _check, const vector<Field> &_fields) :
+                check(_check),
+                seen_fields(check ? _fields.size() : 0),
+                fields(_fields) {
+        }
+
+        void mark(int index) {
+            if (check)
+                seen_fields[index] = true;
+        }
+
+        bool required_fields_present(Status *status) {
+            return !check || perform_check(status);
+        }
+
+    private:
+        bool perform_check(Status *status) {
+            for (int i = 0, max = fields.size(); i < max; ++i) {
+                const Field &field = fields[i];
+
+                if (field.field_def->label() == UPB_LABEL_REQUIRED && !seen_fields[i]) {
+                    status->SetFormattedErrorMessage(
+                        "Missing required field '%s'",
+                        field.full_name().c_str());
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        bool check;
+        vector<bool> seen_fields;
+        const vector<Field> &fields;
+    };
 }
 
-bool Mapper::encode_message(EncoderState &state, SV *ref) const {
+bool Mapper::encode_simple_message(EncoderState &state, SV *ref) const {
 #if !HAS_FULL_NOMG
     SvGETMAGIC(ref);
 #endif
@@ -1971,6 +2095,84 @@ bool Mapper::encode_message(EncoderState &state, SV *ref) const {
         return false;
 
     return true;
+}
+
+bool Mapper::encode_transformed_fieldtable_message(EncoderState &state, SV *ref, EncoderTransform *encoder_transform) const {
+#if !HAS_FULL_NOMG
+    SvGETMAGIC(ref);
+#endif
+    Sink *sink = state.sink;
+
+    if (!sink->StartMessage())
+        return false;
+
+    MapperContext::Item &mapper_cxt = state.mapper_context->push_level(ref, MapperContext::Message);
+
+    EncoderFieldtable *target = NULL, target_copy;
+    encoder_transform->transform_fieldtable(aTHX_ &target, ref);
+
+    if (target == NULL) {
+        croak("Transform callback for message %s did not return a table", message_def->full_name());
+        return false;
+    }
+
+    if (target->size > 1) {
+        size_t size = target->size * sizeof(EncoderFieldtable::Entry);
+
+        target_copy.size = target->size;
+        target_copy.entries = (EncoderFieldtable::Entry *) memcpy(alloca(size), target->entries, size);
+        target = &target_copy;
+    }
+
+    TrackOneof track_oneof(oneof_count);
+    TrackSeen track_seen(check_required_fields, fields);
+
+    for (int i = 0, max = target->size; i < max; ++i) {
+        EncoderFieldtable::Entry *entry = target->entries + i;
+        const Field *it = field_map.find_by_number(entry->field);
+        if (it == NULL) {
+            continue;
+        }
+
+        mapper_cxt.set_hash_key(it->name);
+
+        if (track_oneof.mark_and_maybe_skip(it->oneof_index)) {
+            continue;
+        }
+        track_seen.mark(it->field_index);
+
+        SV *value = entry->value;
+#if HAS_FULL_NOMG
+        SvGETMAGIC(value);
+#endif
+
+        if (!encode_field(state, *it, value)) {
+            SvREFCNT_dec_NN(value);
+            return false;
+        }
+        SvREFCNT_dec_NN(value);
+    }
+    state.mapper_context->pop_level();
+
+    if (!track_seen.required_fields_present(state.status)) {
+        return false;
+    }
+
+    if (!sink->EndMessage(state.status))
+        return false;
+
+    return true;
+}
+
+bool Mapper::encode_transformed_message(EncoderState &state, SV *ref, EncoderTransform *encoder_transform) const {
+#if !HAS_FULL_NOMG
+    SvGETMAGIC(ref);
+#endif
+
+    SV *target = sv_newmortal();
+    encoder_transform->transform(aTHX_ target, ref);
+
+    return encode_simple_message(state, target);
 }
 
 namespace {
@@ -2124,6 +2326,16 @@ bool Mapper::encode_field(EncoderState &state, const Field &fd, SV *ref) const {
         if (!sink->StartSubMessage(fd.selector.msg_start, &sub))
             return false;
         if (!fd.mapper->encode_message(sub_state, ref))
+            return false;
+        return sink->EndSubMessage(fd.selector.msg_end);
+    }
+    case ACTION_PUT_FIELDTABLE: {
+        Sink sub;
+        EncoderState sub_state(state, &sub);
+
+        if (!sink->StartSubMessage(fd.selector.msg_start, &sub))
+            return false;
+        if (!fd.mapper->encode_transformed_fieldtable_message(sub_state, ref, fd.encoder_transform))
             return false;
         return sink->EndSubMessage(fd.selector.msg_end);
     }

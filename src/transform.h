@@ -30,8 +30,21 @@ struct DecoderFieldtable {
     Entry *entries;
 };
 
+struct EncoderFieldtable {
+    struct Entry {
+        const char *name;
+        unsigned int field;
+        SV *value;
+    };
+
+    int size;
+    Entry *entries;
+};
+
 typedef void (*CDecoderTransform)(pTHX_ SV *target);
 typedef void (*CDecoderTransformFieldtable)(pTHX_ SV *target, DecoderFieldtable *fieldtable);
+typedef void (*CEncoderTransform)(pTHX_ SV *target, SV *value);
+typedef void (*CEncoderTransformFieldtable)(pTHX_ EncoderFieldtable **fieldtable, SV *value);
 
 class DecoderTransform {
 public:
@@ -52,6 +65,28 @@ private:
 
     CDecoderTransform c_transform;
     CDecoderTransformFieldtable c_transform_fieldtable;
+    SV *perl_transform;
+};
+
+class EncoderTransform {
+public:
+    EncoderTransform(CEncoderTransform c_transform);
+    EncoderTransform(CEncoderTransformFieldtable c_transform_fieldtable);
+    EncoderTransform(SV * perl_transform);
+
+    // clear and delete this object, it is needed just to avoid
+    // having a THX member in this object
+    void destroy(pTHX);
+
+    void transform(pTHX_ SV *target, SV *value) const;
+    void transform_fieldtable(pTHX_ EncoderFieldtable **target, SV *value) const;
+
+private:
+    // private to make sure deletion goes through destroy()
+    ~EncoderTransform() {}
+
+    CEncoderTransform c_transform;
+    CEncoderTransformFieldtable c_transform_fieldtable;
     SV *perl_transform;
 };
 
@@ -88,6 +123,7 @@ private:
 
 void fieldtable_debug_decoder_transform(pTHX_ SV *target, DecoderFieldtable *fieldtable);
 void fieldtable_profile_decoder_transform(pTHX_ SV *target, DecoderFieldtable *fieldtable);
+void fieldtable_debug_encoder_transform(pTHX_ EncoderFieldtable **fieldtable, SV *value);
 
 }
 }
