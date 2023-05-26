@@ -396,6 +396,7 @@ public:
             };
         };
 
+        Item() {}
         Item(Kind _kind) : kind(_kind) { }
     };
 
@@ -405,21 +406,29 @@ public:
     void warn_with_context(pTHX_ SV *warning) const;
 
     Item &push_level(Kind kind) {
-        levels.push_back(Item(kind));
+        // implemented this way to reuse memory as much as possible
+        if (next_level == levels.end()) {
+            levels.push_back(Item(kind));
+            return levels.back();
+        }
 
-        return levels.back();
+        next_level->kind = kind;
+
+        return *(next_level++);
     }
 
-    void pop_level() { levels.pop_back(); }
-    void clear() { levels.clear(); }
+    void pop_level() { next_level--; }
+    void clear() { next_level = levels.begin(); }
     void localize_warning_handler(pTHX);
 
 private:
+    // this is a list so mutation does not reallocate storage
     typedef std::list<Item> Levels;
 
     WarnContext(pTHX);
 
     Levels levels;
+    Levels::iterator next_level;
     SV *chained_handler;
     SV *warn_handler;
 };

@@ -2936,7 +2936,7 @@ void WarnContext::localize_warning_handler(pTHX) {
 void WarnContext::warn_with_context(pTHX_ SV *warning) const {
     SV *cxt = sv_2mortal(newSVpvs("While encoding field '"));
 
-    for (Levels::const_iterator it = levels.begin(), en = levels.end(); it != en; ++it) {
+    for (Levels::const_iterator it = levels.begin(), en = next_level; it != en; ++it) {
         switch (it->kind) {
         case Array:
             sv_catpvf(cxt, "[%d].", it->index);
