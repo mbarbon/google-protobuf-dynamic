@@ -1853,6 +1853,26 @@ namespace {
 
         return hv_fetch_ent(hv, name, lval, hash);
     }
+
+    class TrackOneof {
+    public:
+        TrackOneof(int oneof_count) :
+                seen_oneof(oneof_count) {
+        }
+
+        bool mark_and_maybe_skip(int oneof_index) {
+            if (oneof_index != -1) {
+                if (seen_oneof[oneof_index])
+                    return true;
+                seen_oneof[oneof_index] = true;
+            }
+
+            return false;
+        }
+
+    private:
+        vector<bool> seen_oneof;
+    };
 }
 
 bool Mapper::encode_message(Sink *sink, Status *status, SV *ref) const {
@@ -1870,8 +1890,8 @@ bool Mapper::encode_message(Sink *sink, Status *status, SV *ref) const {
     bool tied = SvTIED_mg((SV *) hv, PERL_MAGIC_tied);
     bool ok = true;
     WarnContext::Item &warn_cxt = warn_context->push_level(WarnContext::Message);
-    vector<bool> seen_oneof;
-    seen_oneof.resize(oneof_count);
+    TrackOneof track_oneof(oneof_count);
+
     for (vector<Field>::const_iterator it = fields.begin(), en = fields.end(); it != en; ++it) {
         warn_cxt.field = &*it;
         HE *he = tied ? hv_fetch_ent_tied(aTHX_ hv, it->name, 0, it->name_hash) :
@@ -1885,10 +1905,8 @@ bool Mapper::encode_message(Sink *sink, Status *status, SV *ref) const {
                 return false;
             } else
                 continue;
-        } else if (it->oneof_index != -1) {
-            if (seen_oneof[it->oneof_index])
-                continue;
-            seen_oneof[it->oneof_index] = true;
+        } else if (track_oneof.mark_and_maybe_skip(it->oneof_index)) {
+            continue;
         }
 
         SV *value = HeVAL(he);
