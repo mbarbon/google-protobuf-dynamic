@@ -21,6 +21,7 @@
 #include "vectorsink.h"
 #include "fieldmap.h"
 #include "pb/decoder.h"
+#include "mapper_context.h"
 
 #include <list>
 #include <vector>
@@ -216,12 +217,14 @@ public:
     struct EncoderState {
         upb::Status *status;
         upb::Sink *sink;
+        MapperContext *mapper_context;
 
-        EncoderState(upb::Status *_status);
+        EncoderState(upb::Status *_status, MapperContext *_mapper_context);
 
         EncoderState(EncoderState &original, upb::Sink *_sink) :
                 status(original.status),
-                sink(_sink) {
+                sink(_sink),
+                mapper_context(original.mapper_context) {
         }
 
         void setup(upb::Sink *sink);
@@ -343,6 +346,7 @@ private:
     int boolean_style;
     GV *json_false, *json_true;
     WarnContext *warn_context;
+    MapperContext mapper_context;
 };
 
 class MapperField : public Refcounted {
@@ -426,56 +430,18 @@ private:
 
 class WarnContext {
 public:
-    enum Kind {
-        Array   = 1,
-        Hash    = 2,
-        Message = 3,
-    };
-
-    struct Item {
-        Kind kind;
-        union {
-            int index;
-            const Mapper::Field *field;
-            struct {
-                const char *key;
-                STRLEN keylen;
-            };
-        };
-
-        Item() {}
-        Item(Kind _kind) : kind(_kind) { }
-    };
-
     static void setup(pTHX);
     static WarnContext *get(pTHX);
 
     void warn_with_context(pTHX_ SV *warning) const;
 
-    Item &push_level(Kind kind) {
-        // implemented this way to reuse memory as much as possible
-        if (next_level == levels.end()) {
-            levels.push_back(Item(kind));
-            return levels.back();
-        }
-
-        next_level->kind = kind;
-
-        return *(next_level++);
-    }
-
-    void pop_level() { next_level--; }
-    void clear() { next_level = levels.begin(); }
+    void set_context(MapperContext *cxt) { context = cxt; }
     void localize_warning_handler(pTHX);
 
 private:
-    // this is a list so mutation does not reallocate storage
-    typedef std::list<Item> Levels;
-
     WarnContext(pTHX);
 
-    Levels levels;
-    Levels::iterator next_level;
+    MapperContext *context;
     SV *chained_handler;
     SV *warn_handler;
 };

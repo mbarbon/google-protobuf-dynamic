@@ -727,11 +727,11 @@ void Mapper::DecoderHandlers::finish_add_transform_fieldtable() {
     }
 }
 
-Mapper::EncoderState::EncoderState(upb::Status *_status) :
-        status(_status) {
+Mapper::EncoderState::EncoderState(Status *_status, MapperContext *_mapper_context) :
+        status(_status), mapper_context(_mapper_context) {
 }
 
-void Mapper::EncoderState::setup(upb::Sink *_sink) {
+void Mapper::EncoderState::setup(Sink *_sink) {
     sink = _sink;
 }
 
@@ -739,7 +739,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const g
         registry(_registry),
         message_def(_message_def),
         gpd_descriptor(_gpd_descriptor),
-        encoder_state(&status),
+        encoder_state(&status, &mapper_context),
         decoder_field_data(_gpd_descriptor),
         stash(_stash),
         json_true(NULL),
@@ -1294,8 +1294,9 @@ SV *Mapper::encode(SV *ref) {
     upb::pb::Encoder *pb_encoder = upb::pb::Encoder::Create(env, pb_encoder_handlers.get(), vector_sink.input());
     encoder_state.setup(pb_encoder->input());
     status.Clear();
-    warn_context->clear();
     warn_context->localize_warning_handler(aTHX);
+    warn_context->set_context(&mapper_context);
+    encoder_state.mapper_context->clear();
 
     SV *result = NULL;
 
@@ -1316,8 +1317,9 @@ SV *Mapper::encode_json(SV *ref) {
     upb::json::Printer *json_encoder = upb::json::Printer::Create(env, json_encoder_handlers.get(), vector_sink.input());
     encoder_state.setup(json_encoder->input());
     status.Clear();
-    warn_context->clear();
     warn_context->localize_warning_handler(aTHX);
+    warn_context->set_context(&mapper_context);
+    encoder_state.mapper_context->clear();
 
     SV *result = NULL;
 
@@ -1832,10 +1834,10 @@ bool Mapper::encode_from_array(EncoderState &state, const Mapper::Field &fd, AV 
     if (!sink->StartSequence(fd.selector.seq_start, &sub))
         return false;
 
-    WarnContext::Item &warn_cxt = warn_context->push_level(WarnContext::Array);
+    MapperContext::Item &mapper_cxt = state.mapper_context->push_level(source);
 
     for (int i = 0; i < size; ++i) {
-        warn_cxt.index = i;
+        mapper_cxt.set_array_index(i);
 
         SV **item = av_fetch(source, i, 0);
         if (!item)
@@ -1850,7 +1852,7 @@ bool Mapper::encode_from_array(EncoderState &state, const Mapper::Field &fd, AV 
         if (!setter(aTHX_ &sub, fd, getter(aTHX_ *item)))
             return false;
     }
-    warn_context->pop_level();
+    state.mapper_context->pop_level();
 
     return sink->EndSequence(fd.selector.seq_end);
 }
@@ -1862,10 +1864,10 @@ bool Mapper::encode_from_message_array(EncoderState &state, const Mapper::Field 
     if (!sink->StartSequence(fd.selector.seq_start, &sub))
         return false;
 
-    WarnContext::Item &warn_cxt = warn_context->push_level(WarnContext::Array);
+    MapperContext::Item &mapper_cxt = state.mapper_context->push_level(source);
 
     for (int i = 0; i < size; ++i) {
-        warn_cxt.index = i;
+        mapper_cxt.set_array_index(i);
 
         SV **item = av_fetch(source, i, 0);
         if (!item)
@@ -1884,7 +1886,7 @@ bool Mapper::encode_from_message_array(EncoderState &state, const Mapper::Field 
         if (!sub.EndSubMessage(fd.selector.msg_end))
             return false;
     }
-    warn_context->pop_level();
+    state.mapper_context->pop_level();
 
     return sink->EndSequence(fd.selector.seq_end);
 }
@@ -1932,11 +1934,11 @@ bool Mapper::encode_message(EncoderState &state, SV *ref) const {
         return false;
 
     bool tied = SvTIED_mg((SV *) hv, PERL_MAGIC_tied);
-    WarnContext::Item &warn_cxt = warn_context->push_level(WarnContext::Message);
+    MapperContext::Item &mapper_cxt = state.mapper_context->push_level(hv, MapperContext::Message);
     TrackOneof track_oneof(oneof_count);
 
     for (vector<Field>::const_iterator it = fields.begin(), en = fields.end(); it != en; ++it) {
-        warn_cxt.field = &*it;
+        mapper_cxt.set_hash_key(it->name);
 
         HE *he = tied ? hv_fetch_ent_tied(aTHX_ hv, it->name, 0, it->name_hash) :
                         hv_fetch_ent(hv, it->name, 0, it->name_hash);
@@ -1963,7 +1965,7 @@ bool Mapper::encode_message(EncoderState &state, SV *ref) const {
         if (!encode_field(state, *it, value))
             return false;
     }
-    warn_context->pop_level();
+    state.mapper_context->pop_level();
 
     if (!sink->EndMessage(state.status))
         return false;
@@ -2198,7 +2200,7 @@ bool Mapper::encode_from_perl_hash(EncoderState &state, const Field &fd, SV *ref
         return false;
 
     hv_iterinit(hash);
-    WarnContext::Item &warn_cxt = warn_context->push_level(WarnContext::Hash);
+    MapperContext::Item &mapper_cxt = state.mapper_context->push_level(hash, MapperContext::Hash);
 
     while (HE *entry = hv_iternext(hash)) {
         Sink key_value;
@@ -2224,8 +2226,7 @@ bool Mapper::encode_from_perl_hash(EncoderState &state, const Field &fd, SV *ref
             }
         }
 
-        warn_cxt.key = key;
-        warn_cxt.keylen = keylen;
+        mapper_cxt.set_hash_key(key, keylen);
 
 #if HAS_FULL_NOMG
         SvGETMAGIC(value);
@@ -2238,7 +2239,7 @@ bool Mapper::encode_from_perl_hash(EncoderState &state, const Field &fd, SV *ref
         if (!repeated.EndSubMessage(fd.selector.msg_end))
             return false;
     }
-    warn_context->pop_level();
+    state.mapper_context->pop_level();
 
     return sink->EndSequence(fd.selector.seq_end);
 }
@@ -2996,21 +2997,45 @@ void WarnContext::localize_warning_handler(pTHX) {
     PL_warnhook = SvREFCNT_inc_simple_NN(warn_handler);
 }
 
+namespace {
+    void concat_key(pTHX_ SV *sv, const MapperContext::ExternalItem *key, bool is_hash) {
+        if (is_hash)
+            sv_catpvs(sv, "{");
+
+        if (key->hash_item.svkey) {
+            sv_catsv(sv, key->hash_item.svkey);
+        } else if (key->hash_item.keybuf) {
+            sv_catpvn(sv, key->hash_item.keybuf, key->hash_item.keylen);
+        } else {
+            sv_catpvs(sv, "<message>.");
+        }
+
+        if (is_hash)
+            sv_catpvs(sv, "}.");
+        else
+            sv_catpvs(sv, ".");
+    }
+}
+
 void WarnContext::warn_with_context(pTHX_ SV *warning) const {
     SV *cxt = sv_2mortal(newSVpvs("While encoding field '"));
+    int mapper_context_size = 0;
+    const gpd::MapperContext::ExternalItem *const *mapper_context = NULL;
 
-    for (Levels::const_iterator it = levels.begin(), en = next_level; it != en; ++it) {
-        switch (it->kind) {
-        case Array:
-            sv_catpvf(cxt, "[%d].", it->index);
+    context->fill_context(&mapper_context, &mapper_context_size);
+
+    for (int i = 0; i < mapper_context_size; ++i) {
+        const gpd::MapperContext::ExternalItem *item = mapper_context[i];
+
+        switch (item->kind) {
+        case MapperContext::Array:
+            sv_catpvf(cxt, "[%d].", item->array_item.index);
             break;
-        case Hash:
-            sv_catpvs(cxt, "{");
-            sv_catpvn(cxt, it->key, it->keylen);
-            sv_catpvs(cxt, "}.");
+        case MapperContext::Hash:
+            concat_key(aTHX_ cxt, item, true);
             break;
-        case Message:
-            sv_catpvf(cxt, "%" SVf ".", it->field->name);
+        case MapperContext::Message:
+            concat_key(aTHX_ cxt, item, false);
             break;
         }
     }
