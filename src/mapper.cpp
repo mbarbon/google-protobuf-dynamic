@@ -727,10 +727,19 @@ void Mapper::DecoderHandlers::finish_add_transform_fieldtable() {
     }
 }
 
+Mapper::EncoderState::EncoderState(upb::Status *_status) :
+        status(_status) {
+}
+
+void Mapper::EncoderState::setup(upb::Sink *_sink) {
+    sink = _sink;
+}
+
 Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const gpd::pb::Descriptor *_gpd_descriptor, HV *_stash, const MappingOptions &options) :
         registry(_registry),
         message_def(_message_def),
         gpd_descriptor(_gpd_descriptor),
+        encoder_state(&status),
         decoder_field_data(_gpd_descriptor),
         stash(_stash),
         json_true(NULL),
@@ -1283,16 +1292,18 @@ SV *Mapper::encode(SV *ref) {
         croak("It looks like resolve_references() was not called (and please use map() anyway)");
     upb::Environment *env = make_localized_environment(aTHX_ &status);
     upb::pb::Encoder *pb_encoder = upb::pb::Encoder::Create(env, pb_encoder_handlers.get(), vector_sink.input());
+    encoder_state.setup(pb_encoder->input());
     status.Clear();
     warn_context->clear();
     warn_context->localize_warning_handler(aTHX);
+
     SV *result = NULL;
 
 #if HAS_FULL_NOMG
     SvGETMAGIC(ref);
 #endif
 
-    if (encode_message(pb_encoder->input(), &status, ref))
+    if (encode_message(encoder_state, ref))
         result = newSVpvn(vector_sink.data(), vector_sink.size());
 
     return result;
@@ -1303,16 +1314,18 @@ SV *Mapper::encode_json(SV *ref) {
         croak("It looks like resolve_references() was not called (and please use map() anyway)");
     upb::Environment *env = make_localized_environment(aTHX_ &status);
     upb::json::Printer *json_encoder = upb::json::Printer::Create(env, json_encoder_handlers.get(), vector_sink.input());
+    encoder_state.setup(json_encoder->input());
     status.Clear();
     warn_context->clear();
     warn_context->localize_warning_handler(aTHX);
+
     SV *result = NULL;
 
 #if HAS_FULL_NOMG
     SvGETMAGIC(ref);
 #endif
 
-    if (encode_message(json_encoder->input(), &status, ref))
+    if (encode_message(encoder_state, ref))
         result = newSVpvn(vector_sink.data(), vector_sink.size());
 
     return result;
@@ -1800,9 +1813,9 @@ namespace {
 }
 
 template<class G, class S>
-bool Mapper::encode_from_array(Sink *sink, Status *status, const Mapper::Field &fd, AV *source) const {
+bool Mapper::encode_from_array(EncoderState &state, const Mapper::Field &fd, AV *source) const {
     G getter;
-    S setter(status);
+    S setter(state.status);
     Sink sub;
 
     int size = av_top_index(source) + 1;
@@ -1815,12 +1828,15 @@ bool Mapper::encode_from_array(Sink *sink, Status *status, const Mapper::Field &
         return true;
     }
 
+    Sink *sink = state.sink;
     if (!sink->StartSequence(fd.selector.seq_start, &sub))
         return false;
 
     WarnContext::Item &warn_cxt = warn_context->push_level(WarnContext::Array);
+
     for (int i = 0; i < size; ++i) {
         warn_cxt.index = i;
+
         SV **item = av_fetch(source, i, 0);
         if (!item)
             return false;
@@ -1829,7 +1845,7 @@ bool Mapper::encode_from_array(Sink *sink, Status *status, const Mapper::Field &
         SvGETMAGIC(*item);
 #endif
 
-        if (fail_ref_coercion && is_coerced_ref(aTHX_ status, fd, *item))
+        if (fail_ref_coercion && is_coerced_ref(aTHX_ state.status, fd, *item))
             return false;
         if (!setter(aTHX_ &sub, fd, getter(aTHX_ *item)))
             return false;
@@ -1839,20 +1855,23 @@ bool Mapper::encode_from_array(Sink *sink, Status *status, const Mapper::Field &
     return sink->EndSequence(fd.selector.seq_end);
 }
 
-bool Mapper::encode_from_message_array(Sink *sink, Status *status, const Mapper::Field &fd, AV *source) const {
+bool Mapper::encode_from_message_array(EncoderState &state, const Mapper::Field &fd, AV *source) const {
     int size = av_top_index(source) + 1;
-    Sink sub;
+    Sink *sink = state.sink, sub;
 
     if (!sink->StartSequence(fd.selector.seq_start, &sub))
         return false;
 
     WarnContext::Item &warn_cxt = warn_context->push_level(WarnContext::Array);
+
     for (int i = 0; i < size; ++i) {
         warn_cxt.index = i;
+
         SV **item = av_fetch(source, i, 0);
         if (!item)
             return false;
         Sink submsg;
+        EncoderState submsg_state(state, &submsg);
 
 #if HAS_FULL_NOMG
         SvGETMAGIC(*item);
@@ -1860,7 +1879,7 @@ bool Mapper::encode_from_message_array(Sink *sink, Status *status, const Mapper:
 
         if (!sub.StartSubMessage(fd.selector.msg_start, &submsg))
             return false;
-        if (!encode_message(&submsg, status, *item))
+        if (!encode_message(submsg_state, *item))
             return false;
         if (!sub.EndSubMessage(fd.selector.msg_end))
             return false;
@@ -1899,7 +1918,7 @@ namespace {
     };
 }
 
-bool Mapper::encode_message(Sink *sink, Status *status, SV *ref) const {
+bool Mapper::encode_message(EncoderState &state, SV *ref) const {
 #if !HAS_FULL_NOMG
     SvGETMAGIC(ref);
 #endif
@@ -1907,6 +1926,7 @@ bool Mapper::encode_message(Sink *sink, Status *status, SV *ref) const {
     if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVHV)
         croak("Not a hash reference when encoding a %s value", message_def->full_name());
     HV *hv = (HV *) SvRV(ref);
+    Sink *sink = state.sink;
 
     if (!sink->StartMessage())
         return false;
@@ -1917,12 +1937,13 @@ bool Mapper::encode_message(Sink *sink, Status *status, SV *ref) const {
 
     for (vector<Field>::const_iterator it = fields.begin(), en = fields.end(); it != en; ++it) {
         warn_cxt.field = &*it;
+
         HE *he = tied ? hv_fetch_ent_tied(aTHX_ hv, it->name, 0, it->name_hash) :
                         hv_fetch_ent(hv, it->name, 0, it->name_hash);
 
         if (!he) {
             if (it->field_def->label() == UPB_LABEL_REQUIRED) {
-                status->SetFormattedErrorMessage(
+                state.status->SetFormattedErrorMessage(
                     "Missing required field '%s'",
                     it->full_name().c_str());
                 return false;
@@ -1937,12 +1958,12 @@ bool Mapper::encode_message(Sink *sink, Status *status, SV *ref) const {
         SvGETMAGIC(value);
 #endif
 
-        if (!encode_field(sink, status, *it, value))
+        if (!encode_field(state, *it, value))
             return false;
     }
     warn_context->pop_level();
 
-    if (!sink->EndMessage(status))
+    if (!sink->EndMessage(state.status))
         return false;
 
     return true;
@@ -1963,11 +1984,12 @@ namespace {
     }
 }
 
-bool Mapper::encode_field(Sink *sink, Status *status, const Field &fd, SV *ref) const {
+bool Mapper::encode_field(EncoderState &state, const Field &fd, SV *ref) const {
     ValueAction field_action = fd.field_action;
 
-    if (fail_ref_coercion && field_action < ACTION_PUT_MESSAGE && is_coerced_ref(aTHX_ status, fd, ref))
+    if (fail_ref_coercion && field_action < ACTION_PUT_MESSAGE && is_coerced_ref(aTHX_ state.status, fd, ref))
         return false;
+    Sink *sink = state.sink;
 
     switch (field_action) {
 
@@ -2007,7 +2029,7 @@ bool Mapper::encode_field(Sink *sink, Status *status, const Field &fd, SV *ref) 
             return true;
         if (check_enum_values &&
                 fd.enum_values.find(value) == fd.enum_values.end()) {
-            status->SetFormattedErrorMessage(
+            state.status->SetFormattedErrorMessage(
                 "Invalid enumeration value %d for field '%s'",
                 value,
                 fd.full_name().c_str()
@@ -2064,7 +2086,7 @@ bool Mapper::encode_field(Sink *sink, Status *status, const Field &fd, SV *ref) 
         IV value = SvIV_enc(ref);
         if (check_enum_values &&
                 fd.enum_values.find(value) == fd.enum_values.end()) {
-            status->SetFormattedErrorMessage(
+            state.status->SetFormattedErrorMessage(
                 "Invalid enumeration value %d for field '%s'",
                 value,
                 fd.full_name().c_str()
@@ -2093,22 +2115,26 @@ bool Mapper::encode_field(Sink *sink, Status *status, const Field &fd, SV *ref) 
 
     case ACTION_PUT_MESSAGE: {
         Sink sub;
+        EncoderState sub_state(state, &sub);
+
         if (!sink->StartSubMessage(fd.selector.msg_start, &sub))
             return false;
-        if (!fd.mapper->encode_message(&sub, status, ref))
+        if (!fd.mapper->encode_message(sub_state, ref))
             return false;
         return sink->EndSubMessage(fd.selector.msg_end);
     }
     case ACTION_PUT_MAP:
-        return encode_from_perl_hash(sink, status, fd, ref);
+        return encode_from_perl_hash(state, fd, ref);
     case ACTION_PUT_REPEATED:
-        return encode_from_perl_array(sink, status, fd, ref);
+        return encode_from_perl_array(state, fd, ref);
     default:
         return false; // just in case
     }
 }
 
-bool Mapper::encode_key(Sink *sink, Status *status, const Field &fd, const char *key, I32 keylen) const {
+bool Mapper::encode_key(EncoderState &state, const Field &fd, const char *key, I32 keylen) const {
+    Sink *sink = state.sink;
+
     switch (fd.value_action) {
     case ACTION_PUT_BOOL: {
         // follows what SvTRUE() does for strings
@@ -2135,26 +2161,28 @@ bool Mapper::encode_key(Sink *sink, Status *status, const Field &fd, const char 
     }
 }
 
-bool Mapper::encode_hash_kv(Sink *sink, Status *status, const char *key, STRLEN keylen, SV *value) const {
+bool Mapper::encode_hash_kv(EncoderState &state, const char *key, STRLEN keylen, SV *value) const {
+    Sink *sink = state.sink;
+
     if (!sink->StartMessage())
         return false;
     if (fields[0].is_map_key()) {
-        if (!encode_key(sink, status, fields[0], key, keylen))
+        if (!encode_key(state, fields[0], key, keylen))
             return false;
-        if (!encode_field(sink, status, fields[1], value))
+        if (!encode_field(state, fields[1], value))
             return false;
     } else {
-        if (!encode_key(sink, status, fields[1], key, keylen))
+        if (!encode_key(state, fields[1], key, keylen))
             return false;
-        if (!encode_field(sink, status, fields[0], value))
+        if (!encode_field(state, fields[0], value))
             return false;
     }
-    if (!sink->EndMessage(status))
+    if (!sink->EndMessage(state.status))
         return false;
     return true;
 }
 
-bool Mapper::encode_from_perl_hash(Sink *sink, Status *status, const Field &fd, SV *ref) const {
+bool Mapper::encode_from_perl_hash(EncoderState &state, const Field &fd, SV *ref) const {
 #if !HAS_FULL_NOMG
     SvGETMAGIC(ref);
 #endif
@@ -2162,15 +2190,17 @@ bool Mapper::encode_from_perl_hash(Sink *sink, Status *status, const Field &fd, 
     if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVHV)
         croak("Not a hash reference when encoding field '%s'", fd.full_name().c_str());
     HV *hash = (HV *) SvRV(ref);
-    Sink repeated;
+    Sink *sink = state.sink, repeated;
 
     if (!sink->StartSequence(fd.selector.seq_start, &repeated))
         return false;
 
     hv_iterinit(hash);
     WarnContext::Item &warn_cxt = warn_context->push_level(WarnContext::Hash);
+
     while (HE *entry = hv_iternext(hash)) {
         Sink key_value;
+        EncoderState key_value_state(state, &key_value);
         SV *value = HeVAL(entry);
         const char *key;
         STRLEN keylen;
@@ -2198,7 +2228,7 @@ bool Mapper::encode_from_perl_hash(Sink *sink, Status *status, const Field &fd, 
 
         if (!repeated.StartSubMessage(fd.selector.msg_start, &key_value))
             return false;
-        if (!fd.mapper->encode_hash_kv(&key_value, status, key, keylen, value))
+        if (!fd.mapper->encode_hash_kv(key_value_state, key, keylen, value))
             return false;
         if (!repeated.EndSubMessage(fd.selector.msg_end))
             return false;
@@ -2208,7 +2238,7 @@ bool Mapper::encode_from_perl_hash(Sink *sink, Status *status, const Field &fd, 
     return sink->EndSequence(fd.selector.seq_end);
 }
 
-bool Mapper::encode_from_perl_array(Sink *sink, Status *status, const Field &fd, SV *ref) const {
+bool Mapper::encode_from_perl_array(EncoderState &state, const Field &fd, SV *ref) const {
 #if !HAS_FULL_NOMG
     SvGETMAGIC(ref);
 #endif
@@ -2218,36 +2248,36 @@ bool Mapper::encode_from_perl_array(Sink *sink, Status *status, const Field &fd,
 
     switch (fd.value_action) {
     case ACTION_PUT_FLOAT:
-        return encode_from_array<NVGetter, FloatEmitter>(sink, status, fd, array);
+        return encode_from_array<NVGetter, FloatEmitter>(state, fd, array);
     case ACTION_PUT_DOUBLE:
-        return encode_from_array<NVGetter, DoubleEmitter>(sink, status, fd, array);
+        return encode_from_array<NVGetter, DoubleEmitter>(state, fd, array);
     case ACTION_PUT_BOOL:
-        return encode_from_array<BoolGetter, BoolEmitter>(sink, status, fd, array);
+        return encode_from_array<BoolGetter, BoolEmitter>(state, fd, array);
     case ACTION_PUT_STRING:
-        return encode_from_array<SVGetter, StringEmitter>(sink, status, fd, array);
+        return encode_from_array<SVGetter, StringEmitter>(state, fd, array);
     case ACTION_PUT_BYTES:
-        return encode_from_array<SVGetter, StringEmitter>(sink, status, fd, array);
+        return encode_from_array<SVGetter, StringEmitter>(state, fd, array);
     case ACTION_PUT_MESSAGE:
-        return fd.mapper->encode_from_message_array(sink, status, fd, array);
+        return fd.mapper->encode_from_message_array(state, fd, array);
     case ACTION_PUT_ENUM:
         if (check_enum_values)
-            return encode_from_array<IVGetter, EnumEmitter>(sink, status, fd, array);
+            return encode_from_array<IVGetter, EnumEmitter>(state, fd, array);
         else
-            return encode_from_array<IVGetter, Int32Emitter>(sink, status, fd, array);
+            return encode_from_array<IVGetter, Int32Emitter>(state, fd, array);
     case ACTION_PUT_INT32:
-        return encode_from_array<IVGetter, Int32Emitter>(sink, status, fd, array);
+        return encode_from_array<IVGetter, Int32Emitter>(state, fd, array);
     case ACTION_PUT_UINT32:
-        return encode_from_array<UVGetter, UInt32Emitter>(sink, status, fd, array);
+        return encode_from_array<UVGetter, UInt32Emitter>(state, fd, array);
     case ACTION_PUT_INT64:
         if (sizeof(IV) >= sizeof(int64_t))
-            return encode_from_array<IVGetter, Int64Emitter>(sink, status, fd, array);
+            return encode_from_array<IVGetter, Int64Emitter>(state, fd, array);
         else
-            return encode_from_array<I64Getter, Int64Emitter>(sink, status, fd, array);
+            return encode_from_array<I64Getter, Int64Emitter>(state, fd, array);
     case ACTION_PUT_UINT64:
         if (sizeof(IV) >= sizeof(int64_t))
-            return encode_from_array<UVGetter, UInt64Emitter>(sink, status, fd, array);
+            return encode_from_array<UVGetter, UInt64Emitter>(state, fd, array);
         else
-            return encode_from_array<U64Getter, UInt64Emitter>(sink, status, fd, array);
+            return encode_from_array<U64Getter, UInt64Emitter>(state, fd, array);
     default:
         return false; // just in case
     }

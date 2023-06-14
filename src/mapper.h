@@ -212,6 +212,20 @@ public:
         }
     };
 
+    struct EncoderState {
+        upb::Status *status;
+        upb::Sink *sink;
+
+        EncoderState(upb::Status *_status);
+
+        EncoderState(EncoderState &original, upb::Sink *_sink) :
+                status(original.status),
+                sink(_sink) {
+        }
+
+        void setup(upb::Sink *sink);
+    };
+
 public:
     Mapper(pTHX_ Dynamic *registry, const upb::MessageDef *message_def, const gpd::pb::Descriptor *gpd_descriptor, HV *stash, const MappingOptions &options);
     ~Mapper();
@@ -247,16 +261,16 @@ public:
 private:
     static bool run_bbpb_decoder(Mapper *root_mapper, const char *buffer, STRLEN bufsize);
 
-    bool encode_message(upb::Sink *sink, upb::Status *status, SV *ref) const;
-    bool encode_field(upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;
-    bool encode_key(upb::Sink *sink, upb::Status *status, const Field &fd, const char *key, I32 keylen) const;
-    bool encode_hash_kv(upb::Sink *sink, upb::Status *status, const char *key, STRLEN keylen, SV *value) const;
-    bool encode_from_perl_array(upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;
-    bool encode_from_perl_hash(upb::Sink *sink, upb::Status *status, const Field &fd, SV *ref) const;
-    bool encode_from_message_array(upb::Sink *sink, upb::Status *status, const Mapper::Field &fd, AV *source) const;
+    bool encode_message(EncoderState &state, SV *ref) const;
+    bool encode_field(EncoderState &state, const Field &fd, SV *ref) const;
+    bool encode_key(EncoderState &state, const Field &fd, const char *key, I32 keylen) const;
+    bool encode_hash_kv(EncoderState &state, const char *key, STRLEN keylen, SV *value) const;
+    bool encode_from_perl_array(EncoderState &state, const Field &fd, SV *ref) const;
+    bool encode_from_perl_hash(EncoderState &state, const Field &fd, SV *ref) const;
+    bool encode_from_message_array(EncoderState &state, const Mapper::Field &fd, AV *source) const;
 
     template<class G, class S>
-    bool encode_from_array(upb::Sink *sink, upb::Status *status, const Mapper::Field &fd, AV *source) const;
+    bool encode_from_array(EncoderState &state, const Mapper::Field &fd, AV *source) const;
 
     bool check(upb::Status *status, SV *ref) const;
     bool check(upb::Status *status, const Field &fd, SV *ref) const;
@@ -319,9 +333,10 @@ private:
     std::vector<MapperField *> extension_mapper_fields;
     STD_TR1::unordered_map<std::string, Field *> field_map;
     upb::Status status;
+    EncoderState encoder_state;
     DecoderHandlers decoder_callbacks;
     gpd::pb::DecoderFieldData<FieldData> decoder_field_data;
-    upb::Sink encoder_sink, decoder_sink;
+    upb::Sink decoder_sink;
     gpd::VectorSink vector_sink;
     bool check_required_fields, decode_explicit_defaults, encode_defaults, check_enum_values, decode_blessed, fail_ref_coercion;
     int boolean_style;
