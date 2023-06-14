@@ -448,6 +448,7 @@ BOOT:
     sv_setiv(get_sv("Google::ProtocolBuffers::Dynamic::Fieldtable::debug_decoder_transform", GV_ADDMULTI), PTR2IV(gpd::transform::fieldtable_debug_decoder_transform));
     sv_setiv(get_sv("Google::ProtocolBuffers::Dynamic::Fieldtable::profile_decoder_transform", GV_ADDMULTI), PTR2IV(gpd::transform::fieldtable_profile_decoder_transform));
     sv_setiv(get_sv("Google::ProtocolBuffers::Dynamic::Fieldtable::debug_encoder_transform", GV_ADDMULTI), PTR2IV(gpd::transform::fieldtable_debug_encoder_transform));
+    sv_setiv(get_sv("Google::ProtocolBuffers::Dynamic::Fieldtable::debug_encoder_unknown_fields", GV_ADDMULTI), PTR2IV(gpd::transform::fieldtable_debug_encoder_unknown_fields));
 
 SV *
 grpc_xs_call_service_passthrough(SV *self, ...)
@@ -484,6 +485,22 @@ grpc_xs_call_service_passthrough(SV *self, ...)
     PUTBACK;
 
     SvREFCNT_inc(RETVAL);
+  OUTPUT: RETVAL
+
+%}
+
+%package{Google::ProtocolBuffers::Dynamic::Fieldtable};
+
+%{
+
+SV *
+debug_encoder_unknown_fields_get()
+  INIT:
+    AV *value = gpd::transform::fieldtable_debug_encoder_unknown_fields_get();
+  CODE:
+    if (!value)
+        value = newAV();
+    RETVAL = newRV_noinc((SV *) value);
   OUTPUT: RETVAL
 
 %}

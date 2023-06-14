@@ -101,6 +101,14 @@ void EncoderTransform::transform_fieldtable(pTHX_ EncoderFieldtable **target, SV
     }
 }
 
+UnknownFieldTransform::UnknownFieldTransform(CUnknownFieldTransform _c_transform) :
+        c_transform(_c_transform) {
+}
+
+void UnknownFieldTransform::destroy(pTHX) {
+    delete this;
+}
+
 DecoderTransformQueue::DecoderTransformQueue(pTHX) {
     SET_THX_MEMBER;
 }
@@ -223,4 +231,46 @@ void gpd::transform::fieldtable_debug_encoder_transform(pTHX_ EncoderFieldtable 
     }
 
     *fieldtable = &debug_fieldtable;
+}
+
+// the only use for this transform is to be able to test unknown field callbacks
+namespace {
+    AV *value_dump;
+}
+
+AV *gpd::transform::fieldtable_debug_encoder_unknown_fields_get() {
+    AV *current = value_dump;
+
+    value_dump = NULL;
+
+    return current;
+}
+
+void gpd::transform::fieldtable_debug_encoder_unknown_fields(pTHX_ UnknownFieldContext *field_context, SV *value) {
+    if (value_dump == NULL)
+        value_dump = newAV();
+
+    AV *dump = newAV();
+
+    for (int i = 0; i < field_context->size; ++i) {
+        const MapperContext::ExternalItem *item = field_context->mapper_context[i];
+
+        switch (item->kind) {
+        case MapperContext::Hash:
+        case MapperContext::Message:
+            if (item->hash_item.svkey) {
+                av_push(dump, SvREFCNT_inc(item->hash_item.svkey));
+            } else {
+                av_push(dump, newSVpvn(item->hash_item.keybuf, item->hash_item.keylen));
+            }
+            break;
+        case MapperContext::Array:
+            av_push(dump, newSVuv(item->array_item.index));
+            break;
+        }
+    }
+
+    av_push(dump, SvREFCNT_inc(value));
+
+    av_push(value_dump, newRV_noinc((SV *) dump));
 }

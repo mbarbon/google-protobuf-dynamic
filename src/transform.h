@@ -8,6 +8,7 @@
 #include "ppport.h"
 
 #include "thx_member.h"
+#include "mapper_context.h"
 
 #include <vector>
 #include <list>
@@ -41,10 +42,16 @@ struct EncoderFieldtable {
     Entry *entries;
 };
 
+struct UnknownFieldContext {
+    int size;
+    const gpd::MapperContext::ExternalItem *const *mapper_context;
+};
+
 typedef void (*CDecoderTransform)(pTHX_ SV *target);
 typedef void (*CDecoderTransformFieldtable)(pTHX_ SV *target, DecoderFieldtable *fieldtable);
 typedef void (*CEncoderTransform)(pTHX_ SV *target, SV *value);
 typedef void (*CEncoderTransformFieldtable)(pTHX_ EncoderFieldtable **fieldtable, SV *value);
+typedef void (*CUnknownFieldTransform)(pTHX_ UnknownFieldContext *field_context, SV *value);
 
 class DecoderTransform {
 public:
@@ -90,6 +97,25 @@ private:
     SV *perl_transform;
 };
 
+class UnknownFieldTransform {
+public:
+    UnknownFieldTransform(CUnknownFieldTransform c_transform);
+
+    // clear and delete this object, it is needed just to avoid
+    // having a THX member in this object
+    void destroy(pTHX);
+
+    void transform(pTHX_ UnknownFieldContext *field_context, SV *value) const {
+        c_transform(aTHX_ field_context, value);
+    }
+
+private:
+    // private to make sure deletion goes through destroy()
+    ~UnknownFieldTransform() {}
+
+    CUnknownFieldTransform c_transform;
+};
+
 class DecoderTransformQueue {
     struct PendingTransform {
         const DecoderTransform *transform;
@@ -124,6 +150,8 @@ private:
 void fieldtable_debug_decoder_transform(pTHX_ SV *target, DecoderFieldtable *fieldtable);
 void fieldtable_profile_decoder_transform(pTHX_ SV *target, DecoderFieldtable *fieldtable);
 void fieldtable_debug_encoder_transform(pTHX_ EncoderFieldtable **fieldtable, SV *value);
+void fieldtable_debug_encoder_unknown_fields(pTHX_ UnknownFieldContext *field_context, SV *value);
+AV *fieldtable_debug_encoder_unknown_fields_get();
 
 }
 }

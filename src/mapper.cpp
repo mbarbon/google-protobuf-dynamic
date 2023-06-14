@@ -743,6 +743,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const g
         decoder_field_data(_gpd_descriptor),
         encoder_transform(NULL),
         encoder_transform_fieldtable(false),
+        unknown_field_transform(NULL),
         stash(_stash),
         json_true(NULL),
         json_false(NULL),
@@ -1241,6 +1242,14 @@ static EncoderTransform *make_encoder_transform(pTHX_ SV *scalar, bool fieldtabl
     croak("Transformation function must be an integer representing a C function pointer");
 }
 
+static UnknownFieldTransform *make_unknown_field_transform(pTHX_ SV *scalar) {
+    if (SvIOK(scalar)) {
+        return new UnknownFieldTransform(INT2PTR(CUnknownFieldTransform, SvIV(scalar)));
+    }
+
+    croak("Transformation function must be an integer representing a C function pointer");
+}
+
 void Mapper::set_decoder_options(HV *options) {
     SV *transform = scalar_option(aTHX_ options, "transform");
     SV *fieldtable_sv = scalar_option(aTHX_ options, "fieldtable");
@@ -1298,6 +1307,7 @@ void Mapper::set_encoder_options(HV *options) {
     SV *transform = scalar_option(aTHX_ options, "transform");
     SV *fieldtable_sv = scalar_option(aTHX_ options, "fieldtable");
     HV *transform_fields = hash_option(aTHX_ options, "transform_fields");
+    SV *unknown_field = scalar_option(aTHX_ options, "unknown_field");
     bool fieldtable = fieldtable_sv ? SvTRUE(fieldtable_sv) : false;
 
     if (fieldtable && (!transform && !transform_fields)) {
@@ -1316,6 +1326,12 @@ void Mapper::set_encoder_options(HV *options) {
         }
 
         encoder_transform_fieldtable = true;
+    }
+
+    if (unknown_field) {
+        if (unknown_field_transform)
+            unknown_field_transform->destroy(aTHX);
+        unknown_field_transform = make_unknown_field_transform(aTHX_ unknown_field);
     }
 
     if (transform_fields) {
@@ -2044,7 +2060,7 @@ namespace {
     };
 }
 
-bool Mapper::encode_simple_message(EncoderState &state, SV *ref) const {
+bool Mapper::encode_simple_message_iterate_fields(EncoderState &state, SV *ref) const {
 #if !HAS_FULL_NOMG
     SvGETMAGIC(ref);
 #endif
@@ -2172,7 +2188,69 @@ bool Mapper::encode_transformed_message(EncoderState &state, SV *ref, EncoderTra
     SV *target = sv_newmortal();
     encoder_transform->transform(aTHX_ target, ref);
 
-    return encode_simple_message(state, target);
+    return encode_simple_message_iterate_hash(state, target);
+}
+
+bool Mapper::encode_simple_message_iterate_hash(EncoderState &state, SV *ref) const {
+#if !HAS_FULL_NOMG
+    SvGETMAGIC(ref);
+#endif
+
+    if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVHV)
+        croak("Not a hash reference when encoding a %s value", message_def->full_name());
+    HV *hv = (HV *) SvRV(ref);
+    Sink *sink = state.sink;
+
+    if (!sink->StartMessage())
+        return false;
+
+    TrackOneof track_oneof(oneof_count);
+    TrackSeen track_seen(check_required_fields, fields);
+
+    hv_iterinit(hv);
+
+    MapperContext::Item &mapper_cxt = state.mapper_context->push_level(hv, MapperContext::Message);
+
+    while (HE *entry = hv_iternext(hv)) {
+        mapper_cxt.set_hash_key(entry);
+        const Field *it = field_map.find_by_name(aTHX_ entry);
+
+        if (it == NULL) {
+            UnknownFieldContext context;
+
+            state.mapper_context->fill_context(&context.mapper_context, &context.size);
+            unknown_field_transform->transform(aTHX_ &context, HeVAL(entry));
+
+            continue;
+        }
+
+        SV *value = HeVAL(entry);
+#if HAS_FULL_NOMG
+        SvGETMAGIC(value);
+#endif
+        if (ignore_undef_fields && !SvOK(value)) {
+            continue;
+        }
+
+        if (track_oneof.mark_and_maybe_skip(it->oneof_index)) {
+            continue;
+        }
+        track_seen.mark(it->field_index);
+
+        if (!encode_field(state, *it, value))
+            return false;
+    }
+
+    if (!track_seen.required_fields_present(state.status)) {
+        return false;
+    }
+
+    state.mapper_context->pop_level();
+
+    if (!sink->EndMessage(state.status))
+        return false;
+
+    return true;
 }
 
 namespace {

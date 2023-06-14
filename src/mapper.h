@@ -275,12 +275,15 @@ private:
             } else {
                 return encode_transformed_message(state, ref, encoder_transform);
             }
+        } else if (unknown_field_transform) {
+            return encode_simple_message_iterate_hash(state, ref);
         } else {
-            return encode_simple_message(state, ref);
+            return encode_simple_message_iterate_fields(state, ref);
         }
     }
 
-    bool encode_simple_message(EncoderState &state, SV *ref) const;
+    bool encode_simple_message_iterate_fields(EncoderState &state, SV *ref) const;
+    bool encode_simple_message_iterate_hash(EncoderState &state, SV *ref) const;
     bool encode_transformed_message(EncoderState &state, SV *ref, gpd::transform::EncoderTransform *encoder_transform) const;
     bool encode_transformed_fieldtable_message(EncoderState &state, SV *ref, gpd::transform::EncoderTransform *encoder_transform) const;
     bool encode_field(EncoderState &state, const Field &fd, SV *ref) const;
@@ -359,6 +362,7 @@ private:
     gpd::pb::DecoderFieldData<FieldData> decoder_field_data;
     gpd::transform::EncoderTransform *encoder_transform;
     bool encoder_transform_fieldtable;
+    gpd::transform::UnknownFieldTransform *unknown_field_transform;
     upb::Sink decoder_sink;
     gpd::VectorSink vector_sink;
     bool check_required_fields, decode_explicit_defaults, encode_defaults, check_enum_values, decode_blessed, fail_ref_coercion, ignore_undef_fields;
