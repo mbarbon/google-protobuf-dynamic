@@ -117,7 +117,26 @@ encode(SV *klass_or_object, SV *ref = NULL)
             croak("Usage: $object->encode or $class->encode($hash)");
     }
 
-    RETVAL = mapper->encode(ref);
+    RETVAL = mapper->encode_upb(ref);
+
+    if (!RETVAL) {
+        croak("Serialization failed: %s", mapper->last_error_message());
+    }
+  OUTPUT: RETVAL
+
+SV*
+encode_bbpb(SV *klass_or_object, SV *ref = NULL)
+  INIT:
+    gpd::Mapper *mapper = (gpd::Mapper *) CvXSUBANY(cv).any_ptr;
+  CODE:
+    if (ref == NULL) {
+        if (sv_isobject(klass_or_object))
+            ref = klass_or_object;
+        else
+            croak("Usage: $object->encode or $class->encode($hash)");
+    }
+
+    RETVAL = mapper->encode_bbpb(ref);
 
     if (!RETVAL) {
         croak("Serialization failed: %s", mapper->last_error_message());
@@ -129,7 +148,7 @@ static_encode(SV *ref)
   INIT:
     gpd::Mapper *mapper = (gpd::Mapper *) CvXSUBANY(cv).any_ptr;
   CODE:
-    RETVAL = mapper->encode(ref);
+    RETVAL = mapper->encode_upb(ref);
 
     if (!RETVAL) {
         croak("Serialization failed: %s", mapper->last_error_message());

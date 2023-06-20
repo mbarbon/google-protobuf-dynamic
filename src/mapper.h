@@ -21,6 +21,7 @@
 #include "vectorsink.h"
 #include "fieldmap.h"
 #include "pb/decoder.h"
+#include "pb/encoder.h"
 #include "mapper_context.h"
 
 #include <list>
@@ -216,20 +217,21 @@ public:
         }
     };
 
+    template<class Encoder>
     struct EncoderState {
+        typedef typename Encoder::Sink Sink;
+
         upb::Status *status;
-        upb::Sink *sink;
         MapperContext *mapper_context;
+        Sink *sink;
 
-        EncoderState(upb::Status *_status, MapperContext *_mapper_context);
+        EncoderState(upb::Status *_status, MapperContext *_mapper_context, Sink *_sink);
 
-        EncoderState(EncoderState &original, upb::Sink *_sink) :
+        EncoderState(EncoderState &original, Sink *_sink) :
                 status(original.status),
                 sink(_sink),
                 mapper_context(original.mapper_context) {
         }
-
-        void setup(upb::Sink *sink);
     };
 
 public:
@@ -244,7 +246,8 @@ public:
     void set_decoder_options(HV *options);
     void set_encoder_options(HV *options);
 
-    SV *encode(SV *ref);
+    SV *encode_upb(SV *ref);
+    SV *encode_bbpb(SV *ref);
     SV *decode_upb(const char *buffer, STRLEN bufsize);
     SV *decode_bbpb(const char *buffer, STRLEN bufsize);
     SV *encode_json(SV *ref);
@@ -268,7 +271,8 @@ public:
 private:
     static bool run_bbpb_decoder(Mapper *root_mapper, const char *buffer, STRLEN bufsize);
 
-    bool encode_message(EncoderState &state, SV *ref) const {
+    template<class Encoder>
+    bool encode_message(EncoderState<Encoder> &state, SV *ref) const {
         if (encoder_transform) {
             if (encoder_transform_fieldtable) {
                 return encode_transformed_fieldtable_message(state, ref, encoder_transform);
@@ -282,19 +286,29 @@ private:
         }
     }
 
-    bool encode_simple_message_iterate_fields(EncoderState &state, SV *ref) const;
-    bool encode_simple_message_iterate_hash(EncoderState &state, SV *ref) const;
-    bool encode_transformed_message(EncoderState &state, SV *ref, gpd::transform::EncoderTransform *encoder_transform) const;
-    bool encode_transformed_fieldtable_message(EncoderState &state, SV *ref, gpd::transform::EncoderTransform *encoder_transform) const;
-    bool encode_field(EncoderState &state, const Field &fd, SV *ref) const;
-    bool encode_key(EncoderState &state, const Field &fd, const char *key, I32 keylen) const;
-    bool encode_hash_kv(EncoderState &state, const char *key, STRLEN keylen, SV *value) const;
-    bool encode_from_perl_array(EncoderState &state, const Field &fd, SV *ref) const;
-    bool encode_from_perl_hash(EncoderState &state, const Field &fd, SV *ref) const;
-    bool encode_from_message_array(EncoderState &state, const Mapper::Field &fd, AV *source) const;
+    template<class Encoder>
+    bool encode_simple_message_iterate_fields(EncoderState<Encoder> &state, SV *ref) const;
+    template<class Encoder>
+    bool encode_simple_message_iterate_hash(EncoderState<Encoder> &state, SV *ref) const;
+    template<class Encoder>
+    bool encode_transformed_message(EncoderState<Encoder> &state, SV *ref, gpd::transform::EncoderTransform *encoder_transform) const;
+    template<class Encoder>
+    bool encode_transformed_fieldtable_message(EncoderState<Encoder> &state, SV *ref, gpd::transform::EncoderTransform *encoder_transform) const;
+    template<class Encoder>
+    bool encode_field(EncoderState<Encoder> &state, const Field &fd, SV *ref) const;
+    template<class Encoder>
+    bool encode_key(EncoderState<Encoder> &state, const Field &fd, const char *key, I32 keylen) const;
+    template<class Encoder>
+    bool encode_hash_kv(EncoderState<Encoder> &state, const char *key, STRLEN keylen, SV *value) const;
+    template<class Encoder>
+    bool encode_from_perl_array(EncoderState<Encoder> &state, const Field &fd, SV *ref) const;
+    template<class Encoder>
+    bool encode_from_perl_hash(EncoderState<Encoder> &state, const Field &fd, SV *ref) const;
+    template<class Encoder>
+    bool encode_from_message_array(EncoderState<Encoder> &state, const Mapper::Field &fd, AV *source) const;
 
-    template<class G, class S>
-    bool encode_from_array(EncoderState &state, const Mapper::Field &fd, AV *source) const;
+    template<class Encoder, class G, class S>
+    bool encode_from_array(EncoderState<Encoder> &state, const Mapper::Field &fd, AV *source) const;
 
     bool check(upb::Status *status, SV *ref) const;
     bool check(upb::Status *status, const Field &fd, SV *ref) const;
@@ -358,14 +372,15 @@ private:
     std::vector<MapperField *> extension_mapper_fields;
     gpd::FieldMap<Field> field_map;
     upb::Status status;
-    EncoderState encoder_state;
     DecoderHandlers decoder_callbacks;
+    gpd::pb::EncoderOutput bbpb_encoder;
     gpd::pb::DecoderFieldData<FieldData> decoder_field_data;
     gpd::transform::EncoderTransform *encoder_transform;
     bool encoder_transform_fieldtable;
     gpd::transform::UnknownFieldTransform *unknown_field_transform;
     upb::Sink decoder_sink;
     gpd::VectorSink vector_sink;
+    std::vector<char> encoder_output;
     bool check_required_fields, decode_explicit_defaults, encode_defaults, check_enum_values, decode_blessed, fail_ref_coercion, ignore_undef_fields;
     int boolean_style;
     GV *json_false, *json_true;

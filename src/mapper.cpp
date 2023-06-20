@@ -49,6 +49,82 @@ namespace {
 
     template<class T, class F>
     struct gpd_conditional<false, T, F> { typedef F type; };
+
+    struct uPBEncoder {
+        typedef upb::Sink Sink;
+        typedef upb::Sink Inner;
+
+        static bool start_message(Mapper::EncoderState<uPBEncoder> &state) {
+            return state.sink->StartMessage();
+        }
+
+        static bool end_message(Mapper::EncoderState<uPBEncoder> &state) {
+            return state.sink->EndMessage(state.status);
+        }
+
+        static Sink *sub_sink(Sink *sink, Inner *inner) {
+            return inner;
+        }
+    };
+
+    inline bool start_sequence(Mapper::EncoderState<uPBEncoder> &state, const Mapper::Field &fd, upb::Sink *sub) {
+        return state.sink->StartSequence(fd.selector.seq_start, sub);
+    }
+
+    inline bool end_sequence(Mapper::EncoderState<uPBEncoder> &state, const Mapper::Field &fd, upb::Sink *sink) {
+        return state.sink->EndSequence(fd.selector.seq_end);
+    }
+
+    inline bool start_submessage(Mapper::EncoderState<uPBEncoder> &state, const Mapper::Field &fd, upb::Sink *sub) {
+        return state.sink->StartSubMessage(fd.selector.msg_start, sub);
+    }
+
+    inline bool end_submessage(Mapper::EncoderState<uPBEncoder> &state, const Mapper::Field &fd, upb::Sink *sub) {
+        return state.sink->EndSubMessage(fd.selector.msg_end);
+    }
+
+    struct BBPBEncoder {
+        typedef gpd::pb::EncoderOutput Sink;
+        typedef gpd::pb::EncoderOutputMarker Inner;
+
+        static bool start_message(Mapper::EncoderState<BBPBEncoder> &state) {
+            return true;
+        }
+
+        static bool end_message(Mapper::EncoderState<BBPBEncoder> &state) {
+            return true;
+        }
+
+        static Sink *sub_sink(Sink *sink, Inner *inner) {
+            return sink;
+        }
+    };
+
+    inline bool start_sequence(Mapper::EncoderState<BBPBEncoder> &state, const Mapper::Field &fd, gpd::pb::EncoderOutputMarker *marker) {
+        if (fd.field_def->packed())
+            state.sink->start_sequence(fd.field_def->number(), marker);
+
+        return true;
+    }
+
+    inline bool end_sequence(Mapper::EncoderState<BBPBEncoder> &state, const Mapper::Field &fd, gpd::pb::EncoderOutputMarker *marker) {
+        if (fd.field_def->packed())
+            state.sink->end_sequence(marker);
+
+        return true;
+    }
+
+    inline bool start_submessage(Mapper::EncoderState<BBPBEncoder> &state, const Mapper::Field &fd, gpd::pb::EncoderOutputMarker *marker) {
+        state.sink->start_submessage(fd.field_def->number(), marker);
+
+        return true;
+    }
+
+    inline bool end_submessage(Mapper::EncoderState<BBPBEncoder> &state, const Mapper::Field &fd, gpd::pb::EncoderOutputMarker *marker) {
+        state.sink->end_submessage(marker);
+
+        return true;
+    }
 }
 
 Mapper::DecoderHandlers::DecoderHandlers(pTHX_ const Mapper *mapper) :
@@ -734,19 +810,17 @@ void Mapper::DecoderHandlers::finish_add_transform_fieldtable() {
     }
 }
 
-Mapper::EncoderState::EncoderState(Status *_status, MapperContext *_mapper_context) :
-        status(_status), mapper_context(_mapper_context) {
-}
-
-void Mapper::EncoderState::setup(Sink *_sink) {
-    sink = _sink;
+template<class Encoder>
+Mapper::EncoderState<Encoder>::EncoderState(Status *_status, MapperContext *_mapper_context, Sink *_sink) :
+        status(_status),
+        mapper_context(_mapper_context),
+        sink(_sink) {
 }
 
 Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const gpd::pb::Descriptor *_gpd_descriptor, HV *_stash, const MappingOptions &options) :
         registry(_registry),
         message_def(_message_def),
         gpd_descriptor(_gpd_descriptor),
-        encoder_state(&status, &mapper_context),
         decoder_field_data(_gpd_descriptor),
         encoder_transform(NULL),
         encoder_transform_fieldtable(false),
@@ -1041,6 +1115,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const g
             field.field_action = ACTION_PUT_REPEATED;
         } else if (!encode_defaults && field.has_default &&
                    !(field.is_map_key() || field.is_map_value())) {
+            // map ACTION_PUT_* to ACTION_PUT_*_ND
             field.field_action = field.value_action =
                 (ValueAction) (field.value_action + 1);
         }
@@ -1398,12 +1473,12 @@ void Mapper::set_json_bool(SV *target, bool value) const {
     sv_setsv(target, GvSV(value ? json_true : json_false));
 }
 
-SV *Mapper::encode(SV *ref) {
+SV *Mapper::encode_upb(SV *ref) {
     if (pb_decoder_method.get() == NULL)
         croak("It looks like resolve_references() was not called (and please use map() anyway)");
     upb::Environment *env = make_localized_environment(aTHX_ &status);
     upb::pb::Encoder *pb_encoder = upb::pb::Encoder::Create(env, pb_encoder_handlers.get(), vector_sink.input());
-    encoder_state.setup(pb_encoder->input());
+    EncoderState<uPBEncoder> encoder_state(&status, &mapper_context, pb_encoder->input());
     status.Clear();
     warn_context->localize_warning_handler(aTHX);
     warn_context->set_context(&mapper_context);
@@ -1421,12 +1496,33 @@ SV *Mapper::encode(SV *ref) {
     return result;
 }
 
+SV *Mapper::encode_bbpb(SV *ref) {
+    if (pb_decoder_method.get() == NULL)
+        croak("It looks like resolve_references() was not called (and please use map() anyway)");
+    EncoderState<BBPBEncoder> encoder_state(&status, &mapper_context, &bbpb_encoder);
+    bbpb_encoder.reset();
+    status.Clear();
+    warn_context->localize_warning_handler(aTHX);
+    warn_context->set_context(&mapper_context);
+    encoder_state.mapper_context->clear();
+    SV *result = NULL;
+
+#if HAS_FULL_NOMG
+    SvGETMAGIC(ref);
+#endif
+
+    if (encode_message(encoder_state, ref) && bbpb_encoder.write_to(&encoder_output))
+        result = newSVpvn(encoder_output.data(), encoder_output.size());
+
+    return result;
+}
+
 SV *Mapper::encode_json(SV *ref) {
     if (json_decoder_method.get() == NULL)
         croak("It looks like resolve_references() was not called (and please use map() anyway)");
     upb::Environment *env = make_localized_environment(aTHX_ &status);
     upb::json::Printer *json_encoder = upb::json::Printer::Create(env, json_encoder_handlers.get(), vector_sink.input());
-    encoder_state.setup(json_encoder->input());
+    EncoderState<uPBEncoder> encoder_state(&status, &mapper_context, json_encoder->input());
     status.Clear();
     warn_context->localize_warning_handler(aTHX);
     warn_context->set_context(&mapper_context);
@@ -1904,46 +2000,89 @@ namespace {
         }
     };
 
-#define DEF_SIMPLE_SETTER(NAME, METHOD, TYPE)   \
-    struct NAME { \
+#define DEC_SIMPLE_SETTER(NAME) \
+    template<class Encoder> struct NAME
+
+#define DEF_SIMPLE_UPB_SETTER(NAME, METHOD, TYPE)   \
+    template<> \
+    struct NAME<uPBEncoder> { \
         NAME(Status *status) { } \
         bool operator()(Sink *sink, const Mapper::Field &fd, TYPE value) { \
             return sink->METHOD(fd.selector.primitive, value);    \
         } \
     }
 
-    DEF_SIMPLE_SETTER(Int32Emitter, PutInt32, int32_t);
-    DEF_SIMPLE_SETTER(Int64Emitter, PutInt64, int64_t);
-    DEF_SIMPLE_SETTER(UInt32Emitter, PutUInt32, uint32_t);
-    DEF_SIMPLE_SETTER(UInt64Emitter, PutUInt64, uint64_t);
-    DEF_SIMPLE_SETTER(FloatEmitter, PutFloat, float);
-    DEF_SIMPLE_SETTER(DoubleEmitter, PutDouble, double);
-    DEF_SIMPLE_SETTER(BoolEmitter, PutBool, bool);
+#define DEF_SIMPLE_BBPB_SETTER(NAME, METHOD, TYPE)   \
+    template<> \
+    struct NAME<BBPBEncoder> { \
+        NAME(Status *status) { } \
+        bool operator()(gpd::pb::EncoderOutput *sink, const Mapper::Field &fd, TYPE value) { \
+            sink->METHOD(fd.field_def->number(), value); \
+            return true; \
+        } \
+    }
+
+    DEC_SIMPLE_SETTER(Int32Emitter);
+    DEF_SIMPLE_UPB_SETTER(Int32Emitter, PutInt32, int32_t);
+    DEF_SIMPLE_BBPB_SETTER(Int32Emitter, put_int32, int32_t);
+    DEC_SIMPLE_SETTER(Int64Emitter);
+    DEF_SIMPLE_UPB_SETTER(Int64Emitter, PutInt64, int64_t);
+    DEF_SIMPLE_BBPB_SETTER(Int64Emitter, put_int64, int64_t);
+    DEC_SIMPLE_SETTER(UInt32Emitter);
+    DEF_SIMPLE_UPB_SETTER(UInt32Emitter, PutUInt32, uint32_t);
+    DEF_SIMPLE_BBPB_SETTER(UInt32Emitter, put_uint32, uint32_t);
+    DEC_SIMPLE_SETTER(UInt64Emitter);
+    DEF_SIMPLE_UPB_SETTER(UInt64Emitter, PutUInt64, uint64_t);
+    DEF_SIMPLE_BBPB_SETTER(UInt64Emitter, put_uint64, uint64_t);
+    DEC_SIMPLE_SETTER(FloatEmitter);
+    DEF_SIMPLE_UPB_SETTER(FloatEmitter, PutFloat, float);
+    DEF_SIMPLE_BBPB_SETTER(FloatEmitter, put_float, float);
+    DEC_SIMPLE_SETTER(DoubleEmitter);
+    DEF_SIMPLE_UPB_SETTER(DoubleEmitter, PutDouble, double);
+    DEF_SIMPLE_BBPB_SETTER(DoubleEmitter, put_double, double);
+    DEC_SIMPLE_SETTER(BoolEmitter);
+    DEF_SIMPLE_UPB_SETTER(BoolEmitter, PutBool, bool);
+    DEF_SIMPLE_BBPB_SETTER(BoolEmitter, put_bool, bool);
 
 #undef DEF_SIMPLE_SETTER
 
-    struct EnumEmitter {
+    template<class Encoder>
+    struct EnumEmitter : public Int32Emitter<Encoder> {
         Status *status;
 
-        EnumEmitter(Status *_status) { status = _status; }
+        EnumEmitter(Status *_status) : Int32Emitter<Encoder>(_status), status(_status) { }
 
-        bool operator()(Sink *sink, const Mapper::Field &fd, int32_t value) {
+        bool operator()(typename Encoder::Sink *sink, const Mapper::Field &fd, int32_t value) {
             if (!check_valid_enum_value(status, fd, value))
                 return false;
 
-            return sink->PutInt32(fd.selector.primitive, value);
+            return Int32Emitter<Encoder>::operator()(sink, fd, value);
         }
     };
 
-    struct StringEmitter {
+    template<class Encoder> struct StringEmitter;
+
+    template<>
+    struct StringEmitter<uPBEncoder> {
         StringEmitter(Status *status) { }
 
-        bool operator()(Sink *sink, const Mapper::Field &fd, StringValue value) {
+        bool operator()(uPBEncoder::Sink *sink, const Mapper::Field &fd, StringValue value) {
             Sink sub;
             if (!sink->StartString(fd.selector.str_start, value.len, &sub))
                 return false;
             sub.PutStringBuffer(fd.selector.str_cont, value.str, value.len, NULL);
             return sink->EndString(fd.selector.str_end);
+        }
+    };
+
+    template<>
+    struct StringEmitter<BBPBEncoder> {
+        StringEmitter(Status *status) { }
+
+        bool operator()(BBPBEncoder::Sink *sink, const Mapper::Field &fd, StringValue value) {
+            sink->put_string_alias(fd.field_def->number(), value.str, value.len);
+
+            return true;
         }
     };
 
@@ -1972,8 +2111,8 @@ namespace {
         }
     };
 
-    template<class Getter, class Setter>
-    inline bool emit_field(pTHX_ Mapper::EncoderState &state, const Mapper::Field &fd, SV *value) {
+    template<class Getter, class Setter, class Encoder>
+    inline bool emit_field(pTHX_ Mapper::EncoderState<Encoder> &state, const Mapper::Field &fd, SV *value) {
         Getter getter;
         Setter setter(state.status);
         typename Getter::Value c_value = getter(aTHX_ value);
@@ -1981,8 +2120,8 @@ namespace {
         return setter(state.sink, fd, c_value);
     }
 
-    template<class Getter, class Setter>
-    inline bool emit_field_nd(pTHX_ Mapper::EncoderState &state, const Mapper::Field &fd, SV *value) {
+    template<class Getter, class Setter, class Encoder>
+    inline bool emit_field_nd(pTHX_ Mapper::EncoderState<Encoder> &state, const Mapper::Field &fd, SV *value) {
         Getter getter;
         Setter setter(state.status);
         IsDefault<typename Getter::Value> is_default;
@@ -1991,8 +2130,8 @@ namespace {
         return is_default(fd, c_value) || setter(state.sink, fd, c_value);
     }
 
-    template<class Getter, class Setter>
-    inline bool emit_key(pTHX_ Mapper::EncoderState &state, const Mapper::Field &fd, const char *key, I32 keylen) {
+    template<class Getter, class Setter, class Encoder>
+    inline bool emit_key(pTHX_ Mapper::EncoderState<Encoder> &state, const Mapper::Field &fd, const char *key, I32 keylen) {
         Getter getter;
         Setter setter(state.status);
         typename Getter::Value c_value = getter(aTHX_ key, keylen);
@@ -2001,11 +2140,12 @@ namespace {
     }
 }
 
-template<class G, class S>
-bool Mapper::encode_from_array(EncoderState &state, const Mapper::Field &fd, AV *source) const {
+template<class Encoder, class G, class S>
+bool Mapper::encode_from_array(EncoderState<Encoder> &state, const Mapper::Field &fd, AV *source) const {
     G getter;
     S setter(state.status);
-    Sink sub;
+    typename Encoder::Inner sub;
+    typename Encoder::Sink *sink = Encoder::sub_sink(state.sink, &sub);
 
     int size = av_top_index(source) + 1;
 
@@ -2017,8 +2157,7 @@ bool Mapper::encode_from_array(EncoderState &state, const Mapper::Field &fd, AV 
         return true;
     }
 
-    Sink *sink = state.sink;
-    if (!sink->StartSequence(fd.selector.seq_start, &sub))
+    if (!start_sequence(state, fd, &sub))
         return false;
 
     MapperContext::Item &mapper_cxt = state.mapper_context->push_level(source);
@@ -2036,19 +2175,21 @@ bool Mapper::encode_from_array(EncoderState &state, const Mapper::Field &fd, AV 
 
         if (fail_ref_coercion && is_coerced_ref(aTHX_ state.status, fd, *item))
             return false;
-        if (!setter(&sub, fd, getter(aTHX_ *item)))
+        if (!setter(sink, fd, getter(aTHX_ *item)))
             return false;
     }
     state.mapper_context->pop_level();
 
-    return sink->EndSequence(fd.selector.seq_end);
+    return end_sequence(state, fd, &sub);
 }
 
-bool Mapper::encode_from_message_array(EncoderState &state, const Mapper::Field &fd, AV *source) const {
+template<class Encoder>
+bool Mapper::encode_from_message_array(EncoderState<Encoder> &state, const Mapper::Field &fd, AV *source) const {
     int size = av_top_index(source) + 1;
-    Sink *sink = state.sink, sub;
+    typename Encoder::Inner sub;
+    EncoderState<Encoder> sub_state(state, Encoder::sub_sink(state.sink, &sub));
 
-    if (!sink->StartSequence(fd.selector.seq_start, &sub))
+    if (!start_sequence(state, fd, &sub))
         return false;
 
     MapperContext::Item &mapper_cxt = state.mapper_context->push_level(source);
@@ -2059,23 +2200,23 @@ bool Mapper::encode_from_message_array(EncoderState &state, const Mapper::Field 
         SV **item = av_fetch(source, i, 0);
         if (!item)
             return false;
-        Sink submsg;
-        EncoderState submsg_state(state, &submsg);
+        typename Encoder::Inner submsg;
+        EncoderState<Encoder> submsg_state(sub_state, Encoder::sub_sink(sub_state.sink, &submsg));
 
 #if HAS_FULL_NOMG
         SvGETMAGIC(*item);
 #endif
 
-        if (!sub.StartSubMessage(fd.selector.msg_start, &submsg))
+        if (!start_submessage(sub_state, fd, &submsg))
             return false;
         if (!encode_message(submsg_state, *item))
             return false;
-        if (!sub.EndSubMessage(fd.selector.msg_end))
+        if (!end_submessage(sub_state, fd, &submsg))
             return false;
     }
     state.mapper_context->pop_level();
 
-    return sink->EndSequence(fd.selector.seq_end);
+    return end_sequence(state, fd, &sub);
 }
 
 namespace {
@@ -2147,7 +2288,8 @@ namespace {
     };
 }
 
-bool Mapper::encode_simple_message_iterate_fields(EncoderState &state, SV *ref) const {
+template<class Encoder>
+bool Mapper::encode_simple_message_iterate_fields(EncoderState<Encoder> &state, SV *ref) const {
 #if !HAS_FULL_NOMG
     SvGETMAGIC(ref);
 #endif
@@ -2155,9 +2297,8 @@ bool Mapper::encode_simple_message_iterate_fields(EncoderState &state, SV *ref) 
     if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVHV)
         croak("Not a hash reference when encoding a %s value", message_def->full_name());
     HV *hv = (HV *) SvRV(ref);
-    Sink *sink = state.sink;
 
-    if (!sink->StartMessage())
+    if (!Encoder::start_message(state))
         return false;
 
     bool tied = SvTIED_mg((SV *) hv, PERL_MAGIC_tied);
@@ -2194,19 +2335,18 @@ bool Mapper::encode_simple_message_iterate_fields(EncoderState &state, SV *ref) 
     }
     state.mapper_context->pop_level();
 
-    if (!sink->EndMessage(state.status))
+    if (!Encoder::end_message(state))
         return false;
 
     return true;
 }
 
-bool Mapper::encode_transformed_fieldtable_message(EncoderState &state, SV *ref, EncoderTransform *encoder_transform) const {
+template<class Encoder>
+bool Mapper::encode_transformed_fieldtable_message(EncoderState<Encoder> &state, SV *ref, EncoderTransform *encoder_transform) const {
 #if !HAS_FULL_NOMG
     SvGETMAGIC(ref);
 #endif
-    Sink *sink = state.sink;
-
-    if (!sink->StartMessage())
+    if (!Encoder::start_message(state))
         return false;
 
     MapperContext::Item &mapper_cxt = state.mapper_context->push_level(ref, MapperContext::Message);
@@ -2261,13 +2401,14 @@ bool Mapper::encode_transformed_fieldtable_message(EncoderState &state, SV *ref,
         return false;
     }
 
-    if (!sink->EndMessage(state.status))
+    if (!Encoder::end_message(state))
         return false;
 
     return true;
 }
 
-bool Mapper::encode_transformed_message(EncoderState &state, SV *ref, EncoderTransform *encoder_transform) const {
+template<class Encoder>
+bool Mapper::encode_transformed_message(EncoderState<Encoder> &state, SV *ref, EncoderTransform *encoder_transform) const {
 #if !HAS_FULL_NOMG
     SvGETMAGIC(ref);
 #endif
@@ -2278,7 +2419,8 @@ bool Mapper::encode_transformed_message(EncoderState &state, SV *ref, EncoderTra
     return encode_simple_message_iterate_hash(state, target);
 }
 
-bool Mapper::encode_simple_message_iterate_hash(EncoderState &state, SV *ref) const {
+template<class Encoder>
+bool Mapper::encode_simple_message_iterate_hash(EncoderState<Encoder> &state, SV *ref) const {
 #if !HAS_FULL_NOMG
     SvGETMAGIC(ref);
 #endif
@@ -2286,9 +2428,8 @@ bool Mapper::encode_simple_message_iterate_hash(EncoderState &state, SV *ref) co
     if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVHV)
         croak("Not a hash reference when encoding a %s value", message_def->full_name());
     HV *hv = (HV *) SvRV(ref);
-    Sink *sink = state.sink;
 
-    if (!sink->StartMessage())
+    if (!Encoder::start_message(state))
         return false;
 
     TrackOneof track_oneof(oneof_count);
@@ -2334,94 +2475,95 @@ bool Mapper::encode_simple_message_iterate_hash(EncoderState &state, SV *ref) co
 
     state.mapper_context->pop_level();
 
-    if (!sink->EndMessage(state.status))
+    if (!Encoder::end_message(state))
         return false;
 
     return true;
 }
 
-bool Mapper::encode_field(EncoderState &state, const Field &fd, SV *ref) const {
+template<class Encoder>
+bool Mapper::encode_field(EncoderState<Encoder> &state, const Field &fd, SV *ref) const {
     ValueAction field_action = fd.field_action;
 
     if (fail_ref_coercion && field_action < ACTION_PUT_MESSAGE && is_coerced_ref(aTHX_ state.status, fd, ref))
         return false;
-    Sink *sink = state.sink;
+    typename Encoder::Sink *sink = state.sink;
 
     switch (field_action) {
 
         // do not encode field default value
 
     case ACTION_PUT_FLOAT_ND:
-        return emit_field_nd<NVGetter, FloatEmitter>(aTHX_ state, fd, ref);
+        return emit_field_nd<NVGetter, FloatEmitter<Encoder>>(aTHX_ state, fd, ref);
     case ACTION_PUT_DOUBLE_ND:
-        return emit_field_nd<NVGetter, DoubleEmitter>(aTHX_ state, fd, ref);
+        return emit_field_nd<NVGetter, DoubleEmitter<Encoder>>(aTHX_ state, fd, ref);
     case ACTION_PUT_BOOL_ND:
-        return emit_field_nd<BoolGetter, BoolEmitter>(aTHX_ state, fd, ref);
+        return emit_field_nd<BoolGetter, BoolEmitter<Encoder>>(aTHX_ state, fd, ref);
     case ACTION_PUT_STRING_ND:
-        return emit_field_nd<StringGetter, StringEmitter>(aTHX_ state, fd, ref);
+        return emit_field_nd<StringGetter, StringEmitter<Encoder>>(aTHX_ state, fd, ref);
     case ACTION_PUT_BYTES_ND:
-        return emit_field_nd<BytesGetter, StringEmitter>(aTHX_ state, fd, ref);
+        return emit_field_nd<BytesGetter, StringEmitter<Encoder>>(aTHX_ state, fd, ref);
     case ACTION_PUT_ENUM_ND:
         if (check_enum_values)
-            return emit_field_nd<IVGetter, EnumEmitter>(aTHX_ state, fd, ref);
+            return emit_field_nd<IVGetter, EnumEmitter<Encoder>>(aTHX_ state, fd, ref);
         else
-            return emit_field_nd<IVGetter, Int32Emitter>(aTHX_ state, fd, ref);
+            return emit_field_nd<IVGetter, Int32Emitter<Encoder>>(aTHX_ state, fd, ref);
     case ACTION_PUT_INT32_ND:
-        return emit_field_nd<IVGetter, Int32Emitter>(aTHX_ state, fd, ref);
+        return emit_field_nd<IVGetter, Int32Emitter<Encoder>>(aTHX_ state, fd, ref);
     case ACTION_PUT_UINT32_ND:
-        return emit_field_nd<UVGetter, UInt32Emitter>(aTHX_ state, fd, ref);
+        return emit_field_nd<UVGetter, UInt32Emitter<Encoder>>(aTHX_ state, fd, ref);
     case ACTION_PUT_INT64_ND:
-        return emit_field_nd<Int64Getter, Int64Emitter>(aTHX_ state, fd, ref);
+        return emit_field_nd<Int64Getter, Int64Emitter<Encoder>>(aTHX_ state, fd, ref);
     case ACTION_PUT_UINT64_ND:
-        return emit_field_nd<UInt64Getter, UInt64Emitter>(aTHX_ state, fd, ref);
+        return emit_field_nd<UInt64Getter, UInt64Emitter<Encoder>>(aTHX_ state, fd, ref);
 
         // encode field default value
 
     case ACTION_PUT_FLOAT:
-        return emit_field<NVGetter, FloatEmitter>(aTHX_ state, fd, ref);
+        return emit_field<NVGetter, FloatEmitter<Encoder>>(aTHX_ state, fd, ref);
     case ACTION_PUT_DOUBLE:
-        return emit_field<NVGetter, DoubleEmitter>(aTHX_ state, fd, ref);
+        return emit_field<NVGetter, DoubleEmitter<Encoder>>(aTHX_ state, fd, ref);
     case ACTION_PUT_BOOL:
-        return emit_field<BoolGetter, BoolEmitter>(aTHX_ state, fd, ref);
+        return emit_field<BoolGetter, BoolEmitter<Encoder>>(aTHX_ state, fd, ref);
     case ACTION_PUT_STRING:
-        return emit_field<StringGetter, StringEmitter>(aTHX_ state, fd, ref);
+        return emit_field<StringGetter, StringEmitter<Encoder>>(aTHX_ state, fd, ref);
     case ACTION_PUT_BYTES:
-        return emit_field<BytesGetter, StringEmitter>(aTHX_ state, fd, ref);
+        return emit_field<BytesGetter, StringEmitter<Encoder>>(aTHX_ state, fd, ref);
     case ACTION_PUT_ENUM:
         if (check_enum_values)
-            return emit_field<IVGetter, EnumEmitter>(aTHX_ state, fd, ref);
+            return emit_field<IVGetter, EnumEmitter<Encoder>>(aTHX_ state, fd, ref);
         else
-            return emit_field<IVGetter, Int32Emitter>(aTHX_ state, fd, ref);
+            return emit_field<IVGetter, Int32Emitter<Encoder>>(aTHX_ state, fd, ref);
     case ACTION_PUT_INT32:
-        return emit_field<IVGetter, Int32Emitter>(aTHX_ state, fd, ref);
+        return emit_field<IVGetter, Int32Emitter<Encoder>>(aTHX_ state, fd, ref);
     case ACTION_PUT_UINT32:
-        return emit_field<UVGetter, UInt32Emitter>(aTHX_ state, fd, ref);
+        return emit_field<UVGetter, UInt32Emitter<Encoder>>(aTHX_ state, fd, ref);
     case ACTION_PUT_INT64:
-        return emit_field<Int64Getter, Int64Emitter>(aTHX_ state, fd, ref);
+        return emit_field<Int64Getter, Int64Emitter<Encoder>>(aTHX_ state, fd, ref);
     case ACTION_PUT_UINT64:
-        return emit_field<UInt64Getter, UInt64Emitter>(aTHX_ state, fd, ref);
+        return emit_field<UInt64Getter, UInt64Emitter<Encoder>>(aTHX_ state, fd, ref);
 
         // non-scalar fields
 
     case ACTION_PUT_MESSAGE: {
-        Sink sub;
-        EncoderState sub_state(state, &sub);
+        typename Encoder::Inner sub;
+        EncoderState<Encoder> sub_state(state, Encoder::sub_sink(sink, &sub));
 
-        if (!sink->StartSubMessage(fd.selector.msg_start, &sub))
+        if (!start_submessage(state, fd, &sub))
             return false;
         if (!fd.mapper->encode_message(sub_state, ref))
             return false;
-        return sink->EndSubMessage(fd.selector.msg_end);
+        return end_submessage(state, fd, &sub);
     }
     case ACTION_PUT_FIELDTABLE: {
-        Sink sub;
-        EncoderState sub_state(state, &sub);
+        typename Encoder::Inner sub;
+        EncoderState<Encoder> sub_state(state, Encoder::sub_sink(state.sink, &sub));
 
-        if (!sink->StartSubMessage(fd.selector.msg_start, &sub))
+        if (!start_submessage(sub_state, fd, &sub))
             return false;
         if (!fd.mapper->encode_transformed_fieldtable_message(sub_state, ref, fd.encoder_transform))
             return false;
-        return sink->EndSubMessage(fd.selector.msg_end);
+        return end_submessage(sub_state, fd, &sub);
     }
     case ACTION_PUT_MAP:
         return encode_from_perl_hash(state, fd, ref);
@@ -2432,31 +2574,31 @@ bool Mapper::encode_field(EncoderState &state, const Field &fd, SV *ref) const {
     }
 }
 
-bool Mapper::encode_key(EncoderState &state, const Field &fd, const char *key, I32 keylen) const {
-    Sink *sink = state.sink;
+template<class Encoder>
+bool Mapper::encode_key(EncoderState<Encoder> &state, const Field &fd, const char *key, I32 keylen) const {
+    typename Encoder::Sink *sink = state.sink;
 
     switch (fd.value_action) {
     case ACTION_PUT_BOOL:
-        return emit_key<BoolKeyGetter, BoolEmitter>(aTHX_ state, fd, key, keylen);
+        return emit_key<BoolKeyGetter, BoolEmitter<Encoder>>(aTHX_ state, fd, key, keylen);
     case ACTION_PUT_STRING:
-        return emit_key<StringKeyGetter, StringEmitter>(aTHX_ state, fd, key, keylen);
+        return emit_key<StringKeyGetter, StringEmitter<Encoder>>(aTHX_ state, fd, key, keylen);
     case ACTION_PUT_INT32:
-        return emit_key<IVKeyGetter, Int32Emitter>(aTHX_ state, fd, key, keylen);
+        return emit_key<IVKeyGetter, Int32Emitter<Encoder>>(aTHX_ state, fd, key, keylen);
     case ACTION_PUT_UINT32:
-        return emit_key<UVKeyGetter, UInt32Emitter>(aTHX_ state, fd, key, keylen);
+        return emit_key<UVKeyGetter, UInt32Emitter<Encoder>>(aTHX_ state, fd, key, keylen);
     case ACTION_PUT_INT64:
-        return emit_key<IVKeyGetter, Int64Emitter>(aTHX_ state, fd, key, keylen);
+        return emit_key<IVKeyGetter, Int64Emitter<Encoder>>(aTHX_ state, fd, key, keylen);
     case ACTION_PUT_UINT64:
-        return emit_key<UVKeyGetter, UInt64Emitter>(aTHX_ state, fd, key, keylen);
+        return emit_key<UVKeyGetter, UInt64Emitter<Encoder>>(aTHX_ state, fd, key, keylen);
     default:
         return false; // just in case
     }
 }
 
-bool Mapper::encode_hash_kv(EncoderState &state, const char *key, STRLEN keylen, SV *value) const {
-    Sink *sink = state.sink;
-
-    if (!sink->StartMessage())
+template<class Encoder>
+bool Mapper::encode_hash_kv(EncoderState<Encoder> &state, const char *key, STRLEN keylen, SV *value) const {
+    if (!Encoder::start_message(state))
         return false;
     if (fields[0].is_map_key()) {
         if (!encode_key(state, fields[0], key, keylen))
@@ -2469,12 +2611,13 @@ bool Mapper::encode_hash_kv(EncoderState &state, const char *key, STRLEN keylen,
         if (!encode_field(state, fields[0], value))
             return false;
     }
-    if (!sink->EndMessage(state.status))
+    if (!Encoder::end_message(state))
         return false;
     return true;
 }
 
-bool Mapper::encode_from_perl_hash(EncoderState &state, const Field &fd, SV *ref) const {
+template<class Encoder>
+bool Mapper::encode_from_perl_hash(EncoderState<Encoder> &state, const Field &fd, SV *ref) const {
 #if !HAS_FULL_NOMG
     SvGETMAGIC(ref);
 #endif
@@ -2482,17 +2625,18 @@ bool Mapper::encode_from_perl_hash(EncoderState &state, const Field &fd, SV *ref
     if (!SvROK(ref) || SvTYPE(SvRV(ref)) != SVt_PVHV)
         croak("Not a hash reference when encoding field '%s'", fd.full_name().c_str());
     HV *hash = (HV *) SvRV(ref);
-    Sink *sink = state.sink, repeated;
+    typename Encoder::Inner repeated;
+    EncoderState<Encoder> repeated_state(state, Encoder::sub_sink(state.sink, &repeated));
 
-    if (!sink->StartSequence(fd.selector.seq_start, &repeated))
+    if (!start_sequence(state, fd, &repeated))
         return false;
 
     hv_iterinit(hash);
     MapperContext::Item &mapper_cxt = state.mapper_context->push_level(hash, MapperContext::Hash);
 
     while (HE *entry = hv_iternext(hash)) {
-        Sink key_value;
-        EncoderState key_value_state(state, &key_value);
+        typename Encoder::Inner key_value;
+        EncoderState<Encoder> key_value_state(repeated_state, Encoder::sub_sink(repeated_state.sink, &key_value));
         SV *value = HeVAL(entry);
         const char *key;
         STRLEN keylen;
@@ -2520,19 +2664,20 @@ bool Mapper::encode_from_perl_hash(EncoderState &state, const Field &fd, SV *ref
         SvGETMAGIC(value);
 #endif
 
-        if (!repeated.StartSubMessage(fd.selector.msg_start, &key_value))
+        if (!start_submessage(repeated_state, fd, &key_value))
             return false;
         if (!fd.mapper->encode_hash_kv(key_value_state, key, keylen, value))
             return false;
-        if (!repeated.EndSubMessage(fd.selector.msg_end))
+        if (!end_submessage(repeated_state, fd, &key_value))
             return false;
     }
     state.mapper_context->pop_level();
 
-    return sink->EndSequence(fd.selector.seq_end);
+    return end_sequence(state, fd, &repeated);
 }
 
-bool Mapper::encode_from_perl_array(EncoderState &state, const Field &fd, SV *ref) const {
+template<class Encoder>
+bool Mapper::encode_from_perl_array(EncoderState<Encoder> &state, const Field &fd, SV *ref) const {
 #if !HAS_FULL_NOMG
     SvGETMAGIC(ref);
 #endif
@@ -2542,30 +2687,30 @@ bool Mapper::encode_from_perl_array(EncoderState &state, const Field &fd, SV *re
 
     switch (fd.value_action) {
     case ACTION_PUT_FLOAT:
-        return encode_from_array<NVGetter, FloatEmitter>(state, fd, array);
+        return encode_from_array<Encoder, NVGetter, FloatEmitter<Encoder>>(state, fd, array);
     case ACTION_PUT_DOUBLE:
-        return encode_from_array<NVGetter, DoubleEmitter>(state, fd, array);
+        return encode_from_array<Encoder, NVGetter, DoubleEmitter<Encoder>>(state, fd, array);
     case ACTION_PUT_BOOL:
-        return encode_from_array<BoolGetter, BoolEmitter>(state, fd, array);
+        return encode_from_array<Encoder, BoolGetter, BoolEmitter<Encoder>>(state, fd, array);
     case ACTION_PUT_STRING:
-        return encode_from_array<StringGetter, StringEmitter>(state, fd, array);
+        return encode_from_array<Encoder, StringGetter, StringEmitter<Encoder>>(state, fd, array);
     case ACTION_PUT_BYTES:
-        return encode_from_array<BytesGetter, StringEmitter>(state, fd, array);
+        return encode_from_array<Encoder, BytesGetter, StringEmitter<Encoder>>(state, fd, array);
     case ACTION_PUT_MESSAGE:
         return fd.mapper->encode_from_message_array(state, fd, array);
     case ACTION_PUT_ENUM:
         if (check_enum_values)
-            return encode_from_array<IVGetter, EnumEmitter>(state, fd, array);
+            return encode_from_array<Encoder, IVGetter, EnumEmitter<Encoder>>(state, fd, array);
         else
-            return encode_from_array<IVGetter, Int32Emitter>(state, fd, array);
+            return encode_from_array<Encoder, IVGetter, Int32Emitter<Encoder>>(state, fd, array);
     case ACTION_PUT_INT32:
-        return encode_from_array<IVGetter, Int32Emitter>(state, fd, array);
+        return encode_from_array<Encoder, IVGetter, Int32Emitter<Encoder>>(state, fd, array);
     case ACTION_PUT_UINT32:
-        return encode_from_array<UVGetter, UInt32Emitter>(state, fd, array);
+        return encode_from_array<Encoder, UVGetter, UInt32Emitter<Encoder>>(state, fd, array);
     case ACTION_PUT_INT64:
-        return encode_from_array<Int64Getter, Int64Emitter>(state, fd, array);
+        return encode_from_array<Encoder, Int64Getter, Int64Emitter<Encoder>>(state, fd, array);
     case ACTION_PUT_UINT64:
-        return encode_from_array<UInt64Getter, UInt64Emitter>(state, fd, array);
+        return encode_from_array<Encoder, UInt64Getter, UInt64Emitter<Encoder>>(state, fd, array);
     default:
         return false; // just in case
     }

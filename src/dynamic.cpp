@@ -535,6 +535,7 @@ void Dynamic::bind_message(pTHX_ const string &perl_package, Mapper *mapper, con
         copy_and_bind(aTHX_ "decode_bbpb", "decode", perl_package, mapper);
     }
     copy_and_bind(aTHX_ "encode", perl_package, mapper);
+    copy_and_bind(aTHX_ "encode_bbpb", perl_package, mapper);
     copy_and_bind(aTHX_ "decode_json", perl_package, mapper);
     copy_and_bind(aTHX_ "encode_json", perl_package, mapper);
     copy_and_bind(aTHX_ "new", perl_package, mapper);

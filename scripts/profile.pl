@@ -262,6 +262,7 @@ sub profile_encode_objects {
 
     cmpthese($repeat_count, filter_benchmarks($which_benchmarks, {
         protobuf_upb    => sub { GPD::Profile::PersonArray->encode($data) },
+        protobuf_bbpb   => sub { GPD::Profile::PersonArray->encode_bbpb($data) },
         sereal          => sub { $sereal_encoder->encode($data) },
         json            => sub { $json_decoder->encode($data) },
     }));

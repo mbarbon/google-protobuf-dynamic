@@ -135,6 +135,7 @@ sub encode_eq_or_diff {
     local $Test::Builder::Level = $Test::Builder::Level + 1;
 
     eq_or_diff($package->encode($_[1]), $expected, $description ? "$description (encode_upb)" : '(encode_upb)');
+    eq_or_diff($package->encode_bbpb($_[1]), $expected, $description ? "$description (encode_bbpb)" : '(encode_bbpb)');
 }
 
 sub encode_throws_ok {
