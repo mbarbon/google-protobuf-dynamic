@@ -19,8 +19,8 @@ my $sc = {
     },
 };
 
-eq_or_diff(OrderedFields->encode($sc), "\x0a\x02\x08\x06\x10\x07\x18\x08\x22\x02\x08\x09");
-eq_or_diff(DisorderedFields->encode($sc), "\x0a\x02\x08\x06\x10\x07\x18\x08\x22\x02\x08\x09");
+encode_eq_or_diff('OrderedFields', $sc, "\x0a\x02\x08\x06\x10\x07\x18\x08\x22\x02\x08\x09");
+encode_eq_or_diff('DisorderedFields', $sc, "\x0a\x02\x08\x06\x10\x07\x18\x08\x22\x02\x08\x09");
 
 my $oo1 = {
     field_1 => 6,
@@ -34,8 +34,8 @@ my $oo2 = {
     field_4 => 9,
 };
 
-eq_or_diff(MixedOneof->encode($oo1), "\x08\x06\x10\x07\x20\x09");
-eq_or_diff(MixedOneof->encode($oo2), "\x10\x07\x18\x08\x20\x09");
+encode_eq_or_diff('MixedOneof', $oo1, "\x08\x06\x10\x07\x20\x09");
+encode_eq_or_diff('MixedOneof', $oo2, "\x10\x07\x18\x08\x20\x09");
 
 my $io1 = {
     field_1 => 6,
@@ -46,6 +46,6 @@ my $io1 = {
     field_6 => 11,
 };
 
-eq_or_diff(InterleavedOneof->encode($io1), "\x08\x06\x10\x07\x18\x08\x30\x0b");
+encode_eq_or_diff('InterleavedOneof', $io1, "\x08\x06\x10\x07\x18\x08\x30\x0b");
 
 done_testing();

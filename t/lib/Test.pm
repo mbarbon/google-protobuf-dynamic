@@ -33,6 +33,10 @@ our @EXPORT = (
           decode_eq_or_diff
           decode_throws_ok
           decoder_functions
+
+          encode_eq_or_diff
+          encode_throws_ok
+          encoder_functions
     )
 );
 
@@ -119,5 +123,27 @@ sub decode_throws_ok {
     throws_ok(sub { $package->decode_upb($bytes) }, $expected_upb, $description ? "$description (decode_upb)" : '(decode_upb)');
     throws_ok(sub { $package->decode_bbpb($bytes) }, $expected_bbpb, $description ? "$description (decode_bbpb)" : '(decode_bbpb)');
 }
+
+sub encoder_functions {
+    return qw(encode);;
+}
+
+sub encode_eq_or_diff {
+    # don't touch $_[1] to avoid a tie fetch
+    my ($package, $expected, $description) = @_[0, 2, 3];
+
+    local $Test::Builder::Level = $Test::Builder::Level + 1;
+
+    eq_or_diff($package->encode($_[1]), $expected, $description ? "$description (encode_upb)" : '(encode_upb)');
+}
+
+sub encode_throws_ok {
+    my ($package, $object, $expected_upb, $description) = @_;
+
+    local $Test::Builder::Level = $Test::Builder::Level + 1;
+
+    throws_ok(sub { $package->encode($object) }, $expected_upb, $description ? "$description (encode_upb)" : '(encode_upb)');
+}
+
 
 1;

@@ -8,8 +8,8 @@ my $fixed_proto3_syntax = !Alien::uPB::Core->VERSION || Alien::uPB::Core->VERSIO
     $d->load_file("options.proto");
     $d->map({ package => 'test', prefix => 'Test1', options => { encode_defaults => 1 } });
 
-    eq_or_diff(
-        Test1::Defaults->encode({
+    encode_eq_or_diff(
+        'Test1::Defaults', {
             int32_f     => 2,
             uint32_f    => 3,
             int64_f     => 4,
@@ -19,7 +19,7 @@ my $fixed_proto3_syntax = !Alien::uPB::Core->VERSION || Alien::uPB::Core->VERSIO
             string_f    => "xyz",
             bytes_f     => "abc",
             enum_f      => 1,
-        }),
+        },
         join('',
              "\x08\x02",
              "\x10\x03",
@@ -32,8 +32,8 @@ my $fixed_proto3_syntax = !Alien::uPB::Core->VERSION || Alien::uPB::Core->VERSIO
              "\x48\x01",
          ),
     );
-    eq_or_diff(
-        Test1::Defaults->encode({
+    encode_eq_or_diff(
+        'Test1::Defaults', {
             int32_f     => 7,
             uint32_f    => 8,
             int64_f     => 9,
@@ -43,7 +43,7 @@ my $fixed_proto3_syntax = !Alien::uPB::Core->VERSION || Alien::uPB::Core->VERSIO
             string_f    => "abcde",
             bytes_f     => "def",
             enum_f      => 2,
-        }),
+        },
         join('',
              "\x08\x07",
              "\x10\x08",
@@ -74,8 +74,8 @@ my $fixed_proto3_syntax = !Alien::uPB::Core->VERSION || Alien::uPB::Core->VERSIO
     $d->load_file("options.proto");
     $d->map({ package => 'test', prefix => 'Test2', options => { encode_defaults => 0 } });
 
-    eq_or_diff(
-        Test2::Defaults->encode({
+    encode_eq_or_diff(
+        'Test2::Defaults', {
             int32_f     => 2,
             uint32_f    => 3,
             int64_f     => 4,
@@ -85,7 +85,7 @@ my $fixed_proto3_syntax = !Alien::uPB::Core->VERSION || Alien::uPB::Core->VERSIO
             string_f    => "xyz",
             bytes_f     => "abc",
             enum_f      => 1,
-        }),
+        },
         join('',
              "\x08\x02",
              "\x10\x03",
@@ -98,8 +98,8 @@ my $fixed_proto3_syntax = !Alien::uPB::Core->VERSION || Alien::uPB::Core->VERSIO
              "\x48\x01",
          ),
     );
-    eq_or_diff(
-        Test2::Defaults->encode({
+    encode_eq_or_diff(
+        'Test2::Defaults', {
             int32_f     => 7,
             uint32_f    => 8,
             int64_f     => 9,
@@ -109,7 +109,7 @@ my $fixed_proto3_syntax = !Alien::uPB::Core->VERSION || Alien::uPB::Core->VERSIO
             string_f    => "abcde",
             bytes_f     => "def",
             enum_f      => 2,
-        }),
+        },
         "",
     );
 }
@@ -119,18 +119,18 @@ if (Google::ProtocolBuffers::Dynamic::is_proto3()) {
     $d->load_file("defaults_proto3.proto");
     $d->map({ package => 'test', prefix => 'Test3', options => { encode_defaults => 0 } });
 
-    eq_or_diff(
-        Test3::Defaults->encode({
+    encode_eq_or_diff(
+        'Test3::Defaults', {
             int32_f     => 2,
-        }),
+        },
         join('',
              "\x08\x02",
          ),
     );
-    eq_or_diff(
-        Test3::Defaults->encode({
+    encode_eq_or_diff(
+        'Test3::Defaults', {
             int32_f     => 0,
-        }),
+        },
         "",
     );
 }
@@ -140,18 +140,18 @@ if (Google::ProtocolBuffers::Dynamic::is_proto3() && $fixed_proto3_syntax) {
     $d->load_file("defaults_proto3.proto");
     $d->map({ package => 'test', prefix => 'Test4', options => { encode_defaults => 1 } });
 
-    eq_or_diff(
-        Test4::Defaults->encode({
+    encode_eq_or_diff(
+        'Test4::Defaults', {
             int32_f     => 2,
-        }),
+        },
         join('',
              "\x08\x02",
          ),
     );
-    eq_or_diff(
-        Test4::Defaults->encode({
+    encode_eq_or_diff(
+        'Test4::Defaults', {
             int32_f     => 0,
-        }),
+        },
         "",
     );
 }
@@ -161,18 +161,18 @@ if (Google::ProtocolBuffers::Dynamic::is_proto3() && $fixed_proto3_syntax) {
     $d->load_file("defaults_proto3.proto");
     $d->map({ package => 'test', prefix => 'Test5', options => { encode_defaults_proto3 => 1 } });
 
-    eq_or_diff(
-        Test5::Defaults->encode({
+    encode_eq_or_diff(
+        'Test5::Defaults', {
             int32_f     => 2,
-        }),
+        },
         join('',
              "\x08\x02",
          ),
     );
-    eq_or_diff(
-        Test5::Defaults->encode({
+    encode_eq_or_diff(
+        'Test5::Defaults', {
             int32_f     => 0,
-        }),
+        },
         join('',
              "\x08\x00",
          ),

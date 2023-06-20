@@ -18,14 +18,14 @@ decode_eq_or_diff(
     "unknown enum value uses default in deserialization",
 );
 
-throws_ok(
-    sub { MessageBefore->encode({ value => 3 }) },
+encode_throws_ok(
+    'MessageBefore', { value => 3 },
     qr/Invalid enumeration value 3 for field 'test.MessageBefore.value'/,
     "unknown enum value croaks in serialization"
 );
 
-throws_ok(
-    sub { MessageBefore->encode({ array => [3, 2] }) },
+encode_throws_ok(
+    'MessageBefore', { array => [3, 2] },
     qr/Invalid enumeration value 3 for field 'test.MessageBefore.array'/,
     "unknown enum value croaks in serialization"
 );

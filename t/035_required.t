@@ -14,7 +14,7 @@ $d->resolve_references();
     });
 
     decode_eq_or_diff('Person', $encoded, $decoded);
-    eq_or_diff(Person->encode($decoded), $encoded);
+    encode_eq_or_diff('Person', $decoded, $encoded);
 }
 
 {
@@ -29,8 +29,8 @@ $d->resolve_references();
         qr/Deserialization failed: Missing required field test.Person.id/,
     );
 
-    throws_ok(
-        sub { Person->encode($decoded) },
+    encode_throws_ok(
+        'Person', $decoded,
         qr/Serialization failed: Missing required field test.Person.id/,
     );
 }

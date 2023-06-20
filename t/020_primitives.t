@@ -67,23 +67,21 @@ bless \%test_defaults, 'Default';
 
 for my $field (sort keys %values) {
     my ($value, $encoded) = @{$values{$field}};
-    my $bytes = Basic->encode({ $field => $value });
 
     my $tied = { $field => undef };
     tie_scalar($tied->{$field}, $value);
-    my $tied_bytes = Basic->encode($tied);
 
-    eq_or_diff($bytes, $encoded,
-               "$field - encoded value");
-    eq_or_diff($tied_bytes, $encoded,
-               "$field - encoded tied value");
-    decode_eq_or_diff('Basic', $bytes, Basic->new({ %default_defaults, $field => $value }),
+    encode_eq_or_diff('Basic', { $field => $value }, $encoded,
+                      "$field - encoded value");
+    encode_eq_or_diff('Basic', $tied, $encoded,
+                      "$field - encoded tied value");
+    decode_eq_or_diff('Basic', $encoded, Basic->new({ %default_defaults, $field => $value }),
                       "$field - round trip");
     eq_or_diff(tied_fetch_count($tied), { $field => 1 }, "$field - tied fetch count");
 }
 
-eq_or_diff(Basic->encode({bool_f => ''}), "", "bool false");
-eq_or_diff(Default->encode({bool_f => ''}), "\x38\x00", "bool false");
+encode_eq_or_diff('Basic', {bool_f => ''}, "", "bool false");
+encode_eq_or_diff('Default', {bool_f => ''}, "\x38\x00", "bool false");
 decode_eq_or_diff('Basic', '',, \%default_defaults, "implicit defaults");
 decode_eq_or_diff('Default', '', \%test_defaults, "explicit defaults");
 

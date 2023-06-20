@@ -25,20 +25,20 @@ use if $] < 5.014, 'Test::More' => 'skip_all' => 'Not available on Perl < 5.14';
     my $obj = TestObj->new;
     my $ovl = TestOvl->new;
 
-    throws_ok(
-        sub { Test1::Basic->encode({ string_f => $ref }) },
+    encode_throws_ok(
+        'Test1::Basic', { string_f => $ref },
         qr/Reference used when a scalar value is expected for field 'test.Basic.string_f'/,
         "ref for scalar croaks in serialization"
     );
 
-    throws_ok(
-        sub { Test1::Basic->encode({ string_f => $obj }) },
+    encode_throws_ok(
+        'Test1::Basic', { string_f => $obj },
         qr/Reference used when a scalar value is expected for field 'test.Basic.string_f'/,
         "obj for scalar croaks in serialization"
     );
 
-    throws_ok(
-        sub { Test1::Repeated->encode({ string_f => ['a', $ref] }) },
+    encode_throws_ok(
+        'Test1::Repeated', { string_f => ['a', $ref] },
         qr/Reference used when a scalar value is expected for field 'test.Repeated.string_f'/,
         "ref for repeated scalar croaks in serialization"
     );

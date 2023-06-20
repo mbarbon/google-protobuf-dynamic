@@ -28,7 +28,7 @@ for my $type (sort keys %values) {
         });
 
         decode_eq_or_diff('Optional1', $encoded_nondefault, $decoded, "$type - non-default values both present in decoded value");
-        eq_or_diff(Optional1->encode($decoded), $encoded_nondefault, "$type - non-default value both present in encoded bytes");
+        encode_eq_or_diff('Optional1', $decoded, $encoded_nondefault, "$type - non-default value both present in encoded bytes");
     }
 
     {
@@ -37,7 +37,7 @@ for my $type (sort keys %values) {
             "${type}_pf"=> $v_0,
         });
 
-        eq_or_diff(Optional1->encode($original), $encoded_pf0, "$type - default value only encoded for optional fields");
+        encode_eq_or_diff('Optional1', $original, $encoded_pf0, "$type - default value only encoded for optional fields");
     }
 }
 

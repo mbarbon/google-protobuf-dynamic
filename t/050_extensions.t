@@ -15,7 +15,7 @@ $d->resolve_references();
     });
 
     decode_eq_or_diff('BaseMessage', $encoded, $decoded);
-    eq_or_diff(BaseMessage->encode($decoded), $encoded);
+    encode_eq_or_diff('BaseMessage', $decoded, $encoded);
 
     is(BaseMessage::VALUE_FIELD_NUMBER(), 1);
     is(ExtensionMessage::VALUE_FIELD_NUMBER(), 1);
@@ -39,7 +39,7 @@ $d->resolve_references();
     });
 
     decode_eq_or_diff('BaseMessage', $encoded, $decoded);
-    eq_or_diff(BaseMessage->encode($decoded), $encoded);
+    encode_eq_or_diff('BaseMessage', $decoded, $encoded);
 }
 
 done_testing();

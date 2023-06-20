@@ -83,13 +83,12 @@ sub to_array {
 
 for my $field (sort keys %values) {
     my ($values, $encoded) = @{$values{$field}};
-    my $bytes = Maps->encode({ $field => $values });
-    my $bytes_nomap = NoMaps->encode({ $field => to_array($values) });
+    my $bytes = encode($values, $encoded);
 
-    eq_or_diff($bytes, encode($values, $encoded),
-               "$field - encoded value");
-    eq_or_diff($bytes, $bytes_nomap,
-               "$field - encoded value (pair array)");
+    encode_eq_or_diff('Maps', { $field => $values }, $bytes,
+                      "$field - encoded value");
+    encode_eq_or_diff('NoMaps', { $field => to_array($values) }, $bytes,
+                      "$field - encoded value (pair array)");
     decode_eq_or_diff('Maps', $bytes, Maps->new({ $field => $values }),
                       "$field - round trip");
 }
@@ -101,14 +100,14 @@ my $encoded = "\x0a\x06\x0a\x02\xc2\xb2\x10\x01";
 utf8::downgrade($bytes);
 utf8::upgrade($string);
 
-eq_or_diff(Maps->encode({ string_int32_map => { $bytes => 1 } }), $encoded,
-       "bytes -> UTF-8 upgrade");
-eq_or_diff(NoMaps->encode({ string_int32_map => [{ key => $bytes, value => 1 }] }), $encoded,
-       "bytes -> UTF-8 upgrade (pair array)");
-eq_or_diff(Maps->encode({ string_int32_map => { $string => 1 } }), $encoded,
-       "UTF-8 string");
-eq_or_diff(NoMaps->encode({ string_int32_map => [{ key => $string, value => 1 }] }), $encoded,
-       "UTF-8 string (pair array)");
+encode_eq_or_diff('Maps', { string_int32_map => { $bytes => 1 } }, $encoded,
+                  "bytes -> UTF-8 upgrade");
+encode_eq_or_diff('NoMaps', { string_int32_map => [{ key => $bytes, value => 1 }] }, $encoded,
+                  "bytes -> UTF-8 upgrade (pair array)");
+encode_eq_or_diff('Maps', { string_int32_map => { $string => 1 } }, $encoded,
+                  "UTF-8 string");
+encode_eq_or_diff('NoMaps', { string_int32_map => [{ key => $string, value => 1 }] }, $encoded,
+                  "UTF-8 string (pair array)");
 
 for my $method (decoder_functions) {
     my $method_desc = "($method)";

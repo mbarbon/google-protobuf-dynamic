@@ -32,19 +32,17 @@ my %packed_values = (
 
 for my $field (sort keys %values) {
     my ($values, $encoded) = @{$values{$field}};
-    my $bytes = Repeated->encode({ $field => $values });
 
     my $array = [(undef) x @$values];
     my $tied = { $field => [] };
     tie_scalar($array->[$_], $values->[$_]) for 0 .. $#$array;
     tie_array($tied->{$field}, $array);
-    my $tied_bytes = Repeated->encode($tied);
 
-    eq_or_diff($bytes, $encoded,
-               "$field - encoded value");
-    eq_or_diff($tied_bytes, $encoded,
-               "$field - encoded value with tied elements");
-    decode_eq_or_diff('Repeated', $bytes, Repeated->new({ $field => $values }),
+    encode_eq_or_diff('Repeated', { $field => $values }, $encoded,
+                      "$field - encoded value");
+    encode_eq_or_diff('Repeated', $tied, $encoded,
+                      "$field - encoded value with tied elements");
+    decode_eq_or_diff('Repeated', $encoded, Repeated->new({ $field => $values }),
                       "$field - round trip");
     eq_or_diff(tied_fetch_count($tied), { $field => {
         count => scalar @$values,
@@ -54,11 +52,10 @@ for my $field (sort keys %values) {
 
 for my $field (sort keys %packed_values) {
     my ($values, $encoded) = @{$packed_values{$field}};
-    my $bytes = Packed->encode({ $field => $values });
 
-    eq_or_diff($bytes, $encoded,
-               "$field - packed value");
-    decode_eq_or_diff('Packed', $bytes, Packed->new({ $field => $values }),
+    encode_eq_or_diff('Packed', { $field => $values }, $encoded,
+                      "$field - packed value");
+    decode_eq_or_diff('Packed', $encoded, Packed->new({ $field => $values }),
                       "$field - round trip");
 }
 
@@ -73,8 +70,8 @@ decode_eq_or_diff('Packed', "\x1a\x02\x01\x02\x1a\x02\x03\x04", Packed->new({
 
 # "A packed repeated field containing zero elements does not appear in the
 # encoded message."
-eq_or_diff(
-    Packed->new({ int32_f => [] })->encode,
+encode_eq_or_diff(
+    'Packed', { int32_f => [] },
     '', # expect empty
     "empty packed repeated field");
 

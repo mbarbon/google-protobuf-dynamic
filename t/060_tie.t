@@ -13,7 +13,7 @@ $d->resolve_references();
 {
     my $tied = tied_hash();
 
-    eq_or_diff(Basic->encode($tied), "");
+    encode_eq_or_diff('Basic', $tied, "");
     eq_or_diff(tied_fetch_count($tied), {
         count => 0,
         inner => {},
@@ -26,7 +26,7 @@ $d->resolve_references();
         int32_f => 2,
     );
 
-    eq_or_diff(Basic->encode($tied), "\x18\x02\x38\x01");
+    encode_eq_or_diff('Basic', $tied, "\x18\x02\x38\x01");
     eq_or_diff(tied_fetch_count($tied), {
         count => 2,
         inner => {
@@ -41,7 +41,7 @@ $d->resolve_references();
         bool_f => tied_array(0, 1, 1),
     };
 
-    eq_or_diff(Repeated->encode($tied), "\x38\x00\x38\x01\x38\x01");
+    encode_eq_or_diff('Repeated', $tied, "\x38\x00\x38\x01\x38\x01");
     eq_or_diff(tied_fetch_count($tied), {
         bool_f => {
             count => 3,
@@ -59,8 +59,8 @@ $d->resolve_references();
         ),
     };
 
-    eq_or_diff(OuterWithMessage->encode($tied),
-               "\x0a\x02\x08\x03\x12\x02\x08\x04\x12\x02\x08\x05");
+    encode_eq_or_diff('OuterWithMessage', $tied,
+                      "\x0a\x02\x08\x03\x12\x02\x08\x04\x12\x02\x08\x05");
     eq_or_diff(tied_fetch_count($tied), {
         optional_inner => {
             count => 1,

@@ -11,14 +11,14 @@ use t::lib::Test;
         "unknown enum value uses default in deserialization",
     );
 
-    throws_ok(
-        sub { Test1::MessageBefore->encode({ value => 3 }) },
+    encode_throws_ok(
+        'Test1::MessageBefore', { value => 3 },
         qr/Invalid enumeration value 3 for field 'test.MessageBefore.value'/,
         "unknown enum value croaks in serialization"
     );
 
-    throws_ok(
-        sub { Test1::MessageBefore->encode({ array => [3, 2] }) },
+    encode_throws_ok(
+        'Test1::MessageBefore', { array => [3, 2] },
         qr/Invalid enumeration value 3 for field 'test.MessageBefore.array'/,
         "unknown enum value croaks in serialization"
     );
@@ -40,13 +40,13 @@ use t::lib::Test;
         Test2::MessageBefore->new({ value => 3, array => [3, 2, 1] }),
     );
 
-    eq_or_diff(
-        Test2::MessageBefore->encode({ value => 3 }),
+    encode_eq_or_diff(
+        'Test2::MessageBefore', { value => 3 },
         "\x08\x03",
     );
 
-    eq_or_diff(
-        Test2::MessageBefore->encode({ array => [3, 2] }),
+    encode_eq_or_diff(
+        'Test2::MessageBefore', { array => [3, 2] },
         "\x10\x03\x10\x02",
     );
 

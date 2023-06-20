@@ -12,7 +12,7 @@ $d->resolve_references();
     });
 
     decode_eq_or_diff('List', $encoded, $decoded);
-    eq_or_diff(List->encode($decoded), $encoded);
+    encode_eq_or_diff('List', $decoded, $encoded);
 }
 
 {
@@ -25,7 +25,7 @@ $d->resolve_references();
     });
 
     decode_eq_or_diff('List', $encoded, $decoded);
-    eq_or_diff(List->encode($decoded), $encoded);
+    encode_eq_or_diff('List', $decoded, $encoded);
 }
 
 done_testing();

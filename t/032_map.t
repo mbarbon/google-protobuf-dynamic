@@ -116,11 +116,10 @@ sub encode {
 
 for my $field (sort keys %values) {
     my ($values, $encoded) = @{$values{$field}};
-    my $bytes = Maps->encode({ $field => $values });
 
-    eq_or_diff($bytes, encode($values, $encoded),
-               "$field - encoded value");
-    decode_eq_or_diff('Maps', $bytes, Maps->new({ $field => $values }),
+    encode_eq_or_diff('Maps', { $field => $values }, encode($values, $encoded),
+                      "$field - encoded value");
+    decode_eq_or_diff('Maps', encode($values, $encoded), Maps->new({ $field => $values }),
                       "$field - round trip");
 }
 

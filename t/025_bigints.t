@@ -13,7 +13,7 @@ $d->resolve_references();
     });
 
     decode_eq_or_diff('BigInts', $encoded, $decoded);
-    eq_or_diff(BigInts->encode($decoded), $encoded);
+    encode_eq_or_diff('BigInts', $decoded, $encoded);
 }
 
 {
@@ -24,7 +24,7 @@ $d->resolve_references();
     });
 
     decode_eq_or_diff('BigInts', $encoded, $decoded);
-    eq_or_diff(BigInts->encode($decoded), $encoded);
+    encode_eq_or_diff('BigInts', $decoded, $encoded);
 }
 
 done_testing();

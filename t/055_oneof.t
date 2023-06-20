@@ -13,7 +13,7 @@ $d->resolve_references();
     });
 
     decode_eq_or_diff('OneOf1', $encoded, $decoded);
-    eq_or_diff(OneOf1->encode($decoded), $encoded);
+    encode_eq_or_diff('OneOf1', $decoded, $encoded);
 }
 
 {
@@ -24,7 +24,7 @@ $d->resolve_references();
     });
 
     decode_eq_or_diff('OneOf1', $encoded, $decoded);
-    eq_or_diff(OneOf1->encode($decoded), $encoded);
+    encode_eq_or_diff('OneOf1', $decoded, $encoded);
 }
 
 {
@@ -55,7 +55,7 @@ $d->resolve_references();
         value3 => 4,
     });
 
-    eq_or_diff(OneOf1->encode($decoded), $encoded);
+    encode_eq_or_diff('OneOf1', $decoded, $encoded);
 }
 
 done_testing();

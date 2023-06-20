@@ -31,8 +31,8 @@ eq_or_diff($paj, PersonArray->new({
     ],
 }));
 
-eq_or_diff(Person->encode($p), "\x0a\x03foo\x10\x1f");
-eq_or_diff(PersonArray->encode($pa), "\x0a\x07\x0a\x03foo\x10\x1f" .
+encode_eq_or_diff('Person', $p, "\x0a\x03foo\x10\x1f");
+encode_eq_or_diff('PersonArray', $pa, "\x0a\x07\x0a\x03foo\x10\x1f" .
                                                "\x0a\x06\x0a\x02ba\x10\x20");
 
 eq_or_diff(Person->encode_json($p), '{"name":"foo","id":31}');
