@@ -2155,7 +2155,7 @@ bool Mapper::encode_key(EncoderState &state, const Field &fd, const char *key, I
     case ACTION_PUT_INT64:
         return sink->PutInt64(fd.selector.primitive, key_iv(aTHX_ key, keylen));
     case ACTION_PUT_UINT64:
-        return sink->PutInt64(fd.selector.primitive, key_uv(aTHX_ key, keylen));
+        return sink->PutUInt64(fd.selector.primitive, key_uv(aTHX_ key, keylen));
     default:
         return false; // just in case
     }

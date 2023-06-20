@@ -16,6 +16,8 @@ message Maps {
     map<int32, Enum> int32_enum_map = 5;
     map<int32, Item> int32_message_map = 6;
     map<string, StringMap> string_string_map_map = 7;
+    map<uint32, bool> uint32_bool_map = 8;
+    map<uint64, bool> uint64_bool_map = 9;
 }
 
 message Item {
