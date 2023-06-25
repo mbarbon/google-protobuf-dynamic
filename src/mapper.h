@@ -348,6 +348,7 @@ private:
     const upb::MessageDef *message_def;
     const gpd::pb::Descriptor *gpd_descriptor;
     int oneof_count; // cached here for performance
+    int map_key_field;
     HV *stash;
     upb::reffed_ptr<const upb::Handlers> pb_encoder_handlers, json_encoder_handlers;
     upb::reffed_ptr<upb::Handlers> decoder_handlers;

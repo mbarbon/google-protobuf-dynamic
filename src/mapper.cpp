@@ -49,6 +49,13 @@ namespace {
 
         return env;
     }
+
+    // std::conditional-alike
+    template<bool B, class T, class F>
+    struct gpd_conditional { typedef T type; };
+
+    template<class T, class F>
+    struct gpd_conditional<false, T, F> { typedef F type; };
 }
 
 Mapper::DecoderHandlers::DecoderHandlers(pTHX_ const Mapper *mapper) :
@@ -1070,6 +1077,10 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const g
         }
     }
 
+    if (map_entry) {
+        map_key_field = fields[0].is_map_key() ? 0 : 1;
+    }
+
     decoder_field_data.optimize_lookup();
     check_required_fields = has_required && options.check_required_fields;
     ignore_undef_fields = options.ignore_undef_fields;
@@ -1779,23 +1790,6 @@ namespace {
     #define SvIV64_nomg(sv) get_int64_nomg(aTHX_ sv)
     #define SvUV64_nomg(sv) get_uint64_nomg(aTHX_ sv)
 
-    IV key_iv(pTHX_ const char *key, I32 keylen) {
-        UV value;
-        int numtype = grok_number(key, keylen, &value);
-
-        if (numtype & IS_NUMBER_IN_UV) {
-            if (numtype & IS_NUMBER_NEG) {
-                if (value < (UV) IV_MIN)
-                    return - (IV) value;
-            } else {
-                if (value < (UV) IV_MAX)
-                    return (IV) value;
-            }
-        }
-        // XXX warn
-        return 0;
-    }
-
 #if HAS_FULL_NOMG
     #define SvIV_enc SvIV_nomg
     #define SvIV64_enc SvIV64_nomg
@@ -1816,76 +1810,124 @@ namespace {
     #define SvTRUE_enc SvTRUE
 #endif
 
-    UV key_uv(pTHX_ const char *key, I32 keylen) {
-        UV value;
-        int numtype = grok_number(key, keylen, &value);
-
-        if (numtype & IS_NUMBER_IN_UV) {
-            return value;
+    bool check_valid_enum_value(upb::Status *status, const Mapper::Field &fd, int32_t value) {
+        if (fd.enum_values.find(value) == fd.enum_values.end()) {
+            status->SetFormattedErrorMessage(
+                "Invalid enumeration value %d for field '%s'",
+                value,
+                fd.full_name().c_str()
+            );
+            return false;
         }
-        // XXX warn
-        return 0;
+
+        return true;
     }
 
-    class SVGetter {
-    public:
-        SV *operator()(pTHX_ SV *src) const { return src; }
+    struct StringValue {
+        STRLEN len;
+        const char *str;
+
+        StringValue() { }
+        StringValue(const char *_str, STRLEN _len) : str(_str), len(_len) { }
     };
 
-    class NVGetter {
-    public:
-        NV operator()(pTHX_ SV *src) const { return SvNV_enc(src); }
+    template<class T>
+    struct BaseGetter {
+        typedef T Value;
     };
 
-    class IVGetter {
-    public:
-        IV operator()(pTHX_ SV *src) const { return SvIV_enc(src); }
-    };
+#define DEF_SIMPLE_GETTER(NAME, FUNCTION, TYPE)   \
+    struct NAME : public BaseGetter<TYPE> { \
+        Value operator()(pTHX_ SV *src) const { return FUNCTION(src); } \
+    }
 
-    class UVGetter {
-    public:
-        UV operator()(pTHX_ SV *src) const { return SvUV_enc(src); }
-    };
+    DEF_SIMPLE_GETTER(NVGetter, SvNV_enc, NV);
+    DEF_SIMPLE_GETTER(IVGetter, SvIV_enc, IV);
+    DEF_SIMPLE_GETTER(UVGetter, SvUV_enc, UV);
+    DEF_SIMPLE_GETTER(I64Getter, SvIV64_enc, int64_t);
+    DEF_SIMPLE_GETTER(U64Getter, SvUV64_enc, uint64_t);
+    DEF_SIMPLE_GETTER(BoolGetter, SvTRUE_enc, bool);
 
-    class I64Getter {
-    public:
-        int64_t operator()(pTHX_ SV *src) const { return SvIV64_enc(src); }
-    };
+#undef DEF_SIMPLE_GETTER
 
-    class U64Getter {
-    public:
-        uint64_t operator()(pTHX_ SV *src) const { return SvUV64_enc(src); }
-    };
+    typedef gpd_conditional<sizeof(IV) >= sizeof(int64_t), IVGetter, I64Getter>::type Int64Getter;
+    typedef gpd_conditional<sizeof(UV) >= sizeof(uint64_t), UVGetter, U64Getter>::type UInt64Getter;
 
     class StringGetter {
     public:
-        void operator()(pTHX_ SV *src, string *dest) const {
-            STRLEN len;
-            const char *buf = SvPVutf8_enc(src, len);
+        typedef StringValue Value;
 
-            dest->assign(buf, len);
+        Value operator()(pTHX_ SV *src) const {
+            StringValue value;
+
+            value.str = SvPVutf8_enc(src, value.len);
+
+            return value;
         }
     };
 
     class BytesGetter {
     public:
-        void operator()(pTHX_ SV *src, string *dest) const {
-            STRLEN len;
-            const char *buf = SvPV_enc(src, len);
+        typedef StringValue Value;
 
-            dest->assign(buf, len);
+        Value operator()(pTHX_ SV *src) const {
+            StringValue value;
+
+            value.str = SvPV_enc(src, value.len);
+
+            return value;
         }
     };
 
-    class BoolGetter {
-    public:
-        bool operator()(pTHX_ SV *src) const { return SvTRUE_enc(src); }
+    struct IVKeyGetter : public BaseGetter<IV> {
+        Value operator()(pTHX_ const char *key, I32 keylen) {
+            UV value;
+            int numtype = grok_number(key, keylen, &value);
+
+            if (numtype & IS_NUMBER_IN_UV) {
+                if (numtype & IS_NUMBER_NEG) {
+                    if (value < (UV) IV_MIN)
+                        return - (IV) value;
+                } else {
+                    if (value < (UV) IV_MAX)
+                        return (IV) value;
+                }
+            }
+            // XXX warn
+            return 0;
+        }
+    };
+
+    struct UVKeyGetter : public BaseGetter<UV> {
+        Value operator()(pTHX_ const char *key, I32 keylen) {
+            UV value;
+            int numtype = grok_number(key, keylen, &value);
+
+            if (numtype & IS_NUMBER_IN_UV) {
+                return value;
+            }
+            // XXX warn
+            return 0;
+        }
+    };
+
+    struct BoolKeyGetter : public BaseGetter<bool> {
+        Value operator()(pTHX_ const char *key, I32 keylen) {
+            // follows what SvTRUE() does for strings
+            return keylen > 1 || (keylen == 1 && key[0] != '0');
+        }
+    };
+
+    struct StringKeyGetter : public BaseGetter<StringValue> {
+        Value operator()(pTHX_ const char *key, I32 keylen) {
+            return StringValue(key, keylen);
+        }
     };
 
 #define DEF_SIMPLE_SETTER(NAME, METHOD, TYPE)   \
     struct NAME { \
         NAME(Status *status) { } \
-        bool operator()(pTHX_ Sink *sink, const Mapper::Field &fd, TYPE value) { \
+        bool operator()(Sink *sink, const Mapper::Field &fd, TYPE value) { \
             return sink->METHOD(fd.selector.primitive, value);    \
         } \
     }
@@ -1905,15 +1947,9 @@ namespace {
 
         EnumEmitter(Status *_status) { status = _status; }
 
-        bool operator()(pTHX_ Sink *sink, const Mapper::Field &fd, int32_t value) {
-            if (fd.enum_values.find(value) == fd.enum_values.end()) {
-                status->SetFormattedErrorMessage(
-                    "Invalid enumeration value %d for field '%s'",
-                    value,
-                    fd.full_name().c_str()
-                );
+        bool operator()(Sink *sink, const Mapper::Field &fd, int32_t value) {
+            if (!check_valid_enum_value(status, fd, value))
                 return false;
-            }
 
             return sink->PutInt32(fd.selector.primitive, value);
         }
@@ -1922,16 +1958,67 @@ namespace {
     struct StringEmitter {
         StringEmitter(Status *status) { }
 
-        bool operator()(pTHX_ Sink *sink, const Mapper::Field &fd, SV *value) {
-            STRLEN len;
-            const char *str = fd.value_action == Mapper::ACTION_PUT_STRING ? SvPVutf8(value, len) : SvPV(value, len);
+        bool operator()(Sink *sink, const Mapper::Field &fd, StringValue value) {
             Sink sub;
-            if (!sink->StartString(fd.selector.str_start, len, &sub))
+            if (!sink->StartString(fd.selector.str_start, value.len, &sub))
                 return false;
-            sub.PutStringBuffer(fd.selector.str_cont, str, len, NULL);
+            sub.PutStringBuffer(fd.selector.str_cont, value.str, value.len, NULL);
             return sink->EndString(fd.selector.str_end);
         }
     };
+
+    template<class V> struct IsDefault;
+
+#define DEF_SIMPLE_ISDEFAULT(TYPE, MEMBER) \
+    template<> \
+    struct IsDefault<TYPE> { \
+        bool operator()(const Mapper::Field &fd, TYPE value) { \
+            return value == fd.MEMBER; \
+        } \
+    }
+
+    DEF_SIMPLE_ISDEFAULT(NV, default_nv);
+    DEF_SIMPLE_ISDEFAULT(IV, default_iv);
+    DEF_SIMPLE_ISDEFAULT(UV, default_uv);
+    DEF_SIMPLE_ISDEFAULT(bool, default_bool);
+
+#undef DEF_SIMPLE_ISDEFAULT
+
+    template<>
+    struct IsDefault<StringValue> {
+        bool operator()(const Mapper::Field &fd, StringValue value) {
+            return value.len == fd.default_str_len &&
+                (value.len == 0 || memcmp(value.str, fd.default_str, value.len) == 0);
+        }
+    };
+
+    template<class Getter, class Setter>
+    inline bool emit_field(pTHX_ Mapper::EncoderState &state, const Mapper::Field &fd, SV *value) {
+        Getter getter;
+        Setter setter(state.status);
+        typename Getter::Value c_value = getter(aTHX_ value);
+
+        return setter(state.sink, fd, c_value);
+    }
+
+    template<class Getter, class Setter>
+    inline bool emit_field_nd(pTHX_ Mapper::EncoderState &state, const Mapper::Field &fd, SV *value) {
+        Getter getter;
+        Setter setter(state.status);
+        IsDefault<typename Getter::Value> is_default;
+        typename Getter::Value c_value = getter(aTHX_ value);
+
+        return is_default(fd, c_value) || setter(state.sink, fd, c_value);
+    }
+
+    template<class Getter, class Setter>
+    inline bool emit_key(pTHX_ Mapper::EncoderState &state, const Mapper::Field &fd, const char *key, I32 keylen) {
+        Getter getter;
+        Setter setter(state.status);
+        typename Getter::Value c_value = getter(aTHX_ key, keylen);
+
+        return setter(state.sink, fd, c_value);
+    }
 }
 
 template<class G, class S>
@@ -1969,7 +2056,7 @@ bool Mapper::encode_from_array(EncoderState &state, const Mapper::Field &fd, AV 
 
         if (fail_ref_coercion && is_coerced_ref(aTHX_ state.status, fd, *item))
             return false;
-        if (!setter(aTHX_ &sub, fd, getter(aTHX_ *item)))
+        if (!setter(&sub, fd, getter(aTHX_ *item)))
             return false;
     }
     state.mapper_context->pop_level();
@@ -2270,21 +2357,6 @@ bool Mapper::encode_simple_message_iterate_hash(EncoderState &state, SV *ref) co
     return true;
 }
 
-namespace {
-    inline bool put_string(Sink *sink, const Mapper::Field &fd, const char *str, STRLEN len) {
-        Sink sub;
-        if (!sink->StartString(fd.selector.str_start, len, &sub))
-            return false;
-        sub.PutStringBuffer(fd.selector.str_cont, str, len, NULL);
-        return sink->EndString(fd.selector.str_end);
-    }
-
-    inline bool is_default_string(const Mapper::Field &fd, const char *str, STRLEN len) {
-        return len == fd.default_str_len &&
-            (len == 0 || memcmp(str, fd.default_str, len) == 0);
-    }
-}
-
 bool Mapper::encode_field(EncoderState &state, const Field &fd, SV *ref) const {
     ValueAction field_action = fd.field_action;
 
@@ -2296,121 +2368,55 @@ bool Mapper::encode_field(EncoderState &state, const Field &fd, SV *ref) const {
 
         // do not encode field default value
 
-    case ACTION_PUT_FLOAT_ND: {
-        NV value = SvNV_enc(ref);
-        if (value == fd.default_nv)
-            return true;
-        return sink->PutFloat(fd.selector.primitive, value);
-    }
-    case ACTION_PUT_DOUBLE_ND: {
-        NV value = SvNV_enc(ref);
-        if (value == fd.default_nv)
-            return true;
-        return sink->PutDouble(fd.selector.primitive, value);
-    }
-    case ACTION_PUT_BOOL_ND: {
-        bool value = SvTRUE_enc(ref);
-        if (value == fd.default_bool)
-            return true;
-        return sink->PutBool(fd.selector.primitive, value);
-    }
-    case ACTION_PUT_STRING_ND: {
-        STRLEN len;
-        const char *str = SvPVutf8_enc(ref, len);
-        return is_default_string(fd, str, len) || put_string(sink, fd, str, len);
-    }
-    case ACTION_PUT_BYTES_ND: {
-        STRLEN len;
-        const char *str = SvPV_enc(ref, len);
-        return is_default_string(fd, str, len) || put_string(sink, fd, str, len);
-    }
-    case ACTION_PUT_ENUM_ND: {
-        IV value = SvIV_enc(ref);
-        if (value == fd.default_iv)
-            return true;
-        if (check_enum_values &&
-                fd.enum_values.find(value) == fd.enum_values.end()) {
-            state.status->SetFormattedErrorMessage(
-                "Invalid enumeration value %d for field '%s'",
-                value,
-                fd.full_name().c_str()
-            );
-            return false;
-        }
-
-        return sink->PutInt32(fd.selector.primitive, value);
-    }
-    case ACTION_PUT_INT32_ND: {
-        IV value = SvIV_enc(ref);
-        if (value == fd.default_iv)
-            return true;
-        return sink->PutInt32(fd.selector.primitive, value);
-    }
-    case ACTION_PUT_UINT32_ND: {
-        UV value = SvUV_enc(ref);
-        if (value == fd.default_uv)
-            return true;
-        return sink->PutUInt32(fd.selector.primitive, value);
-    }
-    case ACTION_PUT_INT64_ND: {
-        int64_t value = sizeof(IV) >= sizeof(int64_t) ? SvIV_enc(ref) : SvIV64_enc(ref);
-        if (value == fd.default_i64)
-            return true;
-        return sink->PutInt64(fd.selector.primitive, value);
-    }
-    case ACTION_PUT_UINT64_ND: {
-        uint64_t value = sizeof(UV) >= sizeof(int64_t) ? SvUV_enc(ref) : SvUV64_enc(ref);
-        if (value == fd.default_u64)
-            return true;
-        return sink->PutUInt64(fd.selector.primitive, value);
-    }
+    case ACTION_PUT_FLOAT_ND:
+        return emit_field_nd<NVGetter, FloatEmitter>(aTHX_ state, fd, ref);
+    case ACTION_PUT_DOUBLE_ND:
+        return emit_field_nd<NVGetter, DoubleEmitter>(aTHX_ state, fd, ref);
+    case ACTION_PUT_BOOL_ND:
+        return emit_field_nd<BoolGetter, BoolEmitter>(aTHX_ state, fd, ref);
+    case ACTION_PUT_STRING_ND:
+        return emit_field_nd<StringGetter, StringEmitter>(aTHX_ state, fd, ref);
+    case ACTION_PUT_BYTES_ND:
+        return emit_field_nd<BytesGetter, StringEmitter>(aTHX_ state, fd, ref);
+    case ACTION_PUT_ENUM_ND:
+        if (check_enum_values)
+            return emit_field_nd<IVGetter, EnumEmitter>(aTHX_ state, fd, ref);
+        else
+            return emit_field_nd<IVGetter, Int32Emitter>(aTHX_ state, fd, ref);
+    case ACTION_PUT_INT32_ND:
+        return emit_field_nd<IVGetter, Int32Emitter>(aTHX_ state, fd, ref);
+    case ACTION_PUT_UINT32_ND:
+        return emit_field_nd<UVGetter, UInt32Emitter>(aTHX_ state, fd, ref);
+    case ACTION_PUT_INT64_ND:
+        return emit_field_nd<Int64Getter, Int64Emitter>(aTHX_ state, fd, ref);
+    case ACTION_PUT_UINT64_ND:
+        return emit_field_nd<UInt64Getter, UInt64Emitter>(aTHX_ state, fd, ref);
 
         // encode field default value
 
     case ACTION_PUT_FLOAT:
-        return sink->PutFloat(fd.selector.primitive, SvNV_enc(ref));
+        return emit_field<NVGetter, FloatEmitter>(aTHX_ state, fd, ref);
     case ACTION_PUT_DOUBLE:
-        return sink->PutDouble(fd.selector.primitive, SvNV_enc(ref));
+        return emit_field<NVGetter, DoubleEmitter>(aTHX_ state, fd, ref);
     case ACTION_PUT_BOOL:
-        return sink->PutBool(fd.selector.primitive, SvTRUE_enc(ref));
-    case ACTION_PUT_STRING: {
-        STRLEN len;
-        const char *str = SvPVutf8_enc(ref, len);
-        return put_string(sink, fd, str, len);
-    }
-    case ACTION_PUT_BYTES: {
-        STRLEN len;
-        const char *str = SvPV_enc(ref, len);
-        return put_string(sink, fd, str, len);
-    }
-    case ACTION_PUT_ENUM: {
-        IV value = SvIV_enc(ref);
-        if (check_enum_values &&
-                fd.enum_values.find(value) == fd.enum_values.end()) {
-            state.status->SetFormattedErrorMessage(
-                "Invalid enumeration value %d for field '%s'",
-                value,
-                fd.full_name().c_str()
-            );
-            return false;
-        }
-
-        return sink->PutInt32(fd.selector.primitive, value);
-    }
+        return emit_field<BoolGetter, BoolEmitter>(aTHX_ state, fd, ref);
+    case ACTION_PUT_STRING:
+        return emit_field<StringGetter, StringEmitter>(aTHX_ state, fd, ref);
+    case ACTION_PUT_BYTES:
+        return emit_field<BytesGetter, StringEmitter>(aTHX_ state, fd, ref);
+    case ACTION_PUT_ENUM:
+        if (check_enum_values)
+            return emit_field<IVGetter, EnumEmitter>(aTHX_ state, fd, ref);
+        else
+            return emit_field<IVGetter, Int32Emitter>(aTHX_ state, fd, ref);
     case ACTION_PUT_INT32:
-        return sink->PutInt32(fd.selector.primitive, SvIV_enc(ref));
+        return emit_field<IVGetter, Int32Emitter>(aTHX_ state, fd, ref);
     case ACTION_PUT_UINT32:
-        return sink->PutUInt32(fd.selector.primitive, SvUV_enc(ref));
+        return emit_field<UVGetter, UInt32Emitter>(aTHX_ state, fd, ref);
     case ACTION_PUT_INT64:
-        if (sizeof(IV) >= sizeof(int64_t))
-            return sink->PutInt64(fd.selector.primitive, SvIV_enc(ref));
-        else
-            return sink->PutInt64(fd.selector.primitive, SvIV64_enc(ref));
+        return emit_field<Int64Getter, Int64Emitter>(aTHX_ state, fd, ref);
     case ACTION_PUT_UINT64:
-        if (sizeof(UV) >= sizeof(int64_t))
-            return sink->PutInt64(fd.selector.primitive, SvUV_enc(ref));
-        else
-            return sink->PutUInt64(fd.selector.primitive, SvUV64_enc(ref));
+        return emit_field<UInt64Getter, UInt64Emitter>(aTHX_ state, fd, ref);
 
         // non-scalar fields
 
@@ -2447,26 +2453,18 @@ bool Mapper::encode_key(EncoderState &state, const Field &fd, const char *key, I
     Sink *sink = state.sink;
 
     switch (fd.value_action) {
-    case ACTION_PUT_BOOL: {
-        // follows what SvTRUE() does for strings
-        bool bval = keylen > 1 || (keylen == 1 && key[0] != '0');
-        return sink->PutBool(fd.selector.primitive, bval);
-    }
-    case ACTION_PUT_STRING: {
-        Sink sub;
-        if (!sink->StartString(fd.selector.str_start, keylen, &sub))
-            return false;
-        sub.PutStringBuffer(fd.selector.str_cont, key, keylen, NULL);
-        return sink->EndString(fd.selector.str_end);
-    }
+    case ACTION_PUT_BOOL:
+        return emit_key<BoolKeyGetter, BoolEmitter>(aTHX_ state, fd, key, keylen);
+    case ACTION_PUT_STRING:
+        return emit_key<StringKeyGetter, StringEmitter>(aTHX_ state, fd, key, keylen);
     case ACTION_PUT_INT32:
-        return sink->PutInt32(fd.selector.primitive, key_iv(aTHX_ key, keylen));
+        return emit_key<IVKeyGetter, Int32Emitter>(aTHX_ state, fd, key, keylen);
     case ACTION_PUT_UINT32:
-        return sink->PutUInt32(fd.selector.primitive, key_uv(aTHX_ key, keylen));
+        return emit_key<UVKeyGetter, UInt32Emitter>(aTHX_ state, fd, key, keylen);
     case ACTION_PUT_INT64:
-        return sink->PutInt64(fd.selector.primitive, key_iv(aTHX_ key, keylen));
+        return emit_key<IVKeyGetter, Int64Emitter>(aTHX_ state, fd, key, keylen);
     case ACTION_PUT_UINT64:
-        return sink->PutUInt64(fd.selector.primitive, key_uv(aTHX_ key, keylen));
+        return emit_key<UVKeyGetter, UInt64Emitter>(aTHX_ state, fd, key, keylen);
     default:
         return false; // just in case
     }
@@ -2568,9 +2566,9 @@ bool Mapper::encode_from_perl_array(EncoderState &state, const Field &fd, SV *re
     case ACTION_PUT_BOOL:
         return encode_from_array<BoolGetter, BoolEmitter>(state, fd, array);
     case ACTION_PUT_STRING:
-        return encode_from_array<SVGetter, StringEmitter>(state, fd, array);
+        return encode_from_array<StringGetter, StringEmitter>(state, fd, array);
     case ACTION_PUT_BYTES:
-        return encode_from_array<SVGetter, StringEmitter>(state, fd, array);
+        return encode_from_array<BytesGetter, StringEmitter>(state, fd, array);
     case ACTION_PUT_MESSAGE:
         return fd.mapper->encode_from_message_array(state, fd, array);
     case ACTION_PUT_ENUM:
@@ -2583,15 +2581,9 @@ bool Mapper::encode_from_perl_array(EncoderState &state, const Field &fd, SV *re
     case ACTION_PUT_UINT32:
         return encode_from_array<UVGetter, UInt32Emitter>(state, fd, array);
     case ACTION_PUT_INT64:
-        if (sizeof(IV) >= sizeof(int64_t))
-            return encode_from_array<IVGetter, Int64Emitter>(state, fd, array);
-        else
-            return encode_from_array<I64Getter, Int64Emitter>(state, fd, array);
+        return encode_from_array<Int64Getter, Int64Emitter>(state, fd, array);
     case ACTION_PUT_UINT64:
-        if (sizeof(IV) >= sizeof(int64_t))
-            return encode_from_array<UVGetter, UInt64Emitter>(state, fd, array);
-        else
-            return encode_from_array<U64Getter, UInt64Emitter>(state, fd, array);
+        return encode_from_array<UInt64Getter, UInt64Emitter>(state, fd, array);
     default:
         return false; // just in case
     }
@@ -2623,14 +2615,8 @@ bool Mapper::check_from_enum_array(Status *status, const Mapper::Field &fd, AV *
             return false;
 
         IV value = SvIV(*item);
-        if (fd.enum_values.find(value) == fd.enum_values.end()) {
-            status->SetFormattedErrorMessage(
-                "Invalid enumeration value %d for field '%s'",
-                value,
-                fd.full_name().c_str()
-            );
+        if (!check_valid_enum_value(status, fd, value))
             return false;
-        }
     }
 
     return true;
@@ -2674,17 +2660,7 @@ bool Mapper::check(Status *status, const Field &fd, SV *ref) const {
         if (!check_enum_values)
             return true;
 
-        IV value = SvIV(ref);
-        if (fd.enum_values.find(value) == fd.enum_values.end()) {
-            status->SetFormattedErrorMessage(
-                "Invalid enumeration value %d for field '%s'",
-                value,
-                fd.full_name().c_str()
-            );
-            return false;
-        }
-
-        return true;
+        return check_valid_enum_value(status, fd, SvIV(ref));
     }
     default:
         // I doubt there is any point in performing "strict" type checks
