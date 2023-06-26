@@ -60,20 +60,36 @@ public:
         ACTION_PUT_BYTES_ND     = 10,
         ACTION_PUT_ENUM         = 11,
         ACTION_PUT_ENUM_ND      = 12,
+
         ACTION_PUT_INT32        = 13,
         ACTION_PUT_INT32_ND     = 14,
-        ACTION_PUT_UINT32       = 15,
-        ACTION_PUT_UINT32_ND    = 16,
-        ACTION_PUT_INT64        = 17,
-        ACTION_PUT_INT64_ND     = 18,
-        ACTION_PUT_UINT64       = 19,
-        ACTION_PUT_UINT64_ND    = 20,
+        ACTION_PUT_FINT32       = 15,
+        ACTION_PUT_FINT32_ND    = 16,
+        ACTION_PUT_SINT32       = 17,
+        ACTION_PUT_SINT32_ND    = 18,
+
+        ACTION_PUT_UINT32       = 19,
+        ACTION_PUT_UINT32_ND    = 20,
+        ACTION_PUT_FUINT32      = 21,
+        ACTION_PUT_FUINT32_ND   = 22,
+
+        ACTION_PUT_INT64        = 23,
+        ACTION_PUT_INT64_ND     = 24,
+        ACTION_PUT_FINT64       = 25,
+        ACTION_PUT_FINT64_ND    = 26,
+        ACTION_PUT_SINT64       = 27,
+        ACTION_PUT_SINT64_ND    = 28,
+
+        ACTION_PUT_UINT64       = 29,
+        ACTION_PUT_UINT64_ND    = 30,
+        ACTION_PUT_FUINT64      = 31,
+        ACTION_PUT_FUINT64_ND   = 32,
 
         // non-scalar values
-        ACTION_PUT_MESSAGE      = 21,
-        ACTION_PUT_REPEATED     = 22,
-        ACTION_PUT_MAP          = 23,
-        ACTION_PUT_FIELDTABLE   = 24,
+        ACTION_PUT_MESSAGE      = 33,
+        ACTION_PUT_REPEATED     = 34,
+        ACTION_PUT_MAP          = 35,
+        ACTION_PUT_FIELDTABLE   = 36,
     };
 
     struct Field {

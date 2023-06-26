@@ -55,27 +55,27 @@ $d->resolve_references();
     encode_eq_or_diff('OuterWithMessage', $for_encode, $encoded);
     encode_eq_or_diff('OuterWithMessage', $tied, $encoded);
     eq_or_diff(tied_fetch_count($tied), {
-        count => 1,
+        count => 2,
         inner => {
             optional_inner => {
-                count => 1,
+                count => 2,
                 inner => {
-                    value => 1,
+                    value => 2,
                 },
             },
             repeated_inner => {
-                count => 1,
+                count => 2,
                 inner => [
                     {
-                        count => 1,
+                        count => 2,
                         inner => {
-                            value => 1,
+                            value => 2,
                         },
                     },
                     {
-                        count => 1,
+                        count => 2,
                         inner => {
-                            value => 1,
+                            value => 2,
                         },
                     },
                 ],

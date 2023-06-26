@@ -43,6 +43,22 @@ namespace {
         return env;
     }
 
+    // Map from the generic/varint action to zigzag/fixed encoding actions
+    Mapper::ValueAction integer_action(const FieldDef *field_def, Mapper::ValueAction action) {
+        switch (field_def->descriptor_type()) {
+        case UPB_DESCRIPTOR_TYPE_SFIXED32:
+        case UPB_DESCRIPTOR_TYPE_FIXED32:
+        case UPB_DESCRIPTOR_TYPE_SFIXED64:
+        case UPB_DESCRIPTOR_TYPE_FIXED64:
+            return static_cast<Mapper::ValueAction>(action + 2);
+        case UPB_DESCRIPTOR_TYPE_SINT32:
+        case UPB_DESCRIPTOR_TYPE_SINT64:
+            return static_cast<Mapper::ValueAction>(action + 4);
+        default:
+            return action;
+        }
+    }
+
     // std::conditional-alike
     template<bool B, class T, class F>
     struct gpd_conditional { typedef T type; };
@@ -826,6 +842,8 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const g
         encoder_transform_fieldtable(false),
         unknown_field_transform(NULL),
         stash(_stash),
+        // to avoid the internal buffer being NULL
+        encoder_output(1),
         json_true(NULL),
         json_false(NULL),
         decoder_callbacks(aTHX_ this) {
@@ -1037,14 +1055,14 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const g
                 field_def->descriptor_type() == UPB_DESCRIPTOR_TYPE_SINT32 ?
                     FieldData::STORE_ZIGZAG :
                     FieldData::STORE_INT32;
-            field.value_action = ACTION_PUT_INT32;
+            field.value_action = integer_action(field_def, ACTION_PUT_INT32);
             break;
         case UPB_TYPE_UINT32:
             GET_SELECTOR(UINT32, primitive);
             SET_VALUE_HANDLER(uint32_t, on_uv<uint32_t>);
             field.default_uv = field_def->default_uint32();
             field_data.action = FieldData::STORE_UINT32;
-            field.value_action = ACTION_PUT_UINT32;
+            field.value_action = integer_action(field_def, ACTION_PUT_UINT32);
             break;
         case UPB_TYPE_INT64:
             GET_SELECTOR(INT64, primitive);
@@ -1063,7 +1081,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const g
                     field_def->descriptor_type() == UPB_DESCRIPTOR_TYPE_SINT64 ?
                         FieldData::STORE_ZIGZAG :
                         FieldData::STORE_INT64;
-            field.value_action = ACTION_PUT_INT64;
+            field.value_action = integer_action(field_def, ACTION_PUT_INT64);
             break;
         case UPB_TYPE_UINT64:
             GET_SELECTOR(UINT64, primitive);
@@ -1076,7 +1094,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const g
                 field_data.action = FieldData::STORE_BIG_UINT64;
             else
                 field_data.action = FieldData::STORE_UINT64;
-            field.value_action = ACTION_PUT_UINT64;
+            field.value_action = integer_action(field_def, ACTION_PUT_UINT64);
             break;
         default:
             croak("Unhandled field type %d for field '%s'", field_def->type(), field.full_name().c_str());
@@ -1117,7 +1135,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const g
                    !(field.is_map_key() || field.is_map_value())) {
             // map ACTION_PUT_* to ACTION_PUT_*_ND
             field.field_action = field.value_action =
-                (ValueAction) (field.value_action + 1);
+                static_cast<ValueAction>(field.value_action + 1);
         }
 
         field_data.index = index;
@@ -2022,29 +2040,29 @@ namespace {
         } \
     }
 
-    DEC_SIMPLE_SETTER(Int32Emitter);
-    DEF_SIMPLE_UPB_SETTER(Int32Emitter, PutInt32, int32_t);
-    DEF_SIMPLE_BBPB_SETTER(Int32Emitter, put_int32, int32_t);
-    DEC_SIMPLE_SETTER(Int64Emitter);
-    DEF_SIMPLE_UPB_SETTER(Int64Emitter, PutInt64, int64_t);
-    DEF_SIMPLE_BBPB_SETTER(Int64Emitter, put_int64, int64_t);
-    DEC_SIMPLE_SETTER(UInt32Emitter);
-    DEF_SIMPLE_UPB_SETTER(UInt32Emitter, PutUInt32, uint32_t);
-    DEF_SIMPLE_BBPB_SETTER(UInt32Emitter, put_uint32, uint32_t);
-    DEC_SIMPLE_SETTER(UInt64Emitter);
-    DEF_SIMPLE_UPB_SETTER(UInt64Emitter, PutUInt64, uint64_t);
-    DEF_SIMPLE_BBPB_SETTER(UInt64Emitter, put_uint64, uint64_t);
-    DEC_SIMPLE_SETTER(FloatEmitter);
-    DEF_SIMPLE_UPB_SETTER(FloatEmitter, PutFloat, float);
-    DEF_SIMPLE_BBPB_SETTER(FloatEmitter, put_float, float);
-    DEC_SIMPLE_SETTER(DoubleEmitter);
-    DEF_SIMPLE_UPB_SETTER(DoubleEmitter, PutDouble, double);
-    DEF_SIMPLE_BBPB_SETTER(DoubleEmitter, put_double, double);
-    DEC_SIMPLE_SETTER(BoolEmitter);
-    DEF_SIMPLE_UPB_SETTER(BoolEmitter, PutBool, bool);
-    DEF_SIMPLE_BBPB_SETTER(BoolEmitter, put_bool, bool);
+#define DEF_SIMPLE_SETTER(NAME, UPB_METHOD, BBPB_METHOD, TYPE)      \
+    DEC_SIMPLE_SETTER(NAME);                                        \
+    DEF_SIMPLE_UPB_SETTER(NAME, UPB_METHOD, TYPE);                  \
+    DEF_SIMPLE_BBPB_SETTER(NAME, BBPB_METHOD, TYPE)
 
+    DEF_SIMPLE_SETTER(Int32Emitter, PutInt32, put_int32, int32_t);
+    DEF_SIMPLE_SETTER(FInt32Emitter, PutInt32, put_fint32, int32_t);
+    DEF_SIMPLE_SETTER(SInt32Emitter, PutInt32, put_sint32, int32_t);
+    DEF_SIMPLE_SETTER(Int64Emitter, PutInt64, put_int64, int64_t);
+    DEF_SIMPLE_SETTER(FInt64Emitter, PutInt64, put_fint64, int64_t);
+    DEF_SIMPLE_SETTER(SInt64Emitter, PutInt64, put_sint64, int64_t);
+    DEF_SIMPLE_SETTER(UInt32Emitter, PutUInt32, put_uint32, uint32_t);
+    DEF_SIMPLE_SETTER(FUInt32Emitter, PutUInt32, put_fuint32, uint32_t);
+    DEF_SIMPLE_SETTER(UInt64Emitter, PutUInt64, put_uint64, uint64_t);
+    DEF_SIMPLE_SETTER(FUInt64Emitter, PutUInt64, put_fuint64, uint64_t);
+    DEF_SIMPLE_SETTER(FloatEmitter, PutFloat, put_float, float);
+    DEF_SIMPLE_SETTER(DoubleEmitter, PutDouble, put_double, double);
+    DEF_SIMPLE_SETTER(BoolEmitter, PutBool, put_bool, bool);
+
+#undef DEC_SIMPLE_SETTER
 #undef DEF_SIMPLE_SETTER
+#undef DEF_SIMPLE_UPB_SETTER
+#undef DEF_SIMPLE_BBPB_SETTER
 
     template<class Encoder>
     struct EnumEmitter : public Int32Emitter<Encoder> {
@@ -2510,12 +2528,24 @@ bool Mapper::encode_field(EncoderState<Encoder> &state, const Field &fd, SV *ref
             return emit_field_nd<IVGetter, Int32Emitter<Encoder>>(aTHX_ state, fd, ref);
     case ACTION_PUT_INT32_ND:
         return emit_field_nd<IVGetter, Int32Emitter<Encoder>>(aTHX_ state, fd, ref);
+    case ACTION_PUT_FINT32_ND:
+        return emit_field_nd<IVGetter, FInt32Emitter<Encoder>>(aTHX_ state, fd, ref);
+    case ACTION_PUT_SINT32_ND:
+        return emit_field_nd<IVGetter, SInt32Emitter<Encoder>>(aTHX_ state, fd, ref);
     case ACTION_PUT_UINT32_ND:
         return emit_field_nd<UVGetter, UInt32Emitter<Encoder>>(aTHX_ state, fd, ref);
+    case ACTION_PUT_FUINT32_ND:
+        return emit_field_nd<UVGetter, FUInt32Emitter<Encoder>>(aTHX_ state, fd, ref);
     case ACTION_PUT_INT64_ND:
         return emit_field_nd<Int64Getter, Int64Emitter<Encoder>>(aTHX_ state, fd, ref);
+    case ACTION_PUT_FINT64_ND:
+        return emit_field_nd<Int64Getter, FInt64Emitter<Encoder>>(aTHX_ state, fd, ref);
+    case ACTION_PUT_SINT64_ND:
+        return emit_field_nd<Int64Getter, SInt64Emitter<Encoder>>(aTHX_ state, fd, ref);
     case ACTION_PUT_UINT64_ND:
         return emit_field_nd<UInt64Getter, UInt64Emitter<Encoder>>(aTHX_ state, fd, ref);
+    case ACTION_PUT_FUINT64_ND:
+        return emit_field_nd<UInt64Getter, FUInt64Emitter<Encoder>>(aTHX_ state, fd, ref);
 
         // encode field default value
 
@@ -2536,12 +2566,24 @@ bool Mapper::encode_field(EncoderState<Encoder> &state, const Field &fd, SV *ref
             return emit_field<IVGetter, Int32Emitter<Encoder>>(aTHX_ state, fd, ref);
     case ACTION_PUT_INT32:
         return emit_field<IVGetter, Int32Emitter<Encoder>>(aTHX_ state, fd, ref);
+    case ACTION_PUT_FINT32:
+        return emit_field<IVGetter, FInt32Emitter<Encoder>>(aTHX_ state, fd, ref);
+    case ACTION_PUT_SINT32:
+        return emit_field<IVGetter, SInt32Emitter<Encoder>>(aTHX_ state, fd, ref);
     case ACTION_PUT_UINT32:
         return emit_field<UVGetter, UInt32Emitter<Encoder>>(aTHX_ state, fd, ref);
+    case ACTION_PUT_FUINT32:
+        return emit_field<UVGetter, FUInt32Emitter<Encoder>>(aTHX_ state, fd, ref);
     case ACTION_PUT_INT64:
         return emit_field<Int64Getter, Int64Emitter<Encoder>>(aTHX_ state, fd, ref);
+    case ACTION_PUT_FINT64:
+        return emit_field<Int64Getter, FInt64Emitter<Encoder>>(aTHX_ state, fd, ref);
+    case ACTION_PUT_SINT64:
+        return emit_field<Int64Getter, SInt64Emitter<Encoder>>(aTHX_ state, fd, ref);
     case ACTION_PUT_UINT64:
         return emit_field<UInt64Getter, UInt64Emitter<Encoder>>(aTHX_ state, fd, ref);
+    case ACTION_PUT_FUINT64:
+        return emit_field<UInt64Getter, FUInt64Emitter<Encoder>>(aTHX_ state, fd, ref);
 
         // non-scalar fields
 
@@ -2585,12 +2627,24 @@ bool Mapper::encode_key(EncoderState<Encoder> &state, const Field &fd, const cha
         return emit_key<StringKeyGetter, StringEmitter<Encoder>>(aTHX_ state, fd, key, keylen);
     case ACTION_PUT_INT32:
         return emit_key<IVKeyGetter, Int32Emitter<Encoder>>(aTHX_ state, fd, key, keylen);
+    case ACTION_PUT_FINT32:
+        return emit_key<IVKeyGetter, FInt32Emitter<Encoder>>(aTHX_ state, fd, key, keylen);
+    case ACTION_PUT_SINT32:
+        return emit_key<IVKeyGetter, SInt32Emitter<Encoder>>(aTHX_ state, fd, key, keylen);
     case ACTION_PUT_UINT32:
         return emit_key<UVKeyGetter, UInt32Emitter<Encoder>>(aTHX_ state, fd, key, keylen);
+    case ACTION_PUT_FUINT32:
+        return emit_key<UVKeyGetter, FUInt32Emitter<Encoder>>(aTHX_ state, fd, key, keylen);
     case ACTION_PUT_INT64:
         return emit_key<IVKeyGetter, Int64Emitter<Encoder>>(aTHX_ state, fd, key, keylen);
+    case ACTION_PUT_FINT64:
+        return emit_key<IVKeyGetter, FInt64Emitter<Encoder>>(aTHX_ state, fd, key, keylen);
+    case ACTION_PUT_SINT64:
+        return emit_key<IVKeyGetter, SInt64Emitter<Encoder>>(aTHX_ state, fd, key, keylen);
     case ACTION_PUT_UINT64:
         return emit_key<UVKeyGetter, UInt64Emitter<Encoder>>(aTHX_ state, fd, key, keylen);
+    case ACTION_PUT_FUINT64:
+        return emit_key<UVKeyGetter, FUInt64Emitter<Encoder>>(aTHX_ state, fd, key, keylen);
     default:
         return false; // just in case
     }
@@ -2705,12 +2759,24 @@ bool Mapper::encode_from_perl_array(EncoderState<Encoder> &state, const Field &f
             return encode_from_array<Encoder, IVGetter, Int32Emitter<Encoder>>(state, fd, array);
     case ACTION_PUT_INT32:
         return encode_from_array<Encoder, IVGetter, Int32Emitter<Encoder>>(state, fd, array);
+    case ACTION_PUT_FINT32:
+        return encode_from_array<Encoder, IVGetter, FInt32Emitter<Encoder>>(state, fd, array);
+    case ACTION_PUT_SINT32:
+        return encode_from_array<Encoder, IVGetter, SInt32Emitter<Encoder>>(state, fd, array);
     case ACTION_PUT_UINT32:
         return encode_from_array<Encoder, UVGetter, UInt32Emitter<Encoder>>(state, fd, array);
+    case ACTION_PUT_FUINT32:
+        return encode_from_array<Encoder, UVGetter, FUInt32Emitter<Encoder>>(state, fd, array);
     case ACTION_PUT_INT64:
         return encode_from_array<Encoder, Int64Getter, Int64Emitter<Encoder>>(state, fd, array);
+    case ACTION_PUT_FINT64:
+        return encode_from_array<Encoder, Int64Getter, FInt64Emitter<Encoder>>(state, fd, array);
+    case ACTION_PUT_SINT64:
+        return encode_from_array<Encoder, Int64Getter, SInt64Emitter<Encoder>>(state, fd, array);
     case ACTION_PUT_UINT64:
         return encode_from_array<Encoder, UInt64Getter, UInt64Emitter<Encoder>>(state, fd, array);
+    case ACTION_PUT_FUINT64:
+        return encode_from_array<Encoder, UInt64Getter, FUInt64Emitter<Encoder>>(state, fd, array);
     default:
         return false; // just in case
     }

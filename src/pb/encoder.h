@@ -49,9 +49,19 @@ public:
     bool write_to(std::vector<char> *output);
 
     void put_int32(FieldNumber field, std::int32_t value);
+    void put_fint32(FieldNumber field, std::int32_t value);
+    void put_sint32(FieldNumber field, std::int32_t value);
+
     void put_int64(FieldNumber field, std::int64_t value);
+    void put_fint64(FieldNumber field, std::int64_t value);
+    void put_sint64(FieldNumber field, std::int64_t value);
+
     void put_uint32(FieldNumber field, std::uint32_t value);
+    void put_fuint32(FieldNumber field, std::uint32_t value);
+
     void put_uint64(FieldNumber field, std::uint64_t value);
+    void put_fuint64(FieldNumber field, std::uint64_t value);
+
     void put_bool(FieldNumber field, bool value);
     void put_float(FieldNumber field, float value);
     void put_double(FieldNumber field, double value);
@@ -64,11 +74,11 @@ public:
     void end_sequence(EncoderOutputMarker *marker);
 
 private:
-    static uint32_t zig_zag(uint32_t value) {
+    static uint32_t zig_zag(int32_t value) {
         return (value << 1) ^ (value >> 31);
     }
 
-    static uint64_t zig_zag(uint64_t value) {
+    static uint64_t zig_zag(int64_t value) {
         return (value << 1) ^ (value >> 63);
     }
 

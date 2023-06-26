@@ -28,7 +28,7 @@ $d->resolve_references();
 
     encode_eq_or_diff('Basic', $tied, "\x18\x02\x38\x01");
     eq_or_diff(tied_fetch_count($tied), {
-        count => 2,
+        count => 4,
         inner => {
             bool_f  => -1,
             int32_f => -1,
@@ -44,7 +44,7 @@ $d->resolve_references();
     encode_eq_or_diff('Repeated', $tied, "\x38\x00\x38\x01\x38\x01");
     eq_or_diff(tied_fetch_count($tied), {
         bool_f => {
-            count => 3,
+            count => 6,
             inner => [-1, -1, -1],
         },
     });
@@ -63,22 +63,22 @@ $d->resolve_references();
                       "\x0a\x02\x08\x03\x12\x02\x08\x04\x12\x02\x08\x05");
     eq_or_diff(tied_fetch_count($tied), {
         optional_inner => {
-            count => 1,
+            count => 2,
             inner => {
                 value => -1,
             },
         },
         repeated_inner => {
-            count => 2,
+            count => 4,
             inner => [
                 {
-                    count => 1,
+                    count => 2,
                     inner => {
                         value => -1,
                     },
                 },
                 {
-                    count => 1,
+                    count => 2,
                     inner => {
                         value => -1,
                     },
