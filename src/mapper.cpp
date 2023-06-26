@@ -1138,6 +1138,12 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const g
                 static_cast<ValueAction>(field.value_action + 1);
         }
 
+        field.field_number = field_def->number();
+        if (field.field_def->label() == UPB_LABEL_REPEATED &&
+                field_def->packed()) {
+            field.field_number = (gpd::pb::FieldNumber) -1;
+        }
+
         field_data.index = index;
 
         decoder_field_data.add_field(field_def->number(), field_data);
@@ -2035,7 +2041,7 @@ namespace {
     struct NAME<BBPBEncoder> { \
         NAME(Status *status) { } \
         bool operator()(gpd::pb::EncoderOutput *sink, const Mapper::Field &fd, TYPE value) { \
-            sink->METHOD(fd.field_def->number(), value); \
+            sink->METHOD(fd.field_number, value); \
             return true; \
         } \
     }
@@ -2098,7 +2104,7 @@ namespace {
         StringEmitter(Status *status) { }
 
         bool operator()(BBPBEncoder::Sink *sink, const Mapper::Field &fd, StringValue value) {
-            sink->put_string_alias(fd.field_def->number(), value.str, value.len);
+            sink->put_string_alias(fd.field_number, value.str, value.len);
 
             return true;
         }

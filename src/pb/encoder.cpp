@@ -181,7 +181,8 @@ void gpd::pb::EncoderOutput::end_sequence(EncoderOutputMarker *marker) {
 }
 
 void gpd::pb::EncoderOutput::put_tag(FieldNumber field, WireType wire_type) {
-    put_varint((field << 3) | wire_type);
+    if (field != (FieldNumber) -1)
+        put_varint((field << 3) | wire_type);
 }
 
 void gpd::pb::EncoderOutput::put_varint(unsigned long varint) {

@@ -110,6 +110,7 @@ public:
                 upb_selector_t primitive;
             };
         } selector;
+        gpd::pb::FieldNumber field_number;
         SV *name;
         U32 name_hash;
         bool has_default;

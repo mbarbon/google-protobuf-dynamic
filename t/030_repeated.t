@@ -45,8 +45,8 @@ for my $field (sort keys %values) {
     decode_eq_or_diff('Repeated', $encoded, Repeated->new({ $field => $values }),
                       "$field - round trip");
     eq_or_diff(tied_fetch_count($tied), { $field => {
-        count => scalar @$values,
-        inner => [(1) x scalar @$values],
+        count => 2 * scalar @$values,
+        inner => [(2) x scalar @$values],
     } }, "$field - tied fetch count");
 }
 
