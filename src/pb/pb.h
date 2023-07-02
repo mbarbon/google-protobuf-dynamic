@@ -1,10 +1,12 @@
 #ifndef _GPD_XS_PB_PB_INCLUDED
 #define _GPD_XS_PB_PB_INCLUDED
 
+#include <cstdint>
+
 namespace gpd {
 namespace pb {
 
-typedef unsigned long FieldNumber;
+typedef std::uint32_t FieldNumber;
 
 enum WireType {
     WIRE_VARINT        = 0,
