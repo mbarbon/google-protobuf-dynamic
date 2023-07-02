@@ -29,27 +29,7 @@ void gpd::pb::Descriptor::add_field(FieldNumber field, FieldType type, bool repe
     entry->type = type;
     entry->repeated = repeated;
     entry->message = message;
-
-    switch (entry->type) {
-    case TYPE_STRING:
-    case TYPE_MESSAGE:
-    case TYPE_BYTES:
-        entry->wire_type = WIRE_LEN_DELIMITED;
-        break;
-    case TYPE_DOUBLE:
-    case TYPE_FIXED64:
-    case TYPE_SFIXED64:
-        entry->wire_type = WIRE_FIXED64;
-        break;
-    case TYPE_FLOAT:
-    case TYPE_FIXED32:
-    case TYPE_SFIXED32:
-        entry->wire_type = WIRE_FIXED32;
-        break;
-    default:
-        entry->wire_type = WIRE_VARINT;
-        break;
-    }
+    entry->wire_type = wire_type(entry->type);
 
     entries[field] = entry;
 }

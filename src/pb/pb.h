@@ -35,6 +35,8 @@ enum FieldType {
     TYPE_SINT64        = 18,
 };
 
+WireType wire_type(FieldType field_type);
+
 }
 }
 
