@@ -34,6 +34,8 @@ class MappingOptions;
 class MapperField;
 class WarnContext;
 
+#define ENCODED_NUMBER 0
+
 class Mapper : public Refcounted {
 public:
     enum FieldTarget {
@@ -110,7 +112,11 @@ public:
                 upb_selector_t primitive;
             };
         } selector;
-        gpd::pb::FieldNumber field_number;
+#if ENCODED_NUMBER
+        gpd::pb::EncoderOutput::EncodedVarint repeated_number, field_number;
+#else
+        gpd::pb::FieldNumber repeated_number, field_number;
+#endif
         SV *name;
         U32 name_hash;
         bool has_default;

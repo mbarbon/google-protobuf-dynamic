@@ -7,41 +7,14 @@
 using namespace gpd::pb;
 using namespace std;
 
-const int MAX_VARINT_SIZE = 10;
-
-namespace {
-    size_t put_varint(unsigned long varint, char *start) {
-        char *ptr = start;
-
-        do {
-            *ptr++ = (varint & 0x7f) | 0x80;
-            varint >>= 7;
-        } while (varint);
-
-        ptr[-1] &= 0x7f;
-
-        return ptr - start;
-    }
-
-    size_t varint_size(unsigned long varint) {
-        size_t size = 0;
-
-        do {
-            size++;
-            varint >>= 7;
-        } while (varint);
-
-        return size;
-    }
-}
-
 gpd::pb::EncoderOutput::EncoderOutput() {
     buffer.resize(100);
 }
 
 void gpd::pb::EncoderOutput::reset() {
-    bytes_item_offset = -1;
-    offset = 0;
+    bytes_item_offset = INVALID_BYTES_ITEM_OFFSET;
+    write_ptr = &buffer[0];
+    write_end = &buffer[0] + buffer.size();
     encoded_bytes = 0;
 }
 
@@ -49,7 +22,7 @@ bool gpd::pb::EncoderOutput::write_to(vector<char> *output) {
     complete_bytes_item();
 
     OutputItem *item = reinterpret_cast<OutputItem *>(&buffer[0]);
-    OutputItem *end = reinterpret_cast<OutputItem *>(&buffer[offset]);
+    OutputItem *end = reinterpret_cast<OutputItem *>(&buffer[write_offset()]);
 
     output->resize(encoded_bytes);
 
@@ -57,7 +30,7 @@ bool gpd::pb::EncoderOutput::write_to(vector<char> *output) {
     while (item != end) {
         switch (item->action) {
         case OUTPUT_VARINT:
-            output_pointer += ::put_varint(item->varint, output_pointer);
+            output_pointer += encode_varint_to(item->varint, output_pointer);
             item++;
             break;
         case OUTPUT_BYTES:
@@ -89,187 +62,125 @@ bool gpd::pb::EncoderOutput::write_to(vector<char> *output) {
     return encoded_bytes == (output_pointer - output_start);
 }
 
-void gpd::pb::EncoderOutput::put_int32(FieldNumber field, int32_t value) {
-    put_tag(field, WIRE_VARINT);
-    put_varint(static_cast<uint32_t>(value));
+void gpd::pb::EncoderOutput::put_tag_unsafe(const EncodedVarint &field, WireType wire_type) {
+    write_ptr[0] = field.bytes[0];
+    write_ptr[1] = field.bytes[1];
+    write_ptr[2] = field.bytes[2];
+    write_ptr[3] = field.bytes[3];
+    write_ptr[4] = field.bytes[4];
+
+    encoded_bytes += field.size;
+    write_ptr += field.size;
 }
 
-void gpd::pb::EncoderOutput::put_fint32(FieldNumber field, int32_t value) {
-    put_tag(field, WIRE_FIXED32);
-    put_fixed32(static_cast<uint32_t>(value));
-}
+gpd::pb::EncoderOutput::EncodedVarint gpd::pb::EncoderOutput::encode_tag(FieldNumber field, WireType wire_type) {
+    EncodedVarint value;
 
-void gpd::pb::EncoderOutput::put_sint32(FieldNumber field, int32_t value) {
-    put_tag(field, WIRE_VARINT);
-    put_varint(zig_zag(value));
-}
+    value.size = encode_varint_to((field << 3) | wire_type, value.bytes);
 
-void gpd::pb::EncoderOutput::put_int64(FieldNumber field, int64_t value) {
-    put_tag(field, WIRE_VARINT);
-    put_varint(static_cast<uint64_t>(value));
-}
-
-void gpd::pb::EncoderOutput::put_fint64(FieldNumber field, int64_t value) {
-    put_tag(field, WIRE_FIXED64);
-    put_fixed64(static_cast<uint64_t>(value));
-}
-
-void gpd::pb::EncoderOutput::put_sint64(FieldNumber field, int64_t value) {
-    put_tag(field, WIRE_VARINT);
-    put_varint(zig_zag(value));
-}
-
-void gpd::pb::EncoderOutput::put_uint32(FieldNumber field, uint32_t value) {
-    put_tag(field, WIRE_VARINT);
-    put_varint(value);
-}
-
-void gpd::pb::EncoderOutput::put_fuint32(FieldNumber field, uint32_t value) {
-    put_tag(field, WIRE_FIXED32);
-    put_fixed32(value);
-}
-
-void gpd::pb::EncoderOutput::put_uint64(FieldNumber field, uint64_t value) {
-    put_tag(field, WIRE_VARINT);
-    put_varint(value);
-}
-
-void gpd::pb::EncoderOutput::put_fuint64(FieldNumber field, uint64_t value) {
-    put_tag(field, WIRE_FIXED64);
-    put_fixed64(value);
-}
-
-void gpd::pb::EncoderOutput::put_bool(FieldNumber field, bool value) {
-    put_tag(field, WIRE_VARINT);
-    put_varint(value);
-}
-
-void gpd::pb::EncoderOutput::put_float(FieldNumber field, float value) {
-    put_tag(field, WIRE_FIXED32);
-    put_fixed32(*reinterpret_cast<uint32_t *>(&value));
-}
-
-void gpd::pb::EncoderOutput::put_double(FieldNumber field, double value) {
-    put_tag(field, WIRE_FIXED64);
-    put_fixed64(*reinterpret_cast<uint64_t *>(&value));
-}
-
-void gpd::pb::EncoderOutput::put_string_alias(FieldNumber field, const char *buffer, uint32_t length) {
-    put_tag(field, WIRE_LEN_DELIMITED);
-    put_varint(length);
-    put_buffer(buffer, length);
-}
-
-void gpd::pb::EncoderOutput::start_submessage(FieldNumber field, EncoderOutputMarker *marker) {
-    put_tag(field, WIRE_LEN_DELIMITED);
-    marker->offset = put_placeholder();
-    marker->encoded_bytes = encoded_bytes;
-}
-
-void gpd::pb::EncoderOutput::end_submessage(EncoderOutputMarker *marker) {
-    update_placeholder(marker->offset, encoded_bytes - marker->encoded_bytes);
-}
-
-void gpd::pb::EncoderOutput::start_sequence(FieldNumber field, EncoderOutputMarker *marker) {
-    put_tag(field, WIRE_LEN_DELIMITED);
-    marker->offset = put_placeholder();
-    marker->encoded_bytes = encoded_bytes;
-}
-
-void gpd::pb::EncoderOutput::end_sequence(EncoderOutputMarker *marker) {
-    update_placeholder(marker->offset, encoded_bytes - marker->encoded_bytes);
-}
-
-void gpd::pb::EncoderOutput::put_tag(FieldNumber field, WireType wire_type) {
-    if (field != (FieldNumber) -1)
-        put_varint((field << 3) | wire_type);
-}
-
-void gpd::pb::EncoderOutput::put_varint(unsigned long varint) {
-    char *start = ensure_bytes_item(MAX_VARINT_SIZE);
-    size_t used = ::put_varint(varint, start);
-
-    encoded_bytes += used;
-    offset += used;
+    return value;
 }
 
 void gpd::pb::EncoderOutput::put_fixed32(uint32_t value) {
-    char *start = ensure_bytes_item(4);
-    *((uint32_t *) start) = value;
+    ensure_bytes_item(4);
+    *((uint32_t *) write_ptr) = value;
 
     encoded_bytes += 4;
-    offset += 4;
+    write_ptr += 4;
 }
 
 void gpd::pb::EncoderOutput::put_fixed64(uint64_t value) {
-    char *start = ensure_bytes_item(8);
-    *((uint64_t *) start) = value;
+    ensure_bytes_item(8);
+    *((uint64_t *) write_ptr) = value;
 
     encoded_bytes += 8;
-    offset += 8;
+    write_ptr += 8;
 }
 
-void gpd::pb::EncoderOutput::put_buffer(const char *buffer, uint32_t length) {
-    OutputItem *item = ensure_item();
+void gpd::pb::EncoderOutput::put_buffer_unsafe(const char *buffer, uint32_t length) {
+    OutputItem *item = reinterpret_cast<OutputItem *>(write_ptr);
 
     item->action = OUTPUT_BUFFER;
     item->buffer = buffer;
     item->buffer_length = length;
+
     encoded_bytes += length;
+    write_ptr += PADDED_ITEM_SIZE;
 }
 
 unsigned long gpd::pb::EncoderOutput::put_placeholder() {
-    OutputItem *item = ensure_item();
+    complete_bytes_item();
+    ensure_capacity(PADDED_ITEM_SIZE);
+
+    OutputItem *item = reinterpret_cast<OutputItem *>(write_ptr);
 
     item->action = OUTPUT_VARINT;
     item->varint = 0;
 
-    return static_cast<char *>(static_cast<void *>(item)) - &buffer[0];
+    unsigned long offset = write_offset();
+
+    write_ptr += PADDED_ITEM_SIZE;
+
+    return offset;
 }
 
 void gpd::pb::EncoderOutput::update_placeholder(unsigned long offset, unsigned long varint) {
-    OutputItem *item = static_cast<OutputItem *>(static_cast<void *>(&buffer[0] + offset));
+    OutputItem *item = reinterpret_cast<OutputItem *>(&buffer[0] + offset);
 
     item->varint = varint;
     encoded_bytes += varint_size(varint);
 }
 
-gpd::pb::EncoderOutput::OutputItem *gpd::pb::EncoderOutput::ensure_item() {
-    complete_bytes_item();
+void gpd::pb::EncoderOutput::init_bytes_item(std::size_t capacity) {
+    bytes_item_offset = write_offset();
 
-    ensure_capacity(PADDED_ITEM_SIZE);
+    OutputItem *bytes = reinterpret_cast<OutputItem *>(write_ptr);
+    bytes->action = OUTPUT_BYTES;
+    bytes->bytes_length = 0;
 
-    OutputItem *item = reinterpret_cast<OutputItem *>(&buffer[offset]);
-
-    offset += PADDED_ITEM_SIZE;
-
-    return item;
+    write_ptr += offsetof(OutputItem, bytes);
 }
 
-char *gpd::pb::EncoderOutput::ensure_bytes_item(std::size_t capacity) {
-    if (bytes_item_offset == -1) {
-        ensure_capacity(capacity + PADDED_ITEM_SIZE);
-        bytes_item_offset = offset / PADDED_ITEM_SIZE;
+void gpd::pb::EncoderOutput::complete_bytes_item_unsafe() {
+    OutputItem *bytes = reinterpret_cast<OutputItem *>(&buffer[bytes_item_offset]);
 
-        OutputItem *bytes = reinterpret_cast<OutputItem *>(&buffer[offset]);
-        bytes->action = OUTPUT_BYTES;
-        bytes->bytes_length = 0;
+    bytes->bytes_length = write_ptr - bytes->bytes;
+    bytes_item_offset = INVALID_BYTES_ITEM_OFFSET;
 
-        offset += offsetof(OutputItem, bytes);
-    } else {
-        ensure_capacity(capacity);
-    }
-
-    return &buffer[offset];
+    write_ptr += padding(write_offset());
 }
 
-void gpd::pb::EncoderOutput::complete_bytes_item() {
-    if (bytes_item_offset != -1) {
-        OutputItem *bytes = reinterpret_cast<OutputItem *>(&buffer[0]) + bytes_item_offset;
+void gpd::pb::EncoderOutput::ensure_capacity_slow(size_t capacity) {
+    std::size_t offset = write_offset();
 
-        bytes->bytes_length = &buffer[offset] - bytes->bytes;
-        bytes_item_offset = -1;
-
-        offset += padding(offset);
+    while (offset + capacity > buffer.size()) {
+        buffer.resize(buffer.size() * 2);
     }
+
+    write_ptr = &buffer[offset];
+    write_end = &buffer[0] + buffer.size();
+}
+
+size_t gpd::pb::EncoderOutput::encode_varint_to(unsigned long varint, char *start) {
+    char *ptr = start;
+
+    do {
+        *ptr++ = (varint & 0x7f) | 0x80;
+        varint >>= 7;
+    } while (varint);
+
+    ptr[-1] &= 0x7f;
+
+    return ptr - start;
+}
+
+size_t gpd::pb::EncoderOutput::varint_size(unsigned long varint) {
+    size_t size = 0;
+
+    do {
+        size++;
+        varint >>= 7;
+    } while (varint);
+
+    return size;
 }

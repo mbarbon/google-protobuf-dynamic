@@ -118,7 +118,7 @@ namespace {
 
     inline bool start_sequence(Mapper::EncoderState<BBPBEncoder> &state, const Mapper::Field &fd, gpd::pb::EncoderOutputMarker *marker) {
         if (fd.field_def->packed())
-            state.sink->start_sequence(fd.field_def->number(), marker);
+            state.sink->start_sequence(fd.repeated_number, marker);
 
         return true;
     }
@@ -140,6 +140,10 @@ namespace {
         state.sink->end_submessage(marker);
 
         return true;
+    }
+
+    inline gpd::pb::WireType wire_type(const upb::FieldDef *field_def) {
+        return gpd::pb::wire_type((gpd::pb::FieldType) field_def->descriptor_type());
     }
 }
 
@@ -1138,10 +1142,20 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const g
                 static_cast<ValueAction>(field.value_action + 1);
         }
 
+#if ENCODED_NUMBER
+        field.field_number = gpd::pb::EncoderOutput::encode_tag(field_def->number(), wire_type(field_def));
+#else
         field.field_number = field_def->number();
+#endif
         if (field.field_def->label() == UPB_LABEL_REPEATED &&
                 field_def->packed()) {
+#if ENCODED_NUMBER
+            field.repeated_number = gpd::pb::EncoderOutput::encode_tag(field_def->number(), gpd::pb::WIRE_LEN_DELIMITED);
+            field.field_number.clear();
+#else
+            field.repeated_number = field_def->number();
             field.field_number = (gpd::pb::FieldNumber) -1;
+#endif
         }
 
         field_data.index = index;
