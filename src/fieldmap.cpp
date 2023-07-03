@@ -69,10 +69,3 @@ void *gpd::FieldMapImpl::find_by_name(pTHX_ HE *he) const {
     key.fill(aTHX_ he);
     return find_by_name(key);
 }
-
-void *gpd::FieldMapImpl::find_by_name(pTHX_ const char *name, STRLEN namelen) const {
-    PerlString key;
-
-    key.fill(aTHX_ name, namelen);
-    return find_by_name(key);
-}

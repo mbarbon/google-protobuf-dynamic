@@ -1278,24 +1278,26 @@ void Mapper::set_decoder_options(HV *options) {
     }
 
     if (transform_fields) {
-        I32 keylen;
+        STRLEN keylen;
         char *key;
         hv_iterinit(transform_fields);
-        while (SV *value = hv_iternextsv(transform_fields, &key, &keylen)) {
-            Field *field = field_map.find_by_name(aTHX_ key, keylen);
+        while (HE *he = hv_iternext(transform_fields)) {
+            Field *field = field_map.find_by_name(aTHX_ he);
             if (field == NULL) {
+                key = HePV(he, keylen);
                 croak("Unknown field name %.*s", keylen, key);
             }
 
             if (field->is_map ||
                     field->field_def->label() == UPB_LABEL_REPEATED ||
                     field->field_def->type() != UPB_TYPE_MESSAGE) {
+                key = HePV(he, keylen);
                 croak("Can't apply transformation to field %.*s", keylen, key);
             }
 
             if (field->decoder_transform)
                 field->decoder_transform->destroy(aTHX);
-            field->decoder_transform = make_decoder_transform(aTHX_ value, fieldtable);
+            field->decoder_transform = make_decoder_transform(aTHX_ HeVAL(he), fieldtable);
         }
     }
 }
@@ -1335,8 +1337,8 @@ void Mapper::set_encoder_options(HV *options) {
         I32 keylen;
         char *key;
         hv_iterinit(transform_fields);
-        while (SV *value = hv_iternextsv(transform_fields, &key, &keylen)) {
-            Field *field = field_map.find_by_name(aTHX_ key, keylen);
+        while (HE *he = hv_iternext(transform_fields)) {
+            Field *field = field_map.find_by_name(aTHX_ he);
             if (field == NULL) {
                 croak("Unknown field name %.*s", keylen, key);
             }
@@ -1349,7 +1351,7 @@ void Mapper::set_encoder_options(HV *options) {
 
             if (field->encoder_transform)
                 field->encoder_transform->destroy(aTHX);
-            field->encoder_transform = make_encoder_transform(aTHX_ value, fieldtable);
+            field->encoder_transform = make_encoder_transform(aTHX_ HeVAL(he), fieldtable);
             if (field->field_action == ACTION_PUT_MESSAGE)
                 field->field_action = ACTION_PUT_FIELDTABLE;
             if (field->value_action == ACTION_PUT_MESSAGE)
@@ -2629,13 +2631,14 @@ bool Mapper::check(Status *status, SV *ref) const {
 
     I32 count = hv_iterinit(hv);
     bool ok = true;
+    char *key;
+    STRLEN keylen;
     for (int i = 0; i < count; ++i) {
-        char *key;
-        I32 keylen;
-        SV *value = hv_iternextsv(hv, &key, &keylen);
-        const Field *field = field_map.find_by_name(aTHX_ key, keylen);
+        HE *he = hv_iternext(hv);
+        const Field *field = field_map.find_by_name(aTHX_ he);
 
         if (field == NULL) {
+            key = HePV(he, keylen);
             status->SetFormattedErrorMessage(
                 "Unknown field '%.*s' during check",
                 keylen, key);
@@ -2643,9 +2646,9 @@ bool Mapper::check(Status *status, SV *ref) const {
         }
 
         if (field->field_def->label() == UPB_LABEL_REPEATED)
-            ok = ok && check_from_perl_array(status, *field, value);
+            ok = ok && check_from_perl_array(status, *field, HeVAL(he));
         else
-            ok = ok && check(status, *field, value);
+            ok = ok && check(status, *field, HeVAL(he));
     }
 
     return ok;

@@ -23,12 +23,6 @@ public:
             (len == other.len && memcmp(buffer, other.buffer, len) == 0);
     }
 
-    void fill(pTHX_ const char *buffer_, STRLEN len_) {
-        buffer = buffer_;
-        len = len_;
-        PERL_HASH(hash, buffer, len);
-    }
-
     // sv needs to be a shared SV
     void fill(pTHX_ SV *sv) {
         buffer = SvPV(sv, len);
@@ -78,7 +72,6 @@ class FieldMapImpl {
 
     void *find_by_name(pTHX_ SV *name) const;
     void *find_by_name(pTHX_ HE *he) const;
-    void *find_by_name(pTHX_ const char *name, STRLEN namelen) const;
 
     void *find_by_name(const PerlString &key) const {
         NameMap::const_iterator it = by_name.find(key);
@@ -124,10 +117,6 @@ public:
 
     T *find_by_name(pTHX_ HE *he) const {
         return static_cast<T *>(impl.find_by_name(aTHX_ he));
-    }
-
-    T *find_by_name(pTHX_ const char *name, STRLEN namelen) const {
-        return static_cast<T *>(impl.find_by_name(aTHX_ name, namelen));
     }
 
     T *find_by_number(unsigned int number) const {
