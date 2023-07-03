@@ -55,17 +55,3 @@ void gpd::FieldMapImpl::optimize_lookup() {
         }
     }
 }
-
-void *gpd::FieldMapImpl::find_by_name(pTHX_ SV *name) const {
-    PerlString key;
-
-    key.fill(aTHX_ name);
-    return find_by_name(key);
-}
-
-void *gpd::FieldMapImpl::find_by_name(pTHX_ HE *he) const {
-    PerlString key;
-
-    key.fill(aTHX_ he);
-    return find_by_name(key);
-}

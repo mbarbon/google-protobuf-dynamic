@@ -18,6 +18,13 @@ public:
     STRLEN len;
     U32 hash;
 
+    PerlString() { }
+
+    template<class S>
+    PerlString(pTHX_ S value) {
+        fill(aTHX_ value);
+    }
+
     bool operator==(const PerlString &other) const {
         return buffer == other.buffer ||
             (len == other.len && memcmp(buffer, other.buffer, len) == 0);
@@ -70,8 +77,10 @@ class FieldMapImpl {
         top_packed_field = 0;
     }
 
-    void *find_by_name(pTHX_ SV *name) const;
-    void *find_by_name(pTHX_ HE *he) const;
+    template<class K>
+    void *find_by_name(pTHX_ K name) const {
+        return find_by_name(PerlString(aTHX_ name));
+    }
 
     void *find_by_name(const PerlString &key) const {
         NameMap::const_iterator it = by_name.find(key);
