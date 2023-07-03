@@ -14,15 +14,15 @@ gpd::pb::Descriptor::~Descriptor() {
         delete it->second;
 }
 
-void gpd::pb::Descriptor::add_field(unsigned long field, FieldType type, bool repeated) {
+void gpd::pb::Descriptor::add_field(FieldNumber field, FieldType type, bool repeated) {
     add_field(field, type, repeated, NULL);
 }
 
-void gpd::pb::Descriptor::add_field(unsigned long field, bool repeated, const Descriptor *message) {
+void gpd::pb::Descriptor::add_field(FieldNumber field, bool repeated, const Descriptor *message) {
     add_field(field, TYPE_MESSAGE, repeated, message);
 }
 
-void gpd::pb::Descriptor::add_field(unsigned long field, FieldType type, bool repeated, const Descriptor *message) {
+void gpd::pb::Descriptor::add_field(FieldNumber field, FieldType type, bool repeated, const Descriptor *message) {
     Entry *entry = new Entry();
 
     entry->field = field;
@@ -54,7 +54,7 @@ void gpd::pb::Descriptor::add_field(unsigned long field, FieldType type, bool re
     entries[field] = entry;
 }
 
-const gpd::pb::Descriptor::Entry *gpd::pb::Descriptor::find_field(unsigned long field) const {
+const gpd::pb::Descriptor::Entry *gpd::pb::Descriptor::find_field(FieldNumber field) const {
     EntryMap::const_iterator it = entries.find(field);
 
     return it == entries.end() ? NULL : it->second;
