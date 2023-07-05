@@ -2,6 +2,11 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.42_01   2023-07-05 15:58:57 CEST
+
+    - Add option to treat undef field/map values as if they were
+      not present
+
 0.42      2023-05-23 14:51:59 CEST
 
     - Release 0.41_15 as stable without changes
