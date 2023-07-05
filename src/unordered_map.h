@@ -1,7 +1,7 @@
 #ifndef _GPD_XS_UNORDERED_MAP_INCLUDED
 #define _GPD_XS_UNORDERED_MAP_INCLUDED
 
-#ifdef __clang__
+#if defined(__clang__) || (defined(__GNUC__) && __cplusplus >= 201103L)
 #include <unordered_map>
 #include <unordered_set>
 #define STD_TR1 std
