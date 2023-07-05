@@ -296,6 +296,9 @@ private:
     template<class G, class S>
     bool encode_from_array(EncoderState &state, const Mapper::Field &fd, AV *source) const;
 
+    template<class It, class PM, bool direct_required_check = It::direct_required_check>
+    bool encode_message_loop(EncoderState &state, PM value) const;
+
     bool check(upb::Status *status, SV *ref) const;
     bool check(upb::Status *status, const Field &fd, SV *ref) const;
     bool check_from_perl_array(upb::Status *status, const Field &fd, SV *ref) const;

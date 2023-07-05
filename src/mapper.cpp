@@ -1,5 +1,6 @@
 #include "mapper.h"
 #include "dynamic.h"
+#include "fielditerator.h"
 
 #include "perl_unpollute.h"
 
@@ -2002,13 +2003,6 @@ bool Mapper::encode_from_message_array(EncoderState &state, const Mapper::Field 
 }
 
 namespace {
-    HE *hv_fetch_ent_tied(pTHX_ HV *hv, SV *name, I32 lval, U32 hash) {
-        if (!hv_exists_ent(hv, name, hash))
-            return NULL;
-
-        return hv_fetch_ent(hv, name, lval, hash);
-    }
-
     class TrackOneof {
     public:
         TrackOneof(int oneof_count) :
@@ -2081,9 +2075,23 @@ bool Mapper::encode_simple_message_iterate_fields(EncoderState &state, SV *ref) 
         return false;
 
     bool tied = SvTIED_mg((SV *) hv, PERL_MAGIC_tied);
+    UV keys = tied ? 0 : HvUSEDKEYS(hv);
+
+    bool success;
+    if (tied || keys > fields.size()) {
+        if (tied) {
+            success = encode_message_loop<HashAPIIterator<Field>>(state, hv);
+        } else {
+            success = encode_message_loop<FieldIterator<Field>>(state, hv);
+        }
+    } else {
+        success = encode_message_loop<FieldIterator<Field>>(state, hv);
+    }
+
+#if 0
     MapperContext::Item &mapper_cxt = state.mapper_context->push_level(hv, MapperContext::Message);
     TrackOneof track_oneof(oneof_count);
-
+#if 0
     for (vector<Field>::const_iterator it = fields.begin(), en = fields.end(); it != en; ++it) {
         mapper_cxt.set_hash_key(it->name);
 
@@ -2249,10 +2257,95 @@ bool Mapper::encode_simple_message_iterate_hash(EncoderState &state, SV *ref) co
         return false;
     }
 
+#else
+    UV keys = HvUSEDKEYS(hv);
+    HE *he;
+    HE **he_ptr= HvARRAY(hv);
+    HE **he_end= he_ptr + HvMAX(hv) + 1;
+
+    do {
+        for (he= *he_ptr++; he; he= HeNEXT(he) ) {
+            SV *value= HeVAL(he);
+            if (value != &PL_sv_placeholder) {
+                if (--keys == 0) {
+                    he_ptr= he_end;
+                }
+
+                mapper_cxt.set_hash_key(he);
+
+                const Field *field = field_map.find_by_name(aTHX_ he);
+                if (!field) {
+                    continue;
+                }
+
+                if (track_oneof.mark_and_maybe_skip(field->oneof_index)) {
+                    continue;
+                }
+
+#if HAS_FULL_NOMG
+                SvGETMAGIC(value);
+#endif
+
+                if (!encode_field(state, *field, value))
+                    return false;
+
+                if (keys == 0)
+                    break;
+            }
+        }
+    } while ( he_ptr < he_end );
+
+#endif
     state.mapper_context->pop_level();
+#endif
 
     if (!sink->EndMessage(state.status))
         return false;
+
+    return success;
+}
+
+template<class It, class PM, bool direct_required_check>
+bool Mapper::encode_message_loop(EncoderState &state, PM val) const {
+    MapperContext::Item &mapper_cxt = state.mapper_context->push_level(val, MapperContext::Message);
+    TrackOneof track_oneof(oneof_count);
+    TrackSeen track_seen(check_required_fields && !direct_required_check, fields);
+    It it(aTHX_ val, fields, field_map);
+
+    for (it.setup(); it.has_next(); it.next()) {
+        mapper_cxt.set_hash_key(it.field_context());
+
+        if (!it.setup_next()) {
+            if (direct_required_check) {
+                if (fail_if_required(state.status, *it.field())) {
+                    return false;
+                }
+            }
+
+            continue;
+        }
+
+        const Field *field = it.field();
+        if (track_oneof.mark_and_maybe_skip(field->oneof_index)) {
+            continue;
+        }
+        if (!direct_required_check)
+            track_seen.mark(field->field_index);
+
+        SV *value = it.value();
+#if HAS_FULL_NOMG
+        SvGETMAGIC(value);
+#endif
+
+        if (!encode_field(state, *field, value))
+            return false;
+    }
+
+    state.mapper_context->pop_level();
+
+    if (!direct_required_check && !track_seen.required_fields_present(state.status)) {
+        return false;
+    }
 
     return true;
 }
@@ -2317,6 +2410,7 @@ bool Mapper::encode_field(EncoderState &state, const Field &fd, SV *ref) const {
             return true;
         if (check_enum_values &&
                 fd.enum_values.find(value) == fd.enum_values.end()) {
+            std::cout << fd.enum_values.size() << std::endl;
             state.status->SetFormattedErrorMessage(
                 "Invalid enumeration value %d for field '%s'",
                 value,
