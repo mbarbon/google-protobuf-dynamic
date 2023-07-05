@@ -1064,6 +1064,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const g
 
     decoder_field_data.optimize_lookup();
     check_required_fields = has_required && options.check_required_fields;
+    ignore_undef_fields = options.ignore_undef_fields;
 }
 
 Mapper::~Mapper() {
@@ -1940,8 +1941,15 @@ bool Mapper::encode_message(EncoderState &state, SV *ref) const {
 
         HE *he = tied ? hv_fetch_ent_tied(aTHX_ hv, it->name, 0, it->name_hash) :
                         hv_fetch_ent(hv, it->name, 0, it->name_hash);
+        SV *value = NULL;
+        if (he) {
+            value = HeVAL(he);
+#if HAS_FULL_NOMG
+            SvGETMAGIC(value);
+#endif
+        }
 
-        if (!he) {
+        if (!he || (ignore_undef_fields && !SvOK(value))) {
             if (it->field_def->label() == UPB_LABEL_REQUIRED) {
                 state.status->SetFormattedErrorMessage(
                     "Missing required field '%s'",
@@ -1952,11 +1960,6 @@ bool Mapper::encode_message(EncoderState &state, SV *ref) const {
         } else if (track_oneof.mark_and_maybe_skip(it->oneof_index)) {
             continue;
         }
-
-        SV *value = HeVAL(he);
-#if HAS_FULL_NOMG
-        SvGETMAGIC(value);
-#endif
 
         if (!encode_field(state, *it, value))
             return false;
@@ -2205,6 +2208,9 @@ bool Mapper::encode_from_perl_hash(EncoderState &state, const Field &fd, SV *ref
         const char *key;
         STRLEN keylen;
         bool needs_free = false;
+
+        if (ignore_undef_fields && !SvOK(value))
+            continue;
 
         if (HeKLEN(entry) == HEf_SVKEY) {
             key = SvPVutf8(HeKEY_sv(entry), keylen);

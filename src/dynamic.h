@@ -57,6 +57,7 @@ struct MappingOptions {
     bool decode_blessed;
     bool fail_ref_coercion;
     bool no_redefine_perl_names;
+    bool ignore_undef_fields;
     BoolStyle boolean_style;
     AccessorStyle accessor_style;
     ClientService client_services;

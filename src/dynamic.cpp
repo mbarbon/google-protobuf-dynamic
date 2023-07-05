@@ -40,6 +40,7 @@ namespace {
 MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
         use_bigints(sizeof(IV) < sizeof(int64_t)),
         check_required_fields(true),
+        ignore_undef_fields(false),
         explicit_defaults(false),
         encode_defaults(false),
         encode_defaults_proto3(false),
@@ -77,6 +78,7 @@ MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
     BOOLEAN_OPTION(implicit_maps, implicit_maps);
     BOOLEAN_OPTION(decode_blessed, decode_blessed);
     BOOLEAN_OPTION(fail_ref_coercion, fail_ref_coercion);
+    BOOLEAN_OPTION(ignore_undef_fields, ignore_undef_fields);
 
 #undef BOOLEAN_OPTION
 

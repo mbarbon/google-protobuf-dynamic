@@ -668,6 +668,11 @@ of a non-message field.
 
 Not available for Perl 5.12 or older.
 
+=head2 ignore_undef_fields
+
+When encoding, treat C<undef> fields and hash entries as if they were not
+present.
+
 =head1 KNOWN BUGS
 
 When a field has the incorrect value, sometimes serialization performs

@@ -338,7 +338,7 @@ private:
     gpd::pb::DecoderFieldData<FieldData> decoder_field_data;
     upb::Sink decoder_sink;
     gpd::VectorSink vector_sink;
-    bool check_required_fields, decode_explicit_defaults, encode_defaults, check_enum_values, decode_blessed, fail_ref_coercion;
+    bool check_required_fields, decode_explicit_defaults, encode_defaults, check_enum_values, decode_blessed, fail_ref_coercion, ignore_undef_fields;
     int boolean_style;
     GV *json_false, *json_true;
     WarnContext *warn_context;
