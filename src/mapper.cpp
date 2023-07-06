@@ -1699,6 +1699,17 @@ namespace {
         return true;
     }
 
+    bool fail_if_required(Status *status, const Mapper::Field &fd) {
+        if (fd.field_def->label() == UPB_LABEL_REQUIRED) {
+            status->SetFormattedErrorMessage(
+                "Missing required field '%s'",
+                fd.full_name().c_str());
+            return true;
+        }
+
+        return false;
+    }
+
     inline bool SvPOK_utf8(SV *sv) {
         return ((SvFLAGS(sv) & (SVf_POK|SVf_UTF8)) == (SVf_POK|SVf_UTF8));
     }
@@ -2043,10 +2054,7 @@ namespace {
             for (int i = 0, max = fields.size(); i < max; ++i) {
                 const Field &field = fields[i];
 
-                if (field.field_def->label() == UPB_LABEL_REQUIRED && !seen_fields[i]) {
-                    status->SetFormattedErrorMessage(
-                        "Missing required field '%s'",
-                        field.full_name().c_str());
+                if (!seen_fields[i] && fail_if_required(status, field)) {
                     return false;
                 }
             }
@@ -2091,12 +2099,9 @@ bool Mapper::encode_simple_message_iterate_fields(EncoderState &state, SV *ref) 
         }
 
         if (!he || (ignore_undef_fields && !SvOK(value))) {
-            if (it->field_def->label() == UPB_LABEL_REQUIRED) {
-                state.status->SetFormattedErrorMessage(
-                    "Missing required field '%s'",
-                    it->full_name().c_str());
+            if (fail_if_required(state.status, *it))
                 return false;
-            } else
+            else
                 continue;
         } else if (track_oneof.mark_and_maybe_skip(it->oneof_index)) {
             continue;
