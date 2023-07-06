@@ -2619,13 +2619,13 @@ bool Mapper::encode_field(EncoderState<Encoder> &state, const Field &fd, SV *ref
     }
     case ACTION_PUT_FIELDTABLE: {
         typename Encoder::Inner sub;
-        EncoderState<Encoder> sub_state(state, Encoder::sub_sink(state.sink, &sub));
+        EncoderState<Encoder> sub_state(state, Encoder::sub_sink(sink, &sub));
 
-        if (!start_submessage(sub_state, fd, &sub))
+        if (!start_submessage(state, fd, &sub))
             return false;
         if (!fd.mapper->encode_transformed_fieldtable_message(sub_state, ref, fd.encoder_transform))
             return false;
-        return end_submessage(sub_state, fd, &sub);
+        return end_submessage(state, fd, &sub);
     }
     case ACTION_PUT_MAP:
         return encode_from_perl_hash(state, fd, ref);
