@@ -2080,18 +2080,18 @@ bool Mapper::encode_simple_message_iterate_fields(EncoderState &state, SV *ref) 
     bool success;
     if (tied || keys > fields.size()) {
         if (tied) {
-            success = encode_message_loop<HashAPIIterator<Field>>(state, hv);
+            success = encode_message_loop<FieldIterator<Field>>(state, hv, hv);
         } else {
-            success = encode_message_loop<FieldIterator<Field>>(state, hv);
+            success = encode_message_loop<FieldIterator<Field>>(state, hv, hv);
         }
     } else {
-        success = encode_message_loop<FieldIterator<Field>>(state, hv);
+        success = encode_message_loop<FieldIterator<Field>>(state, hv, hv);
     }
 
 #if 0
     MapperContext::Item &mapper_cxt = state.mapper_context->push_level(hv, MapperContext::Message);
     TrackOneof track_oneof(oneof_count);
-#if 0
+
     for (vector<Field>::const_iterator it = fields.begin(), en = fields.end(); it != en; ++it) {
         mapper_cxt.set_hash_key(it->name);
 
@@ -2118,11 +2118,11 @@ bool Mapper::encode_simple_message_iterate_fields(EncoderState &state, SV *ref) 
             return false;
     }
     state.mapper_context->pop_level();
-
+#endif
     if (!sink->EndMessage(state.status))
         return false;
 
-    return true;
+    return success;
 }
 
 bool Mapper::encode_transformed_fieldtable_message(EncoderState &state, SV *ref, EncoderTransform *encoder_transform) const {
@@ -2133,8 +2133,6 @@ bool Mapper::encode_transformed_fieldtable_message(EncoderState &state, SV *ref,
 
     if (!sink->StartMessage())
         return false;
-
-    MapperContext::Item &mapper_cxt = state.mapper_context->push_level(ref, MapperContext::Message);
 
     EncoderFieldtable *target = NULL, target_copy;
     encoder_transform->transform_fieldtable(aTHX_ &target, ref);
@@ -2152,44 +2150,17 @@ bool Mapper::encode_transformed_fieldtable_message(EncoderState &state, SV *ref,
         target = &target_copy;
     }
 
-    TrackOneof track_oneof(oneof_count);
-    TrackSeen track_seen(check_required_fields, fields);
+    // can't use SAVEDESTRUCTOR_X on the table: if it is copied to alloca()
+    // memory, the memory will be released before the Perl scope is unwound
+    for (int i = 0, max = target->size; i < max; ++i)
+        sv_2mortal(target->entries[i].value);
 
-    for (int i = 0, max = target->size; i < max; ++i) {
-        EncoderFieldtable::Entry *entry = target->entries + i;
-        const Field *it = field_map.find_by_number(entry->field);
-        if (it == NULL) {
-            continue;
-        }
-
-        mapper_cxt.set_hash_key(it->name);
-
-        if (track_oneof.mark_and_maybe_skip(it->oneof_index)) {
-            continue;
-        }
-        track_seen.mark(it->field_index);
-
-        SV *value = entry->value;
-#if HAS_FULL_NOMG
-        SvGETMAGIC(value);
-#endif
-
-        if (!encode_field(state, *it, value)) {
-            SvREFCNT_dec_NN(value);
-            return false;
-        }
-        SvREFCNT_dec_NN(value);
-    }
-    state.mapper_context->pop_level();
-
-    if (!track_seen.required_fields_present(state.status)) {
-        return false;
-    }
+    bool success = encode_message_loop<FieldtableIterator<Field, EncoderFieldtable, EncoderFieldtable::Entry>>(state, target, ref);
 
     if (!sink->EndMessage(state.status))
         return false;
 
-    return true;
+    return success;
 }
 
 bool Mapper::encode_transformed_message(EncoderState &state, SV *ref, EncoderTransform *encoder_transform) const {
@@ -2218,7 +2189,7 @@ bool Mapper::encode_simple_message_iterate_hash(EncoderState &state, SV *ref) co
 
     TrackOneof track_oneof(oneof_count);
     TrackSeen track_seen(check_required_fields, fields);
-
+#if 1
     hv_iterinit(hv);
 
     MapperContext::Item &mapper_cxt = state.mapper_context->push_level(hv, MapperContext::Message);
@@ -2294,27 +2265,23 @@ bool Mapper::encode_simple_message_iterate_hash(EncoderState &state, SV *ref) co
             }
         }
     } while ( he_ptr < he_end );
-
 #endif
     state.mapper_context->pop_level();
-#endif
 
     if (!sink->EndMessage(state.status))
         return false;
 
-    return success;
+    return true;
 }
 
-template<class It, class PM, bool direct_required_check>
-bool Mapper::encode_message_loop(EncoderState &state, PM val) const {
-    MapperContext::Item &mapper_cxt = state.mapper_context->push_level(val, MapperContext::Message);
+template<class It, class PM, class Cxt, bool direct_required_check>
+bool Mapper::encode_message_loop(EncoderState &state, PM val, Cxt cxt) const {
+    MapperContext::Item &mapper_cxt = state.mapper_context->push_level(cxt, MapperContext::Message);
     TrackOneof track_oneof(oneof_count);
     TrackSeen track_seen(check_required_fields && !direct_required_check, fields);
     It it(aTHX_ val, fields, field_map);
 
     for (it.setup(); it.has_next(); it.next()) {
-        mapper_cxt.set_hash_key(it.field_context());
-
         if (!it.setup_next()) {
             if (direct_required_check) {
                 if (fail_if_required(state.status, *it.field())) {
@@ -2325,17 +2292,22 @@ bool Mapper::encode_message_loop(EncoderState &state, PM val) const {
             continue;
         }
 
+        mapper_cxt.set_hash_key(it.field_context());
+
+        SV *value = it.value();
+#if HAS_FULL_NOMG
+        SvGETMAGIC(value);
+#endif
+        if (ignore_undef_fields && !SvOK(value)) {
+            continue;
+        }
+
         const Field *field = it.field();
         if (track_oneof.mark_and_maybe_skip(field->oneof_index)) {
             continue;
         }
         if (!direct_required_check)
             track_seen.mark(field->field_index);
-
-        SV *value = it.value();
-#if HAS_FULL_NOMG
-        SvGETMAGIC(value);
-#endif
 
         if (!encode_field(state, *field, value))
             return false;

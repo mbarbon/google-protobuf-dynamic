@@ -111,6 +111,52 @@ struct HashAPIIterator {
     }
 };
 
+template<class F, class T, class E>
+struct FieldtableIterator {
+    DECL_THX_MEMBER;
+    T *target;
+    int index;
+    E *entry;
+    const FieldMap<F> &field_map;
+    const F *current_field;
+
+    static const bool direct_required_check = false;
+
+    FieldtableIterator(pTHX_ T *_target, const std::vector<F> &fields, const FieldMap<F> &_field_map) : field_map(_field_map) {
+        SET_THX_MEMBER;
+        target = _target;
+        index = 0;
+    }
+
+    void setup() {
+    }
+
+    bool has_next() {
+        return index < target->size;
+    }
+
+    void next() { ++index; }
+
+    bool setup_next() {
+        entry = target->entries + index;
+        current_field = field_map.find_by_number(entry->field);
+
+        return current_field != NULL;
+    }
+
+    SV *field_context() {
+        return current_field->name;
+    }
+
+    const F *field() {
+        return current_field;
+    }
+
+    SV *value() {
+        return entry->value;
+    }
+};
+
 }
 
 #endif
