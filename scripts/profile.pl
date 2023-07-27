@@ -36,6 +36,7 @@ sub main {
         decode_objects      => \&profile_decode_objects,
         decode_transform    => \&profile_decode_transform,
         encode_objects      => \&profile_encode_objects,
+        encode_maps         => \&profile_encode_maps,
     );
 
     my %callgrind_benchmarks = (
@@ -114,41 +115,17 @@ sub random_chars {
 sub setup {
     setup_encode_objects();
     setup_decode_objects();
+    setup_encode_maps();
     setup_decode_maps();
     setup_decode_transform();
 }
 
 sub setup_decode_maps {
-    my $make_string_int32_map = sub {
-        return +{
-            map +(random_chars(5, 15) => int(rand(1000) + 2)), (1 .. 30)
-        };
-    };
-    my $make_string_string_map = sub {
-        return +{
-            map +(random_chars(5, 15) => random_chars(5, 15)), (1 .. 30)
-        };
-    };
-    my $maps = {
-        string_int32_maps => [
-            map +($make_string_int32_map->()), (1 .. 10),
-        ],
-        string_string_maps => [
-            map +($make_string_string_map->()), (1 .. 10),
-        ],
-    };
-    my $proto_maps = {
-        string_int32_maps => [
-            map +{ string_int32_map => $_ }, @{$maps->{string_int32_maps}}
-        ],
-        string_string_maps => [
-            map +{ string_string_map => $_ }, @{$maps->{string_string_maps}}
-        ],
-    };
+    my $maps = $benchmarks{encode}{maps};
 
-    $benchmarks{decode}{maps}{protobuf} = GPD::Profile::Maps->encode($proto_maps);
-    $benchmarks{decode}{maps}{sereal} = $sereal_encoder->encode($maps);
-    $benchmarks{decode}{maps}{json} = $json_decoder->encode($maps);
+    $benchmarks{decode}{maps}{protobuf} = GPD::Profile::Maps->encode($maps->{protobuf});
+    $benchmarks{decode}{maps}{sereal} = $sereal_encoder->encode($maps->{plain});
+    $benchmarks{decode}{maps}{json} = $json_decoder->encode($maps->{plain});
 }
 
 sub profile_decode_maps {
@@ -264,6 +241,49 @@ sub profile_encode_objects {
         protobuf_upb    => sub { GPD::Profile::PersonArray->encode($data) },
         sereal          => sub { $sereal_encoder->encode($data) },
         json            => sub { $json_decoder->encode($data) },
+    }));
+}
+
+sub setup_encode_maps {
+    my $make_string_int32_map = sub {
+        return +{
+            map +(random_chars(5, 15) => int(rand(1000) + 2)), (1 .. 30)
+        };
+    };
+    my $make_string_string_map = sub {
+        return +{
+            map +(random_chars(5, 15) => random_chars(5, 15)), (1 .. 30)
+        };
+    };
+    my $maps = {
+        string_int32_maps => [
+            map +($make_string_int32_map->()), (1 .. 10),
+        ],
+        string_string_maps => [
+            map +($make_string_string_map->()), (1 .. 10),
+        ],
+    };
+    my $proto_maps = {
+        string_int32_maps => [
+            map +{ string_int32_map => $_ }, @{$maps->{string_int32_maps}}
+        ],
+        string_string_maps => [
+            map +{ string_string_map => $_ }, @{$maps->{string_string_maps}}
+        ],
+    };
+
+    $benchmarks{encode}{maps}{protobuf} = $proto_maps;
+    $benchmarks{encode}{maps}{plain} = $maps;
+}
+
+sub profile_encode_maps {
+    my ($repeat_count, $which_benchmarks) = @_;
+    my $data = $benchmarks{encode}{maps};
+
+    cmpthese($repeat_count, filter_benchmarks($which_benchmarks, {
+        protobuf_upb    => sub { GPD::Profile::Maps->encode($data->{protobuf}) },
+        sereal          => sub { $sereal_encoder->encode($data->{plain}) },
+        json            => sub { $json_decoder->encode($data->{plain}) },
     }));
 }
 
