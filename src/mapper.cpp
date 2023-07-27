@@ -2497,6 +2497,12 @@ bool Mapper::encode_from_perl_hash(EncoderState &state, const Field &fd, SV *ref
     hv_iterinit(hash);
     MapperContext::Item &mapper_cxt = state.mapper_context->push_level(hash, MapperContext::Hash);
 
+    bool need_unicode;
+    if (fd.mapper->fields[0].is_map_key())
+        need_unicode = fd.mapper->fields[0].value_action == ACTION_PUT_STRING;
+    else
+        need_unicode = fd.mapper->fields[1].value_action == ACTION_PUT_STRING;
+
     while (HE *entry = hv_iternext(hash)) {
         Sink key_value;
         EncoderState key_value_state(state, &key_value);
@@ -2511,11 +2517,16 @@ bool Mapper::encode_from_perl_hash(EncoderState &state, const Field &fd, SV *ref
         if (HeKLEN(entry) == HEf_SVKEY) {
             key = SvPVutf8(HeKEY_sv(entry), keylen);
         } else {
-            if (HeKUTF8(entry)) {
-                key = HeKEY(entry);
-                keylen = HeKLEN(entry);
-            } else {
-                keylen = HeKLEN(entry);
+            key = HeKEY(entry);
+            keylen = HeKLEN(entry);
+
+            // For string keys avoid the copy performed by bytes_to_utf8 if
+            // the string is invariant (ASCII).
+            //
+            // For non-string keys do not care much about the actual encoding, as
+            // they are either invariant or invalid.
+            if (!HeKUTF8(entry) && need_unicode &&
+                    !is_invariant_string((const U8 *) key, keylen)) {
                 key = (const char *) bytes_to_utf8((U8*) HeKEY(entry), &keylen);
                 SAVEFREEPV(key);
             }
