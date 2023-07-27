@@ -142,7 +142,7 @@ sub setup_decode_maps {
             map +{ string_int32_map => $_ }, @{$maps->{string_int32_maps}}
         ],
         string_string_maps => [
-            map +{ string_string_map => $_ }, @{$maps->{string_string2_maps}}
+            map +{ string_string_map => $_ }, @{$maps->{string_string_maps}}
         ],
     };
 
