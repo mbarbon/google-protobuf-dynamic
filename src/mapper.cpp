@@ -195,19 +195,11 @@ string Mapper::Field::full_name() const {
 }
 
 FieldDef::Type Mapper::Field::map_value_type() const {
-    const vector<Field> &map_fields = mapper->fields;
-
-    return map_fields[1].is_map_value() ?
-        map_fields[1].field_def->type() :
-        map_fields[0].field_def->type();
+    return mapper->fields[mapper->map_value_index].field_def->type();
 }
 
 const STD_TR1::unordered_set<int32_t> &Mapper::Field::map_enum_values() const {
-    const vector<Field> &map_fields = mapper->fields;
-
-    return map_fields[1].is_map_value() ?
-        map_fields[1].enum_values :
-        map_fields[0].enum_values;
+    return mapper->fields[mapper->map_value_index].enum_values;
 }
 
 bool Mapper::DecoderHandlers::apply_defaults_and_check() {
@@ -828,8 +820,13 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const g
         FieldData field_data;
 
         if (map_entry) {
-            field.field_target = field_def->number() == 1 ?
-                TARGET_MAP_KEY : TARGET_MAP_VALUE;
+            if (field_def->number() == 1) {
+                field.field_target = TARGET_MAP_KEY;
+                map_key_index = index;
+            } else {
+                field.field_target = TARGET_MAP_VALUE;
+                map_value_index = index;
+            }
         } else if (field_def->label() == UPB_LABEL_REPEATED) {
             field.field_target = TARGET_ARRAY_ITEM;
         } else {
@@ -2465,17 +2462,10 @@ bool Mapper::encode_hash_kv(EncoderState &state, const char *key, STRLEN keylen,
 
     if (!sink->StartMessage())
         return false;
-    if (fields[0].is_map_key()) {
-        if (!encode_key(state, fields[0], key, keylen))
-            return false;
-        if (!encode_field(state, fields[1], value))
-            return false;
-    } else {
-        if (!encode_key(state, fields[1], key, keylen))
-            return false;
-        if (!encode_field(state, fields[0], value))
-            return false;
-    }
+    if (!encode_key(state, fields[map_key_index], key, keylen))
+        return false;
+    if (!encode_field(state, fields[map_value_index], value))
+        return false;
     if (!sink->EndMessage(state.status))
         return false;
     return true;
@@ -2497,11 +2487,8 @@ bool Mapper::encode_from_perl_hash(EncoderState &state, const Field &fd, SV *ref
     hv_iterinit(hash);
     MapperContext::Item &mapper_cxt = state.mapper_context->push_level(hash, MapperContext::Hash);
 
-    bool need_unicode;
-    if (fd.mapper->fields[0].is_map_key())
-        need_unicode = fd.mapper->fields[0].value_action == ACTION_PUT_STRING;
-    else
-        need_unicode = fd.mapper->fields[1].value_action == ACTION_PUT_STRING;
+    bool need_unicode = fd.mapper->fields[map_key_index]
+            .value_action == ACTION_PUT_STRING;
 
     while (HE *entry = hv_iternext(hash)) {
         Sink key_value;
@@ -2754,11 +2741,7 @@ void Mapper::apply_default(const Field &field, SV *target) const {
 }
 
 void Mapper::apply_map_value_default(SV *target) const {
-    if (fields[1].is_map_value()) {
-        apply_default(fields[1], target);
-    } else {
-        apply_default(fields[0], target);
-    }
+    apply_default(fields[map_value_index], target);
 }
 
 MapperField::MapperField(pTHX_ const Mapper *_mapper, const Mapper::Field *_field) :

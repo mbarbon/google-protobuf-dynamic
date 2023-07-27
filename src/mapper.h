@@ -367,6 +367,7 @@ private:
     gpd::VectorSink vector_sink;
     bool check_required_fields, decode_explicit_defaults, encode_defaults, check_enum_values, decode_blessed, fail_ref_coercion, ignore_undef_fields;
     int boolean_style;
+    int map_key_index, map_value_index;
     GV *json_false, *json_true;
     WarnContext *warn_context;
     MapperContext mapper_context;
