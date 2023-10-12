@@ -1,5 +1,10 @@
 use t::lib::Test 'proto3';
 
+use constant {
+    true  => !!1,
+    false => !!0,
+};
+
 use Google::ProtocolBuffers::Dynamic qw(:descriptor :values);
 
 {
@@ -37,8 +42,8 @@ sub check_mapping {
     my @methods = sort { $a->name cmp $b->name } @$methods;
 
     eq_or_diff(method_attrs($methods[0]), {
-        client_streaming    => 1,
-        server_streaming    => '',
+        client_streaming    => true,
+        server_streaming    => false,
         name                => 'JoinedHello',
         service             => 'helloworld.Greeter',
         full_name           => 'helloworld.Greeter.JoinedHello',
@@ -47,8 +52,8 @@ sub check_mapping {
     });
 
     eq_or_diff(method_attrs($methods[1]), {
-        client_streaming    => '',
-        server_streaming    => '',
+        client_streaming    => false,
+        server_streaming    => false,
         name                => 'SayHello',
         service             => 'helloworld.Greeter',
         full_name           => 'helloworld.Greeter.SayHello',
@@ -57,8 +62,8 @@ sub check_mapping {
     });
 
     eq_or_diff(method_attrs($methods[2]), {
-        client_streaming    => '',
-        server_streaming    => 1,
+        client_streaming    => false,
+        server_streaming    => true,
         name                => 'SplitHello',
         service             => 'helloworld.Greeter',
         full_name           => 'helloworld.Greeter.SplitHello',
@@ -67,8 +72,8 @@ sub check_mapping {
     });
 
     eq_or_diff(method_attrs($methods[3]), {
-        client_streaming    => 1,
-        server_streaming    => 1,
+        client_streaming    => true,
+        server_streaming    => true,
         name                => 'WavingHello',
         service             => 'helloworld.Greeter',
         full_name           => 'helloworld.Greeter.WavingHello',
