@@ -35,6 +35,37 @@ namespace {
 
         return stack_trace;
     }
+
+    const string
+        sym_ARGV    = "ARGV",
+        sym_ARGVOUT = "ARGVOUT",
+        sym_ENV     = "ENV",
+        sym_INC     = "INC",
+        sym_SIG     = "SIG",
+        sym_STDIN   = "STDIN",
+        sym_STDOUT  = "STDOUT",
+        sym_STDERR  = "STDERR";
+
+    // does the same job as S_gv_is_in_main in gv.c
+    bool is_in_main(const string &name) {
+        size_t length = name.length();
+
+        switch (name[0]) {
+        case '_':
+            return length == 1;
+        case 'A':
+            return name == sym_ARGV || name == sym_ARGVOUT;
+        case 'E':
+            return name == sym_ENV;
+        case 'I':
+            return name == sym_INC;
+        case 'S':
+            return name == sym_SIG || name == sym_STDIN ||
+                   name == sym_STDOUT || name == sym_STDERR;
+        default:
+            return false;
+        }
+    }
 }
 
 MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
@@ -653,8 +684,15 @@ void Dynamic::bind_enum(pTHX_ const string &perl_package, const EnumDescriptor *
     for (int i = 0, max = descriptor->value_count(); i < max; ++i) {
         const EnumValueDescriptor *value = descriptor->value(i);
 
-        newCONSTSUB(stash, value->name().c_str(),
-                    newSVuv(value->number()));
+        // due to an implementation quirk, some special names such as STDERR
+        // are not looked up in stash, and need to be fully qualified
+        if (is_in_main(value->name())) {
+            newCONSTSUB(stash, (perl_package + "::" + value->name()).c_str(),
+                        newSVuv(value->number()));
+        } else {
+            newCONSTSUB(stash, value->name().c_str(),
+                        newSVuv(value->number()));
+        }
     }
 }
 
