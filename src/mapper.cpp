@@ -2487,7 +2487,7 @@ bool Mapper::encode_from_perl_hash(EncoderState &state, const Field &fd, SV *ref
     hv_iterinit(hash);
     MapperContext::Item &mapper_cxt = state.mapper_context->push_level(hash, MapperContext::Hash);
 
-    bool need_unicode = fd.mapper->fields[map_key_index]
+    bool need_unicode = fd.mapper->fields[fd.mapper->map_key_index]
             .value_action == ACTION_PUT_STRING;
 
     while (HE *entry = hv_iternext(hash)) {
