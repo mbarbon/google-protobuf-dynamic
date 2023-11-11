@@ -14,7 +14,7 @@ use t::lib::Test;
 
     warning_like(sub {
         $encoded = Test1::StringMap->encode({ string_int32_map => { a => undef } });
-    }, qr/While encoding field 'string_int32_map.{a}': Use of uninitialized value in subroutine entry/);
+    }, qr/While encoding field 'string_int32_map.\{a\}': Use of uninitialized value in subroutine entry/);
     eq_or_diff($encoded, "\x0a\x05\x0a\x01a\x10\x00");
 }
 
