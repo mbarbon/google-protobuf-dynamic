@@ -361,6 +361,12 @@ enum_descriptor(SV *klass)
     RETVAL = descriptor;
   OUTPUT: RETVAL
 
+UV
+constant()
+  CODE:
+    RETVAL = CvXSUBANY(cv).any_uv;
+  OUTPUT: RETVAL
+
 const Google::ProtocolBuffers::Dynamic::ServiceDef*
 service_descriptor(SV *klass)
   INIT:

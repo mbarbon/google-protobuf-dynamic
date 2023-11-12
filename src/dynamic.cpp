@@ -44,7 +44,13 @@ namespace {
         sym_SIG     = "SIG",
         sym_STDIN   = "STDIN",
         sym_STDOUT  = "STDOUT",
-        sym_STDERR  = "STDERR";
+        sym_STDERR  = "STDERR",
+
+        sym_BEGIN     = "BEGIN",
+        sym_CHECK     = "CHECK",
+        sym_END       = "END",
+        sym_INIT      = "INIT",
+        sym_UNITCHECK = "UNITCHECK";
 
     // does the same job as S_gv_is_in_main in gv.c
     bool is_in_main(const string &name) {
@@ -62,6 +68,23 @@ namespace {
         case 'S':
             return name == sym_SIG || name == sym_STDIN ||
                    name == sym_STDOUT || name == sym_STDERR;
+        default:
+            return false;
+        }
+    }
+
+    bool is_special_sub(const string &name) {
+        switch (name[0]) {
+        case 'B':
+            return name == sym_BEGIN;
+        case 'C':
+            return name == sym_CHECK;
+        case 'E':
+            return name == sym_END;
+        case 'I':
+            return name == sym_INIT;
+        case 'U':
+            return name == sym_UNITCHECK;
         default:
             return false;
         }
@@ -234,6 +257,19 @@ namespace {
         dup_refcounted,
         NULL, // local
     };
+
+    void bind_special_constant(pTHX_ const string &target, const string &perl_package, UV value) {
+        static const char xsubname[] = "Google::ProtocolBuffers::Dynamic::Mapper::constant";
+
+        CV *src = get_cv(xsubname, 0);
+        CV *new_xs = newXS((perl_package + "::" + target + "*").c_str(), CvXSUB(src), __FILE__);
+        CvXSUBANY(new_xs).any_uv = value;
+
+        GV *gv = gv_fetchpv((perl_package + "::" + target).c_str(),
+                            GV_ADD, SVt_PVCV);
+
+        GvCV_set(gv, new_xs);
+    }
 
     void copy_and_bind(pTHX_ const char *name, const char *target, const string &perl_package, Refcounted *refcounted, void *obj) {
         static const char prefix[] = "Google::ProtocolBuffers::Dynamic::Mapper::";
@@ -698,6 +734,8 @@ void Dynamic::bind_enum(pTHX_ const string &perl_package, const EnumDescriptor *
         if (is_in_main(value->name())) {
             newCONSTSUB(stash, (perl_package + "::" + value->name()).c_str(),
                         newSVuv(value->number()));
+        } else if (is_special_sub(value->name())) {
+            bind_special_constant(aTHX_ value->name(), perl_package, value->number());
         } else {
             newCONSTSUB(stash, value->name().c_str(),
                         newSVuv(value->number()));

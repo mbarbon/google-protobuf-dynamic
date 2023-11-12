@@ -17,6 +17,11 @@ enum Keywords {
   INC     = 7;
   SIG     = 8;
   _       = 9;
+  BEGIN   = 10;
+  CHECK   = 11;
+  END     = 12;
+  INIT    = 13;
+  UNITCHECK=14;
 }
 EOT
 
