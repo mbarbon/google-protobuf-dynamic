@@ -216,6 +216,14 @@ namespace {
         return 0;
     }
 
+    int dup_refcounted(pTHX_ MAGIC *mg, CLONE_PARAMS *param) {
+        Refcounted *refcounted = (Refcounted *) mg->mg_ptr;
+
+        refcounted->ref();
+
+        return 0;
+    }
+
     MGVTBL manage_refcounted = {
         NULL, // get
         NULL, // set
@@ -223,7 +231,7 @@ namespace {
         NULL, // clear
         free_refcounted,
         NULL, // copy
-        NULL, // dup
+        dup_refcounted,
         NULL, // local
     };
 
@@ -239,9 +247,10 @@ namespace {
         CV *new_xs = newXS((perl_package + "::" + target).c_str(), CvXSUB(src), __FILE__);
 
         CvXSUBANY(new_xs).any_ptr = obj;
-        sv_magicext((SV *) new_xs, NULL,
+        MAGIC *mg = sv_magicext((SV *) new_xs, NULL,
                     PERL_MAGIC_ext, &manage_refcounted,
                     (const char *) refcounted, 0);
+        mg->mg_flags |= MGf_DUP;
         refcounted->ref();
     }
 
