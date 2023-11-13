@@ -1873,6 +1873,19 @@ namespace {
         bool operator()(pTHX_ SV *src) const { return SvTRUE_enc(src); }
     };
 
+    inline bool put_string(Sink *sink, const Mapper::Field &fd, const char *str, STRLEN len) {
+        Sink sub;
+        if (!sink->StartString(fd.selector.str_start, len, &sub))
+            return false;
+        sub.PutStringBuffer(fd.selector.str_cont, str, len, NULL);
+        return sink->EndString(fd.selector.str_end);
+    }
+
+    inline bool is_default_string(const Mapper::Field &fd, const char *str, STRLEN len) {
+        return len == fd.default_str_len &&
+            (len == 0 || memcmp(str, fd.default_str, len) == 0);
+    }
+
 #define DEF_SIMPLE_SETTER(NAME, METHOD, TYPE)   \
     struct NAME { \
         NAME(Status *status) { } \
@@ -1916,11 +1929,8 @@ namespace {
         bool operator()(pTHX_ Sink *sink, const Mapper::Field &fd, SV *value) {
             STRLEN len;
             const char *str = fd.value_action == Mapper::ACTION_PUT_STRING ? SvPVutf8(value, len) : SvPV(value, len);
-            Sink sub;
-            if (!sink->StartString(fd.selector.str_start, len, &sub))
-                return false;
-            sub.PutStringBuffer(fd.selector.str_cont, str, len, NULL);
-            return sink->EndString(fd.selector.str_end);
+
+            return put_string(sink, fd, str, len);
         }
     };
 }
@@ -2322,21 +2332,6 @@ bool Mapper::encode_message_loop(EncoderState &state, PM val, Cxt cxt) const {
     return true;
 }
 
-namespace {
-    inline bool put_string(Sink *sink, const Mapper::Field &fd, const char *str, STRLEN len) {
-        Sink sub;
-        if (!sink->StartString(fd.selector.str_start, len, &sub))
-            return false;
-        sub.PutStringBuffer(fd.selector.str_cont, str, len, NULL);
-        return sink->EndString(fd.selector.str_end);
-    }
-
-    inline bool is_default_string(const Mapper::Field &fd, const char *str, STRLEN len) {
-        return len == fd.default_str_len &&
-            (len == 0 || memcmp(str, fd.default_str, len) == 0);
-    }
-}
-
 bool Mapper::encode_field(EncoderState &state, const Field &fd, SV *ref) const {
     ValueAction field_action = fd.field_action;
 
@@ -2505,13 +2500,8 @@ bool Mapper::encode_key(EncoderState &state, const Field &fd, const char *key, I
         bool bval = keylen > 1 || (keylen == 1 && key[0] != '0');
         return sink->PutBool(fd.selector.primitive, bval);
     }
-    case ACTION_PUT_STRING: {
-        Sink sub;
-        if (!sink->StartString(fd.selector.str_start, keylen, &sub))
-            return false;
-        sub.PutStringBuffer(fd.selector.str_cont, key, keylen, NULL);
-        return sink->EndString(fd.selector.str_end);
-    }
+    case ACTION_PUT_STRING:
+        return put_string(sink, fd, key, keylen);
     case ACTION_PUT_INT32:
         return sink->PutInt32(fd.selector.primitive, key_iv(aTHX_ key, keylen));
     case ACTION_PUT_UINT32:
@@ -2551,6 +2541,17 @@ bool Mapper::encode_from_perl_hash(EncoderState &state, const Field &fd, SV *ref
 
     if (!sink->StartSequence(fd.selector.seq_start, &repeated))
         return false;
+
+#if 1
+    EncoderState repeated_state(state, &repeated);
+
+    bool success;
+    if (SvMAGICAL(hash))
+        success = encode_from_perl_hash_loop<HashAPIIterator>(repeated_state, fd, hash);
+    else
+        success = encode_from_perl_hash_loop<NoMGHashIterator>(repeated_state, fd, hash);
+#else
+    bool success = true;
 
     hv_iterinit(hash);
     MapperContext::Item &mapper_cxt = state.mapper_context->push_level(hash, MapperContext::Hash);
@@ -2601,8 +2602,67 @@ bool Mapper::encode_from_perl_hash(EncoderState &state, const Field &fd, SV *ref
             return false;
     }
     state.mapper_context->pop_level();
+#endif
 
-    return sink->EndSequence(fd.selector.seq_end);
+    return success && sink->EndSequence(fd.selector.seq_end);
+}
+
+template<class It>
+bool Mapper::encode_from_perl_hash_loop(EncoderState &state, const Field &fd, HV *hash) const {
+    Sink *sink = state.sink;
+    bool need_unicode = fd.mapper->fields[map_key_index]
+            .value_action == ACTION_PUT_STRING;
+
+    MapperContext::Item &mapper_cxt = state.mapper_context->push_level(hash, MapperContext::Hash);
+
+    It it(aTHX_ hash);
+
+    for (it.setup(); it.has_next(); it.next()) {
+        HE *entry = it.entry();
+        SV *value = it.value();
+        Sink key_value;
+        EncoderState key_value_state(state, &key_value);
+        const char *key;
+        STRLEN keylen;
+        bool needs_free = false;
+
+        if (ignore_undef_fields && !SvOK(value))
+            continue;
+
+        if (HeKLEN(entry) == HEf_SVKEY) {
+            key = SvPVutf8(HeKEY_sv(entry), keylen);
+        } else {
+            key = HeKEY(entry);
+            keylen = HeKLEN(entry);
+
+            // For string keys avoid the copy performed by bytes_to_utf8 if
+            // the string is invariant (ASCII).
+            //
+            // For non-string keys do not care much about the actual encoding, as
+            // they are either invariant or invalid.
+            if (!HeKUTF8(entry) && need_unicode &&
+                    !is_invariant_string((const U8 *) key, keylen)) {
+                key = (const char *) bytes_to_utf8((U8*) HeKEY(entry), &keylen);
+                SAVEFREEPV(key);
+            }
+        }
+
+        mapper_cxt.set_hash_key(key, keylen);
+
+#if HAS_FULL_NOMG
+        SvGETMAGIC(value);
+#endif
+
+        if (!sink->StartSubMessage(fd.selector.msg_start, &key_value))
+            return false;
+        if (!fd.mapper->encode_hash_kv(key_value_state, key, keylen, value))
+            return false;
+        if (!sink->EndSubMessage(fd.selector.msg_end))
+            return false;
+    }
+    state.mapper_context->pop_level();
+
+    return true;
 }
 
 bool Mapper::encode_from_perl_array(EncoderState &state, const Field &fd, SV *ref) const {

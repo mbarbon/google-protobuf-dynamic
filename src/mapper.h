@@ -299,6 +299,9 @@ private:
     template<class It, class PM, class Cxt, bool direct_required_check = It::direct_required_check>
     bool encode_message_loop(EncoderState &state, PM value, Cxt cxt) const;
 
+    template<class It>
+    bool encode_from_perl_hash_loop(EncoderState &state, const Field &fd, HV *hash) const;
+
     bool check(upb::Status *status, SV *ref) const;
     bool check(upb::Status *status, const Field &fd, SV *ref) const;
     bool check_from_perl_array(upb::Status *status, const Field &fd, SV *ref) const;

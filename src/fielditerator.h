@@ -16,6 +16,98 @@ namespace gpd {
 
 HE *hv_fetch_ent_tied(pTHX_ HV *hv, SV *name, I32 lval, U32 hash);
 
+struct HashAPIIterator {
+    DECL_THX_MEMBER;
+    HV *hv;
+    HE *he;
+
+    HashAPIIterator(pTHX_ HV *_hv) {
+        SET_THX_MEMBER;
+        hv = _hv;
+    }
+
+    void setup() {
+        hv_iterinit(hv);
+    }
+
+    bool has_next() {
+        he = hv_iternext(hv);
+
+        return he != NULL;
+    }
+
+    void next() { }
+
+    HE *entry() {
+        return he;
+    }
+
+    SV *value() {
+        return HeVAL(he);
+    }
+};
+
+// modified version of iteration code in Sereal/Encoder/srl_encoder.c
+struct NoMGHashIterator {
+    DECL_THX_MEMBER;
+    HV *hv;
+    SV *sv;
+    HE *he;
+    HE **he_curr, **he_end;
+    UV keys;
+
+    NoMGHashIterator(pTHX_ HV *_hv) {
+        SET_THX_MEMBER;
+        hv = _hv;
+    }
+
+    void setup() {
+        he = NULL;
+        he_curr = HvARRAY(hv);
+        he_end = he_curr + HvMAX(hv) + 1;
+        keys = HvUSEDKEYS(hv);
+
+        find_next();
+    }
+
+    bool has_next() {
+        return he != NULL;
+    }
+
+    void next() {
+        find_next();
+    }
+
+    HE *entry() {
+        return he;
+    }
+
+    SV *value() {
+        return sv;
+    }
+
+private:
+    void find_next() {
+        sv = NULL;
+
+        do {
+            if (he)
+                he = HeNEXT(he);
+
+            while (!he && he_curr < he_end) {
+                he = *he_curr++;
+            }
+
+            if (he)
+                sv = HeVAL(he);
+        } while (sv && sv == &PL_sv_placeholder);
+
+        if (--keys == 0) {
+            he_curr = he_end;
+        }
+    }
+};
+
 template<class F>
 struct FieldIterator {
     DECL_THX_MEMBER;
@@ -66,7 +158,7 @@ struct FieldIterator {
 };
 
 template<class F>
-struct HashAPIIterator {
+struct HashAPIFieldIterator {
     DECL_THX_MEMBER;
     HV *hv;
     HE *he;
@@ -75,7 +167,7 @@ struct HashAPIIterator {
 
     static const bool direct_required_check = false;
 
-    HashAPIIterator(pTHX_ HV *_hv, const std::vector<F> &fields, const FieldMap<F> &_field_map) : field_map(_field_map) {
+    HashAPIFieldIterator(pTHX_ HV *_hv, const std::vector<F> &fields, const FieldMap<F> &_field_map) : field_map(_field_map) {
         SET_THX_MEMBER;
         hv = _hv;
         hv_iterinit(hv);
