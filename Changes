@@ -2,6 +2,14 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.42_02   2023-11-13 12:29:58 CET
+
+    - Avoid issues with enum vlaues that clash with "special" Perl names
+      (e.g. STDERR, BEGIN, ...)
+    - Speed up map key encoding
+    - Fix tests on Perl 5.38 (patch by José Joaquín Atria)
+    - Avoid double-destruction when using threads (patch by Joey Korkames)
+
 0.42_01   2023-07-05 15:58:57 CEST
 
     - Add option to treat undef field/map values as if they were
