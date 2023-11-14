@@ -192,6 +192,10 @@ reffed_ptr<OneofDef> DefBuilder::NewOneofDef(const goog::OneofDescriptor* o) {
 #endif
 
 void DefBuilder::Freeze() {
+  // avoid upb using &to_freeze_[0] on an empty vector
+  if (to_freeze_.empty())
+      return;
+
   upb::Status status;
   upb::Def::Freeze(to_freeze_, &status);
   ASSERT_STATUS(&status);
