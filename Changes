@@ -2,6 +2,10 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.42_03   2023-11-14 23:40:15 CET
+
+    - Fix failing assertion with recent versions of GCC standard library
+
 0.42_02   2023-11-13 12:29:58 CET
 
     - Avoid issues with enum vlaues that clash with "special" Perl names
