@@ -5,6 +5,7 @@
 #include <google/protobuf/duration.pb.h>
 #include <google/protobuf/timestamp.pb.h>
 #include <google/protobuf/wrappers.pb.h>
+#include <google/protobuf/io/zero_copy_stream.h>
 
 #include "EXTERN.h"
 #include "perl.h"
@@ -49,6 +50,32 @@ namespace {
     private:
         LogHandler *previous;
     };
+}
+
+SourceTreeDescriptorDatabaseWithFallback::SourceTreeDescriptorDatabaseWithFallback(
+    SourceTree *source_tree, DescriptorDatabase *fallback_database) :
+        source_tree(source_tree),
+        database(source_tree),
+        fallback_database(fallback_database) {
+}
+
+bool SourceTreeDescriptorDatabaseWithFallback::FindFileByName(
+        const std::string& filename,
+        FileDescriptorProto* output) {
+    // this will open the file twice, but I prefer that to copy more of
+    // SourceTreeDescriptorDatabase implementation
+    io::ZeroCopyInputStream *input = source_tree->Open(filename);
+
+    if (input == NULL) {
+        if (fallback_database->FindFileByName(filename, output)) {
+            return true;
+        }
+        // if file is not found, FindFileByName will report the error,
+        // no need to do it here (other than it would be slightly more efficient)
+    }
+
+    delete input;
+    return database.FindFileByName(filename, output);
 }
 
 void DescriptorLoader::CollectMultiFileErrors::AddError(const string &filename, int line, int column, const string &message) {

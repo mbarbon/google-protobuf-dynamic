@@ -152,12 +152,27 @@
 
     const Google::ProtocolBuffers::Dynamic::MessageDef *containing_type() const;
     const Google::ProtocolBuffers::Dynamic::OneofDef *containing_oneof() const;
+#if GOOGLE_PROTOBUF_VERSION >= 3012000
     const Google::ProtocolBuffers::Dynamic::OneofDef *real_containing_oneof() const;
+#else
+    const Google::ProtocolBuffers::Dynamic::OneofDef *real_containing_oneof() const %code{% RETVAL = NULL; %};
+#endif
 
     const Google::ProtocolBuffers::Dynamic::EnumDef *enum_type() const;
     const Google::ProtocolBuffers::Dynamic::MessageDef *message_type() const;
 
+#if GOOGLE_PROTOBUF_VERSION >= 3012000
     bool has_presence() const;
+#else
+    bool has_presence() const %code{%
+       RETVAL =
+           !THIS->is_repeated() && (
+               THIS->cpp_type() == google::protobuf::FieldDescriptor::CppType::CPPTYPE_MESSAGE ||
+               THIS->containing_oneof() ||
+               THIS->file()->syntax() == google::protobuf::FileDescriptor::SYNTAX_PROTO2
+           );
+    %};
+#endif
 
     const Google::ProtocolBuffers::Dynamic::FileDef *file() const;
 
@@ -190,7 +205,11 @@
 
     const Google::ProtocolBuffers::Dynamic::MessageDef *containing_type() const;
 
+#if GOOGLE_PROTOBUF_VERSION >= 3012000
     bool is_synthetic() const;
+#else
+    bool is_synthetic() const %code{% RETVAL = false; %};
+#endif
 
     const Google::ProtocolBuffers::Dynamic::FileDef *file() const;
 
