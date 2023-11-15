@@ -15,6 +15,12 @@ GetOptions(
 
 sub new {
     my $class = shift;
+
+    if (!Alien::ProtoBuf->atleast_version('3.0.0')) {
+        warn sprintf "Protocol Buffers library version 3.0.0 required, %s installed\n", Alien::ProtoBuf->version;
+        exit 0;
+    }
+
     my $debug_flag = $DEBUG ? ' -g' : '';
     my $self = $class->SUPER::new(
         @_,
