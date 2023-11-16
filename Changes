@@ -2,6 +2,13 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.42_04   2023-11-16 11:01:05 CET
+
+    - Fail build for protobuf library version 2 with a clear message
+      (it has not been working for a long time). Note that files with 'proto2'
+      syntax are still supported
+    - Build fix for protobuf 3.6 and older
+
 0.42_03   2023-11-14 23:40:15 CET
 
     - Fix failing assertion with recent versions of GCC standard library
