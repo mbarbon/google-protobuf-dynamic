@@ -231,13 +231,13 @@
     int value_count() const;
 
     SV *find_number_by_name(std::string name) %code{%
-       auto value_descriptor = THIS->FindValueByName(name);
+       const google::protobuf::EnumValueDescriptor *value_descriptor = THIS->FindValueByName(name);
 
        RETVAL = value_descriptor ? newSViv(value_descriptor->number()) : &PL_sv_undef;
     %};
 
     SV *find_name_by_number(int number) %code{%
-       auto value_descriptor = THIS->FindValueByNumber(number);
+       const google::protobuf::EnumValueDescriptor *value_descriptor = THIS->FindValueByNumber(number);
 
        if (value_descriptor) {
            const std::string &name = value_descriptor->name();
@@ -252,7 +252,7 @@
         HV *values = newHV();
 
         for (int i = 0, max = THIS->value_count(); i < max; ++i) {
-            auto value_descriptor = THIS->value(i);
+            const google::protobuf::EnumValueDescriptor *value_descriptor = THIS->value(i);
             const std::string &name = value_descriptor->name();
             SV **value = hv_fetch(values, name.data(), name.size(), 1);
 

@@ -77,7 +77,7 @@ SV *gpd::intr::field_default_value(pTHX_ const FieldDescriptor *field_def) {
     case CppType::CPPTYPE_MESSAGE:
         return &PL_sv_undef;
     case CppType::CPPTYPE_ENUM: {
-        auto enumvalue_def = field_def->default_value_enum();
+        const EnumValueDescriptor *enumvalue_def = field_def->default_value_enum();
 
         return enumvalue_def != NULL ? newSViv(enumvalue_def->number()) : 0;
     }
@@ -236,7 +236,7 @@ SV *DescriptorOptionsWrapper::get_field(const FieldDescriptor *field) {
     case CppType::CPPTYPE_MESSAGE:
         return &PL_sv_undef;
     case CppType::CPPTYPE_ENUM: {
-        auto enumvalue_def = reflection->GetEnum(*options, field);
+        const EnumValueDescriptor *enumvalue_def = reflection->GetEnum(*options, field);
 
         return enumvalue_def != NULL ? newSViv(enumvalue_def->number()) : 0;
     }
