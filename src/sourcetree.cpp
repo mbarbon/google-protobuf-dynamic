@@ -4,6 +4,7 @@
 
 using namespace gpd;
 using namespace std;
+using namespace UMS_NS;
 using namespace google::protobuf;
 using namespace google::protobuf::io;
 using namespace google::protobuf::compiler;
@@ -30,7 +31,7 @@ void MemorySourceTree::AddFile(const string &filename, const char *data, size_t 
 }
 
 ZeroCopyInputStream *MemorySourceTree::Open(const string &filename) {
-    STD_TR1::unordered_map<string, string>::iterator item = sources.find(filename);
+    unordered_map<string, string>::iterator item = sources.find(filename);
     if (item == sources.end())
         return NULL;
 

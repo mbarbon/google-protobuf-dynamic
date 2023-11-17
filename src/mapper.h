@@ -102,7 +102,7 @@ public:
         const Mapper *mapper; // for Message/Group fields
         gpd::transform::DecoderTransform *decoder_transform;
         gpd::transform::EncoderTransform *encoder_transform;
-        STD_TR1::unordered_set<int32_t> enum_values;
+        UMS_NS::unordered_set<int32_t> enum_values;
         int field_index, oneof_index;
         union {
             struct {
@@ -119,7 +119,7 @@ public:
 
         std::string full_name() const;
         upb::FieldDef::Type map_value_type() const;
-        const STD_TR1::unordered_set<int32_t> &map_enum_values() const;
+        const UMS_NS::unordered_set<int32_t> &map_enum_values() const;
 
         bool is_map_key() const { return field_target == TARGET_MAP_KEY; }
         bool is_map_value() const { return field_target == TARGET_MAP_VALUE; }

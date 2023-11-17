@@ -8,6 +8,7 @@
 
 using namespace gpd;
 using namespace std;
+using namespace UMS_NS;
 using namespace google::protobuf;
 using namespace upb;
 using namespace upb::googlepb;
@@ -187,7 +188,7 @@ Dynamic::Dynamic(const string &root_directory) :
 }
 
 Dynamic::~Dynamic() {
-    for (STD_TR1::unordered_map<std::string, const Mapper *>::iterator it = descriptor_map.begin(), en = descriptor_map.end(); it != en; ++it)
+    for (unordered_map<std::string, const Mapper *>::iterator it = descriptor_map.begin(), en = descriptor_map.end(); it != en; ++it)
         it->second->unref();
 }
 
@@ -377,7 +378,7 @@ void Dynamic::map_package_prefix(pTHX_ const string &pb_prefix, const string &pe
 void Dynamic::map_package_or_prefix(pTHX_ const string &pb_package_or_prefix, bool is_prefix, const string &perl_package_prefix, const MappingOptions &options) {
     string prefix_and_dot = pb_package_or_prefix + ".";
 
-    for (STD_TR1::unordered_set<const FileDescriptor *>::iterator it = files.begin(), en = files.end(); it != en; ++it) {
+    for (unordered_set<const FileDescriptor *>::iterator it = files.begin(), en = files.end(); it != en; ++it) {
         const FileDescriptor *file = *it;
         const string &file_package = file->package();
         bool is_exact = false;
@@ -434,7 +435,7 @@ void Dynamic::map_package_or_prefix(pTHX_ const string &pb_package_or_prefix, bo
 void Dynamic::map_message_prefix(pTHX_ const string &message, const string &perl_package_prefix, const MappingOptions &options) {
     const DescriptorPool *pool = descriptor_loader.pool();
     const Descriptor *descriptor = pool->FindMessageTypeByName(message);
-    STD_TR1::unordered_set<std::string> recursed_names;
+    unordered_set<std::string> recursed_names;
 
     if (descriptor == NULL) {
         croak("Unable to find a descriptor for message '%s'", message.c_str());
@@ -500,7 +501,7 @@ std::string Dynamic::pbname_to_package(pTHX_ const std::string &pb_name, const s
     return oss.str();
 }
 
-void Dynamic::map_message_prefix_recursive(pTHX_ const Descriptor *descriptor, const string &perl_package_prefix, const MappingOptions &options, STD_TR1::unordered_set<std::string> &recursed_names) {
+void Dynamic::map_message_prefix_recursive(pTHX_ const Descriptor *descriptor, const string &perl_package_prefix, const MappingOptions &options, unordered_set<std::string> &recursed_names) {
 	// avoid recursion loop
 	if (recursed_names.find(descriptor->full_name()) != recursed_names.end())
 		return;
@@ -829,7 +830,7 @@ void Dynamic::resolve_references() {
 }
 
 const Mapper *Dynamic::find_mapper(const MessageDef *message_def) const {
-    STD_TR1::unordered_map<string, const Mapper *>::const_iterator item = descriptor_map.find(message_def->full_name());
+    unordered_map<string, const Mapper *>::const_iterator item = descriptor_map.find(message_def->full_name());
 
     if (item == descriptor_map.end())
         croak("Unknown type '%s'", message_def->full_name());

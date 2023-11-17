@@ -155,7 +155,7 @@ void DecoderTransformQueue::finish_add_transform(size_t index, int size, Decoder
 }
 
 void DecoderTransformQueue::apply_transforms() {
-    STD_TR1::unordered_set<SV *> already_mapped;
+    UMS_NS::unordered_set<SV *> already_mapped;
     DecoderFieldtable table;
 
     for (std::vector<PendingTransform>::reverse_iterator it = pending_transforms.rbegin(), en = pending_transforms.rend(); it != en; ++it) {

@@ -1,7 +1,8 @@
 #ifndef _GPD_XS_PB_DECODER_INCLUDED
 #define _GPD_XS_PB_DECODER_INCLUDED
 
-#include <unordered_map>
+#include "unordered_map.h"
+
 #include <vector>
 #include <string>
 
@@ -71,7 +72,7 @@ public:
     const Entry *find_field(FieldNumber field) const;
 
 private:
-    typedef std::unordered_map<FieldNumber, struct Entry *> EntryMap;
+    typedef UMS_NS::unordered_map<FieldNumber, struct Entry *> EntryMap;
 
     void add_field(FieldNumber field, FieldType type, bool repeated, const Descriptor *message);
 
@@ -87,7 +88,7 @@ public:
     const Descriptor *get_descriptor(const std::string &message_name) const;
 
 private:
-    typedef std::unordered_map<std::string, Descriptor *> DescriptorMap;
+    typedef UMS_NS::unordered_map<std::string, Descriptor *> DescriptorMap;
 
     DescriptorMap descriptors;
 };
@@ -124,7 +125,7 @@ public:
 
 private:
     typedef std::vector<Entry> FieldVector;
-    typedef std::unordered_map<FieldNumber, Entry> FieldMap;
+    typedef UMS_NS::unordered_map<FieldNumber, Entry> FieldMap;
 
 public:
     DecoderFieldData(const Descriptor *_descriptor) {

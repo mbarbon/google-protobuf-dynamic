@@ -29,7 +29,7 @@ public:
     virtual google::protobuf::io::ZeroCopyInputStream *Open(const std::string &filename);
 
 private:
-    STD_TR1::unordered_map<std::string, std::string> sources;
+    UMS_NS::unordered_map<std::string, std::string> sources;
 };
 
 }

@@ -50,7 +50,7 @@ public:
 
 }
 
-namespace STD_TR1 {
+UMS_NS_START
 
 template<>
 struct hash<gpd::PerlString> {
@@ -59,7 +59,7 @@ struct hash<gpd::PerlString> {
     }
 };
 
-};
+UMS_NS_END
 
 namespace gpd {
 
@@ -68,8 +68,8 @@ template<class T> class FieldMap;
 class FieldMapImpl {
     template<class T> friend class FieldMap;
 
-    typedef STD_TR1::unordered_map<PerlString, void *> NameMap;
-    typedef STD_TR1::unordered_map<unsigned int, void *> NumberMap;
+    typedef UMS_NS::unordered_map<PerlString, void *> NameMap;
+    typedef UMS_NS::unordered_map<unsigned int, void *> NumberMap;
     typedef std::vector<void *> NumberVector;
 
     FieldMapImpl() {

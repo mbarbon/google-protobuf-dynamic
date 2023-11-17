@@ -11,6 +11,7 @@
 using namespace gpd;
 using namespace gpd::transform;
 using namespace std;
+using namespace UMS_NS;
 using namespace upb;
 using namespace upb::pb;
 using namespace upb::json;
@@ -204,7 +205,7 @@ FieldDef::Type Mapper::Field::map_value_type() const {
     return mapper->fields[mapper->map_value_index].field_def->type();
 }
 
-const STD_TR1::unordered_set<int32_t> &Mapper::Field::map_enum_values() const {
+const unordered_set<int32_t> &Mapper::Field::map_enum_values() const {
     return mapper->fields[mapper->map_value_index].enum_values;
 }
 
@@ -3052,7 +3053,7 @@ void MapperField::copy_value(SV *target, SV *value) {
         break;
     case UPB_TYPE_ENUM: {
         I32 i32 = SvIV(value);
-        const STD_TR1::unordered_set<int32_t> &enum_values = field->is_map ?
+        const unordered_set<int32_t> &enum_values = field->is_map ?
             field->map_enum_values() :
             field->enum_values;
         if (enum_values.size() &&
