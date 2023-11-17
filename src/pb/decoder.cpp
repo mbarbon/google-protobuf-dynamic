@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <csignal>
+#include <cassert>
 #include <algorithm>
 
 using namespace std;
@@ -285,6 +286,9 @@ bool gpd::pb::Decoder::parse_packed_field_internal() {
             return set_error("Invalid/truncated 32-bit fixed size packed field value");
         }
         break;
+    case WIRE_LEN_DELIMITED:
+        assert(false); // precondition: you can't pack a len delimited field
+        return false;
     }
 
     return true;

@@ -6,6 +6,8 @@
 #include <upb/pb/encoder.h>
 #include <upb/pb/decoder.h>
 
+#include <cassert>
+
 using namespace gpd;
 using namespace gpd::transform;
 using namespace std;
@@ -1616,6 +1618,9 @@ bool Mapper::run_bbpb_decoder(Mapper *root_mapper, const char *buffer, STRLEN bu
             case FieldData::STORE_STRING_MAP_MESSAGE:
                 DecoderHandlers::on_end_string_map_entry(decoder_callbacks, &entry->data.index);
                 break;
+            default:
+                assert(false); // precondition: end of a message can be only for message/map entry
+                return false;
             }
         }
             break;
@@ -1627,6 +1632,9 @@ bool Mapper::run_bbpb_decoder(Mapper *root_mapper, const char *buffer, STRLEN bu
             }
         }
             return false;
+        case gpd::pb::TOKEN_UNKNOWN_FIELD:
+            // do nothing for now
+            break;
         }
     }
 
@@ -2734,6 +2742,9 @@ void Mapper::apply_default(const Field &field, SV *target) const {
         break;
     case UPB_TYPE_UINT64:
         sv_setuv(target, field.field_def->default_uint64());
+        break;
+    case UPB_TYPE_MESSAGE:
+        // no default for messages
         break;
     }
 }

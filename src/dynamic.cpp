@@ -522,6 +522,9 @@ void Dynamic::map_message_prefix_recursive(pTHX_ const Descriptor *descriptor, c
 				map_enum(aTHX_ enumm, perl_package, options);
 			}
 			break;
+                default:
+                    // nothing to do; suppress warning
+                    break;
 		}
 
 	}
