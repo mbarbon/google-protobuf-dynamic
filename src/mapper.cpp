@@ -562,7 +562,7 @@ namespace {
         XPUSHs(sv_2mortal(newSVpvn(negative ? buffer : buffer + 1, negative ? 19 : 18)));
         PUTBACK;
 
-        int count = call_method("new", G_SCALAR);
+        call_method("new", G_SCALAR);
 
         SPAGAIN;
         SV *res = POPs;
@@ -623,7 +623,6 @@ bool Mapper::DecoderHandlers::on_numeric_bool(DecoderHandlers *cxt, const int *f
 }
 
 bool Mapper::DecoderHandlers::on_json_bool(DecoderHandlers *cxt, const int *field_index, bool val) {
-    THX_DECLARE_AND_GET;
     const Mapper *mapper = cxt->mappers.back();
 
     cxt->mark_seen(field_index);
@@ -1657,7 +1656,7 @@ namespace {
         XPUSHs(src);
         PUTBACK;
 
-        int count = call_method("as_hex", G_SCALAR);
+        call_method("as_hex", G_SCALAR);
 
         SPAGAIN;
         SV *res = POPs;
@@ -2496,7 +2495,6 @@ bool Mapper::encode_from_perl_hash(EncoderState &state, const Field &fd, SV *ref
         SV *value = HeVAL(entry);
         const char *key;
         STRLEN keylen;
-        bool needs_free = false;
 
         if (ignore_undef_fields && !SvOK(value))
             continue;

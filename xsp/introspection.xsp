@@ -155,7 +155,7 @@
 #if GOOGLE_PROTOBUF_VERSION >= 3012000
     const Google::ProtocolBuffers::Dynamic::OneofDef *real_containing_oneof() const;
 #else
-    const Google::ProtocolBuffers::Dynamic::OneofDef *real_containing_oneof() const %code{% RETVAL = NULL; %};
+    const Google::ProtocolBuffers::Dynamic::OneofDef *real_containing_oneof() const %code{% PERL_UNUSED_VAR(THIS); RETVAL = NULL; %};
 #endif
 
     const Google::ProtocolBuffers::Dynamic::EnumDef *enum_type() const;
@@ -208,7 +208,7 @@
 #if GOOGLE_PROTOBUF_VERSION >= 3012000
     bool is_synthetic() const;
 #else
-    bool is_synthetic() const %code{% RETVAL = false; %};
+    bool is_synthetic() const %code{% PERL_UNUSED_VAR(THIS); RETVAL = false; %};
 #endif
 
     const Google::ProtocolBuffers::Dynamic::FileDef *file() const;
@@ -365,7 +365,7 @@
 #undef GPD_INTROSPECTION_RETURN_ARRAY
 
 const Google::ProtocolBuffers::Dynamic::MessageDef*
-message_descriptor(SV *klass)
+message_descriptor(SV *)
   INIT:
     google::protobuf::Descriptor *descriptor = (google::protobuf::Descriptor *) CvXSUBANY(cv).any_ptr;
   CODE:
@@ -373,7 +373,7 @@ message_descriptor(SV *klass)
   OUTPUT: RETVAL
 
 const Google::ProtocolBuffers::Dynamic::EnumDef*
-enum_descriptor(SV *klass)
+enum_descriptor(SV *)
   INIT:
     google::protobuf::EnumDescriptor *descriptor = (google::protobuf::EnumDescriptor *) CvXSUBANY(cv).any_ptr;
   CODE:
@@ -387,7 +387,7 @@ constant()
   OUTPUT: RETVAL
 
 const Google::ProtocolBuffers::Dynamic::ServiceDef*
-service_descriptor(SV *klass)
+service_descriptor(SV *)
   INIT:
     google::protobuf::ServiceDescriptor *descriptor = (google::protobuf::ServiceDescriptor *) CvXSUBANY(cv).any_ptr;
   CODE:
