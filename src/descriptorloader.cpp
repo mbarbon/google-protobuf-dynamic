@@ -15,6 +15,19 @@ using namespace google::protobuf;
 using namespace gpd;
 using namespace std;
 
+#if __cplusplus < 201103L
+namespace {
+    string to_string(int value) {
+        char buffer[30];
+
+        // only used for error handling, so it does not have to be performant
+        sprintf(buffer, "%d", value);
+
+        return buffer;
+    }
+}
+#endif
+
 namespace {
     void PerlLogHandler(LogLevel level, const char *filename, int line,
                         const std::string &message) {
