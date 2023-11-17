@@ -12,7 +12,8 @@ void MapperContext::clear() {
 MapperContext::Item &MapperContext::push_level(Kind kind) {
     // implemented this way to reuse memory as much as possible
     if (next_level == level_storage.end()) {
-        level_storage.push_back(Item(kind, nextId++, &nextId));
+        nextId++;
+        level_storage.push_back(Item(kind, nextId, &nextId));
         return level_storage.back();
     }
 
