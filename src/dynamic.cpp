@@ -514,13 +514,14 @@ void Dynamic::map_message_prefix_recursive(pTHX_ const Descriptor *descriptor, c
 			map_message_prefix_recursive(aTHX_ message, perl_package_prefix, options, recursed_names);
 			break;
 		}
-		case FieldDescriptor::Type::TYPE_ENUM:
+		case FieldDescriptor::Type::TYPE_ENUM: {
 			const EnumDescriptor *enumm = field->enum_type();
 			if (mapped_enums.find(enumm->full_name()) == mapped_enums.end()) {
 				std::string perl_package =
 					pbname_to_package(aTHX_ enumm->full_name(), perl_package_prefix);
 				map_enum(aTHX_ enumm, perl_package, options);
 			}
+                }
 			break;
                 default:
                     // nothing to do; suppress warning
