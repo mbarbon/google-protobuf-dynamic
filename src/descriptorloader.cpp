@@ -64,7 +64,7 @@ bool SourceTreeDescriptorDatabaseWithFallback::FindFileByName(
         FileDescriptorProto* output) {
     // this will open the file twice, but I prefer that to copy more of
     // SourceTreeDescriptorDatabase implementation
-    io::ZeroCopyInputStream *input = source_tree->Open(filename);
+    google::protobuf::io::ZeroCopyInputStream *input = source_tree->Open(filename);
 
     if (input == NULL) {
         if (fallback_database->FindFileByName(filename, output)) {
