@@ -46,9 +46,9 @@ namespace {
 
 Mapper::DecoderHandlers::DecoderHandlers(pTHX_ const Mapper *mapper) :
         target_ref(NULL),
+        pending_transforms(aTHX),
         decoder_transform(NULL),
-        decoder_transform_fieldtable(false),
-        pending_transforms(aTHX) {
+        decoder_transform_fieldtable(false) {
     SET_THX_MEMBER;
     mappers.push_back(mapper);
 }
@@ -730,15 +730,15 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const g
         registry(_registry),
         message_def(_message_def),
         gpd_descriptor(_gpd_descriptor),
+        stash(_stash),
         encoder_state(&status, &mapper_context),
+        decoder_callbacks(aTHX_ this),
         decoder_field_data(_gpd_descriptor),
         encoder_transform(NULL),
         encoder_transform_fieldtable(false),
         unknown_field_transform(NULL),
-        stash(_stash),
-        json_true(NULL),
         json_false(NULL),
-        decoder_callbacks(aTHX_ this) {
+        json_true(NULL) {
     SET_THX_MEMBER;
 
     SvREFCNT_inc(stash);

@@ -85,6 +85,7 @@ private:
     CollectMultiFileErrors multifile_error_collector;
     OverlaySourceTree overlay_source_tree;
     MemorySourceTree memory_source_tree;
+    google::protobuf::DescriptorPoolDatabase generated_database;
     google::protobuf::compiler::DiskSourceTree disk_source_tree;
 #if GOOGLE_PROTOBUF_VERSION >= 3007000
     google::protobuf::compiler::SourceTreeDescriptorDatabase source_database;
@@ -92,7 +93,6 @@ private:
     SourceTreeDescriptorDatabaseWithFallback source_database;
 #endif
     google::protobuf::SimpleDescriptorDatabase binary_database;
-    google::protobuf::DescriptorPoolDatabase generated_database;
     google::protobuf::MergedDescriptorDatabase merged_source_binary_database;
     google::protobuf::DescriptorPool merged_pool;
 };

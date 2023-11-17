@@ -94,7 +94,6 @@ namespace {
 MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
         use_bigints(sizeof(IV) < sizeof(int64_t)),
         check_required_fields(true),
-        ignore_undef_fields(false),
         explicit_defaults(false),
         encode_defaults(false),
         encode_defaults_proto3(false),
@@ -102,12 +101,13 @@ MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
         generic_extension_methods(true),
         implicit_maps(false),
         decode_blessed(true),
+        fail_ref_coercion(false),
         no_redefine_perl_names(false),
+        ignore_undef_fields(false),
+        boolean_style(Perl),
         accessor_style(GetAndSet),
         client_services(Disable),
-        boolean_style(Perl),
-        default_decoder(Upb),
-        fail_ref_coercion(false) {
+        default_decoder(Upb) {
     stack_trace = get_stack_trace(aTHX);
 
     if (options_ref == NULL || !SvOK(options_ref))
