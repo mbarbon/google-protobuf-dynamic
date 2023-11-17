@@ -23,6 +23,10 @@ using namespace upb::json;
 
 #define HAS_FULL_NOMG (PERL_VERSION >= 14)
 
+#if PERL_VERSION < 18
+#    define SvREFCNT_dec_NN SvREFCNT_dec
+#endif
+
 namespace {
     void unref_on_scope_leave(void *ref) {
         ((Refcounted *) ref)->unref();
