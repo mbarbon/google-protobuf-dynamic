@@ -2,6 +2,12 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.42_05   2023-11-23 22:36:27 CET
+
+    - Added --help/--man to protoc plugins, in case they are called directly
+    - Compilation fix for Perl 5.16 or older
+    - Compilation fix for old C++ compilers
+
 0.42_04   2023-11-16 11:01:05 CET
 
     - Fail build for protobuf library version 2 with a clear message
