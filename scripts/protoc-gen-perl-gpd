@@ -1,6 +1,7 @@
 #!/usr/bin/env perl
 use Google::ProtocolBuffers::Dynamic::ProtocPlugin
-    run => 'Google::ProtocolBuffers::Dynamic::MakeModule';
+    help => 'podusage',
+    run  => 'Google::ProtocolBuffers::Dynamic::MakeModule';
 
 exit 0;
 
