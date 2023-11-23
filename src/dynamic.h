@@ -88,7 +88,7 @@ public:
     const Mapper *find_mapper(const upb::MessageDef *message_def) const;
 
     static bool is_proto3() {
-        return GOOGLE_PROTOBUF_VERSION >= 3000000;
+        return GOOGLE_PROTOBUF_VERSION >= 3000000; // always true
     }
 
     static bool has_proto3_optional() {

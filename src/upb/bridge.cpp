@@ -20,10 +20,6 @@
 #include <google/protobuf/descriptor.pb.h>
 namespace goog = ::google::protobuf;
 
-#if GOOGLE_PROTOBUF_VERSION >= 2006000
-#define GOOGLE_PROTOBUF_HAS_ONEOF
-#endif
-
 #if GOOGLE_PROTOBUF_VERSION >= 3012000
 #define GOOGLE_PROTOBUF_HAS_PROTO3_OPTIONAL
 #endif
@@ -64,12 +60,11 @@ const MessageDef* DefBuilder::GetMaybeUnfrozenMessageDef(
   md->set_full_name(d->full_name(), &status);
   ASSERT_STATUS(&status);
 
-#if GOOGLE_PROTOBUF_VERSION >= 3000000
   upb_msgdef_setmapentry(md, d->options().map_entry());
   if (d->file()->syntax() == goog::FileDescriptor::SYNTAX_PROTO3) {
     upb_msgdef_setsyntax(md, UPB_SYNTAX_PROTO3);
   }
-#endif
+
   // Find all regular fields and extensions for this message.
   std::vector<const goog::FieldDescriptor*> fields;
   d->file()->pool()->FindAllExtensions(d, &fields);
@@ -77,7 +72,6 @@ const MessageDef* DefBuilder::GetMaybeUnfrozenMessageDef(
     fields.push_back(d->field(i));
   }
 
-#ifdef GOOGLE_PROTOBUF_HAS_ONEOF
   // Oneof fields
   for (int i = 0, maxi = d->oneof_decl_count(); i < maxi; ++i) {
     const goog::OneofDescriptor *proto2_oneof = d->oneof_decl(i);
@@ -92,16 +86,15 @@ const MessageDef* DefBuilder::GetMaybeUnfrozenMessageDef(
     }
     md->AddOneof(oneof, &status);
   }
-#endif
 
   for (size_t i = 0; i < fields.size(); i++) {
     const goog::FieldDescriptor* proto2_f = fields[i];
     UPB_ASSERT(proto2_f);
-#ifdef GOOGLE_PROTOBUF_HAS_ONEOF
+
     // already added when adding the containing oneof
     if (proto2_f->containing_oneof())
       continue;
-#endif
+
     md->AddField(NewFieldDef(proto2_f, m), &status);
   }
   ASSERT_STATUS(&status);
@@ -179,7 +172,6 @@ reffed_ptr<FieldDef> DefBuilder::NewFieldDef(const goog::FieldDescriptor* f,
   return upb_f;
 }
 
-#ifdef GOOGLE_PROTOBUF_HAS_ONEOF
 reffed_ptr<OneofDef> DefBuilder::NewOneofDef(const goog::OneofDescriptor* o) {
   reffed_ptr<OneofDef> upb_o(OneofDef::New());
   Status status;
@@ -189,7 +181,6 @@ reffed_ptr<OneofDef> DefBuilder::NewOneofDef(const goog::OneofDescriptor* o) {
   ASSERT_STATUS(&status);
   return upb_o;
 }
-#endif
 
 void DefBuilder::Freeze() {
   // avoid upb using &to_freeze_[0] on an empty vector
