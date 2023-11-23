@@ -1,4 +1,4 @@
-use t::lib::Test 'proto3';
+use t::lib::Test;
 
 use constant {
     true  => !!1,

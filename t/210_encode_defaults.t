@@ -114,7 +114,7 @@ my $fixed_proto3_syntax = !Alien::uPB::Core->VERSION || Alien::uPB::Core->VERSIO
     );
 }
 
-if (Google::ProtocolBuffers::Dynamic::is_proto3()) {
+{
     my $d = Google::ProtocolBuffers::Dynamic->new('t/proto');
     $d->load_file("defaults_proto3.proto");
     $d->map({ package => 'test', prefix => 'Test3', options => { encode_defaults => 0 } });
@@ -135,7 +135,7 @@ if (Google::ProtocolBuffers::Dynamic::is_proto3()) {
     );
 }
 
-if (Google::ProtocolBuffers::Dynamic::is_proto3() && $fixed_proto3_syntax) {
+if ($fixed_proto3_syntax) {
     my $d = Google::ProtocolBuffers::Dynamic->new('t/proto');
     $d->load_file("defaults_proto3.proto");
     $d->map({ package => 'test', prefix => 'Test4', options => { encode_defaults => 1 } });
@@ -156,7 +156,7 @@ if (Google::ProtocolBuffers::Dynamic::is_proto3() && $fixed_proto3_syntax) {
     );
 }
 
-if (Google::ProtocolBuffers::Dynamic::is_proto3() && $fixed_proto3_syntax) {
+if ($fixed_proto3_syntax) {
     my $d = Google::ProtocolBuffers::Dynamic->new('t/proto');
     $d->load_file("defaults_proto3.proto");
     $d->map({ package => 'test', prefix => 'Test5', options => { encode_defaults_proto3 => 1 } });

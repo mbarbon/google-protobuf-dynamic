@@ -1,4 +1,4 @@
-use t::lib::Test 'proto3';
+use t::lib::Test;
 
 use Google::ProtocolBuffers::Dynamic qw(:descriptor :values);
 

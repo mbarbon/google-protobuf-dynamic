@@ -1,4 +1,4 @@
-use t::lib::Test 'proto3';
+use t::lib::Test;
 
 my $d = Google::ProtocolBuffers::Dynamic->new('t/proto');
 $d->load_file("map.proto");
