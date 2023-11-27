@@ -18,6 +18,16 @@ my @no_blessed = (options => { decode_blessed => 0 });
         Test1::Int32ArrayArray->set_encoder_options($add_repeated_wrapper);
     }
 
+    # invalid value for wrapper
+    throws_ok(
+        sub {
+            Test1::ContainerMessage->encode({
+                array_wrapper => { a => 2, b => 3 },
+            });
+        },
+        qr/Not an array reference when encoding field 'test.Int32ArrayArray.values'/
+    );
+
     # nested messages
     eq_or_diff(Test1::ContainerMessage->decode(Test1::ContainerMessage->encode({
         array_wrapper => [[1, 2], [3, 4]],

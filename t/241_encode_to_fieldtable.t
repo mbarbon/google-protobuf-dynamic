@@ -78,4 +78,19 @@ use t::lib::Test;
     );
 }
 
+# trahsformation fails
+{
+    my $mtt = $Google::ProtocolBuffers::Dynamic::Fieldtable::debug_encoder_transform;
+
+    my $d = Google::ProtocolBuffers::Dynamic->new('t/proto');
+    $d->load_file("person3.proto");
+    $d->map({ package => 'test', 'prefix' => 'Test4', options => { decode_blessed => 0 } });
+    Test4::Person3->set_encoder_options({ fieldtable => 1, transform => $mtt });
+
+    my $person_bytes = Test4::Person3->encode([
+    ]);
+
+    eq_or_diff($person_bytes, '');
+}
+
 done_testing();
