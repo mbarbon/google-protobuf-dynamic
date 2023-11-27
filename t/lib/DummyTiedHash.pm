@@ -9,7 +9,7 @@ our @ISA = qw(Tie::StdHash);
 sub TIEHASH {
     my ($class, $init) = @_;
 
-    return bless { value => ($init || {}), count => 0 }, $class;
+    return bless { value => ($init || {}), count => 0, keys => [] }, $class;
 }
 
 sub FETCH {
@@ -20,6 +20,19 @@ sub FETCH {
 
 sub EXISTS {
     return exists $_[0]->{value}{$_[1]};
+}
+
+sub FIRSTKEY {
+    $_[0]->{count}++;
+    $_[0]->{keys} = [keys %{$_[0]->{value}}];
+
+    return shift @{$_[0]->{keys}};
+}
+
+sub NEXTKEY {
+    $_[0]->{count}++;
+
+    return shift @{$_[0]->{keys}};
 }
 
 sub fetch_count {
