@@ -45,6 +45,9 @@ public:
             len = abs(HeKLEN(he));
         }
         hash = HeHASH(he);
+        if (UNLIKELY(!hash)) {
+            PERL_HASH(hash, buffer, len);
+        }
     }
 };
 

@@ -2221,6 +2221,7 @@ bool Mapper::encode_simple_message_iterate_hash(EncoderState &state, SV *ref) co
     TrackOneof track_oneof(oneof_count);
     TrackSeen track_seen(check_required_fields, fields);
 
+    bool magical = SvMAGICAL((SV *) hv);
     hv_iterinit(hv);
 
     MapperContext::Item &mapper_cxt = state.mapper_context->push_level(hv, MapperContext::Message);
@@ -2230,15 +2231,17 @@ bool Mapper::encode_simple_message_iterate_hash(EncoderState &state, SV *ref) co
         const Field *it = field_map.find_by_name(aTHX_ entry);
 
         if (it == NULL) {
-            UnknownFieldContext context;
+            if (unknown_field_transform) {
+                UnknownFieldContext context;
 
-            state.mapper_context->fill_context(&context.mapper_context, &context.size);
-            unknown_field_transform->transform(aTHX_ &context, HeVAL(entry));
+                state.mapper_context->fill_context(&context.mapper_context, &context.size);
+                unknown_field_transform->transform(aTHX_ &context, HeVAL(entry));
+            }
 
             continue;
         }
 
-        SV *value = HeVAL(entry);
+        SV *value = UNLIKELY(magical) ? hv_iterval(hv, entry) : HeVAL(entry);
 #if HAS_FULL_NOMG
         SvGETMAGIC(value);
 #endif

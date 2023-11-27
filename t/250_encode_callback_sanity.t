@@ -14,8 +14,11 @@ my @no_blessed = (options => { decode_blessed => 0 });
         # the extra scope is to test proper reference counting of callbacks
         my $key = 'values';
         my $add_repeated_wrapper = { transform => sub { $_[0] = { $key => $_[1] } } };
+        my $add_tied_map_wrapper = { transform => sub { $_[0] = tied_hash($key => $_[1]) } };
+
         Test1::Int32Array->set_encoder_options($add_repeated_wrapper);
         Test1::Int32ArrayArray->set_encoder_options($add_repeated_wrapper);
+        Test1::StringInt32MapTied->set_encoder_options($add_tied_map_wrapper);
     }
 
     # invalid value for wrapper
@@ -45,6 +48,17 @@ my @no_blessed = (options => { decode_blessed => 0 });
         [1, 2, 3]
     )), {
         values => [1, 2, 3],
+    });
+
+    # tied map value
+    eq_or_diff(Test1::ContainerMessage->decode(Test1::ContainerMessage->encode({
+        tied_map_wrapper => { a => 1 },
+    })), {
+        tied_map_wrapper => {
+            values => {
+                a => 1,
+            },
+        },
     });
 }
 

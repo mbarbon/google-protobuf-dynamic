@@ -10,9 +10,14 @@ message Int32ArrayArray {
     repeated Int32Array values = 1;
 }
 
+message StringInt32MapTied {
+    map<string, int32> values = 1;
+}
+
 message ContainerMessage {
     ItemMessage scalar = 1;
     Int32ArrayArray array_wrapper = 2;
+    StringInt32MapTied tied_map_wrapper = 3;
 }
 
 message ItemMessage {
