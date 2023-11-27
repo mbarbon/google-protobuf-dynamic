@@ -2,10 +2,10 @@ syntax = "proto3";
 
 package test;
 
-enum Enum {
-    UNKNOWN = 0;
-    FIRST = 1;
-    SECOND = 2;
+enum MapEnum {
+    M_UNKNOWN = 0;
+    M_FIRST = 1;
+    M_SECOND = 2;
 }
 
 message Maps {
@@ -13,7 +13,7 @@ message Maps {
     map<int32, string> int32_string_map = 2;
     map<int32, bool> int32_bool_map = 3;
     map<bool, int32> bool_int32_map = 4;
-    map<int32, Enum> int32_enum_map = 5;
+    map<int32, MapEnum> int32_enum_map = 5;
     map<int32, Item> int32_message_map = 6;
     map<string, StringMap> string_string_map_map = 7;
     map<uint32, bool> uint32_bool_map = 8;

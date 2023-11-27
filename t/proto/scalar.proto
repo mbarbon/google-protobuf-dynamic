@@ -2,10 +2,10 @@ syntax = "proto2";
 
 package test;
 
-enum Enum {
-    FIRST = 1;
-    SECOND = 2;
-    THIRD = 3;
+enum ScalarEnum {
+    S_FIRST = 1;
+    S_SECOND = 2;
+    S_THIRD = 3;
 }
 
 message Basic {
@@ -18,7 +18,7 @@ message Basic {
     optional bool bool_f = 7;
     optional string string_f = 8;
     optional bytes bytes_f = 9;
-    optional Enum enum_f = 10;
+    optional ScalarEnum enum_f = 10;
     optional sint32 sint32_f = 11;
     optional sint64 sint64_f = 12;
     optional fixed32 fixed32_f = 13;
@@ -37,7 +37,7 @@ message Default {
     optional bool bool_f = 7 [default = true];
     optional string string_f = 8 [default = "a string"];
     optional bytes bytes_f = 9 [default = "some bytes"];
-    optional Enum enum_f = 10 [default = THIRD];
+    optional ScalarEnum enum_f = 10 [default = S_THIRD];
     optional sint32 sint32_f = 11 [default = -7];
     optional sint64 sint64_f = 12 [default = -8];
     optional fixed32 fixed32_f = 13 [default = 9];

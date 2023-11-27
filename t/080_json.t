@@ -20,7 +20,7 @@ my %scalar_values = (
     bool_f      => [1, '{"boolF":true}'],
     string_f    => ["\x{101f}", "{\"stringF\":\"\xe1\x80\x9f\"}"],
     bytes_f     => ["\xe1\x80\x9f", '{"bytesF":"4YCf"}'],
-    enum_f      => [2, '{"enumF":"SECOND"}'],
+    enum_f      => [2, '{"enumF":"S_SECOND"}'],
 );
 
 my %repeated_values = (

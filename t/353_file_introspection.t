@@ -28,7 +28,7 @@ is($scalar_file->name, 'scalar.proto');
     my $enums = $scalar_file->enums;
 
     isa_ok($_, 'Google::ProtocolBuffers::Dynamic::EnumDef') for @$enums;
-    eq_or_diff([map $_->name, @$enums], [qw(Enum)]);
+    eq_or_diff([map $_->name, @$enums], [qw(ScalarEnum)]);
 }
 
 my $service_file = Test::Greeter->service_descriptor->file;
