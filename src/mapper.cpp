@@ -2496,6 +2496,7 @@ bool Mapper::encode_from_perl_hash(EncoderState &state, const Field &fd, SV *ref
     if (!sink->StartSequence(fd.selector.seq_start, &repeated))
         return false;
 
+    bool magical = SvMAGICAL((SV *) hash);
     hv_iterinit(hash);
     MapperContext::Item &mapper_cxt = state.mapper_context->push_level(hash, MapperContext::Hash);
 
@@ -2505,7 +2506,7 @@ bool Mapper::encode_from_perl_hash(EncoderState &state, const Field &fd, SV *ref
     while (HE *entry = hv_iternext(hash)) {
         Sink key_value;
         EncoderState key_value_state(state, &key_value);
-        SV *value = HeVAL(entry);
+        SV *value = UNLIKELY(magical) ? hv_iterval(hash, entry) : HeVAL(entry);
         const char *key;
         STRLEN keylen;
 

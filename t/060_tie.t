@@ -3,11 +3,15 @@ use t::lib::Test;
 my $d = Google::ProtocolBuffers::Dynamic->new('t/proto');
 $d->load_file("scalar.proto");
 $d->load_file("repeated.proto");
+$d->load_file("map.proto");
 $d->load_file("message.proto");
 $d->map_message("test.Basic", "Basic", { check_enum_values => 0 });
 $d->map_message("test.Repeated", "Repeated");
 $d->map_message("test.Inner", "Inner");
 $d->map_message("test.OuterWithMessage", "OuterWithMessage");
+$d->map_message("test.StringMap", "StringMap");
+$d->map_message("test.Item", "MapItem");
+$d->map_message("test.Maps", "Maps");
 $d->resolve_references();
 
 {
@@ -88,5 +92,20 @@ $d->resolve_references();
     });
 }
 
-done_testing();
+{
+    my $tied = {
+        string_int32_map => tied_hash(a => 19),
+    };
 
+    eq_or_diff(Maps->encode($tied), "\x0a\x05\x0a\x01a\x10\x13");
+    eq_or_diff(tied_fetch_count($tied), {
+        string_int32_map => {
+            count => 3, # firstkey + nextkey + fetch
+            inner => {
+                a     => -1,
+            },
+        }
+    });
+}
+
+done_testing();
