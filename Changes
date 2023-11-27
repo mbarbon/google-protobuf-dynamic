@@ -2,6 +2,10 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.42_06   2023-11-27 14:59:01 CET
+
+    - Fix encoding of tied/magical hashes as protobuf maps
+
 0.42_05   2023-11-23 22:36:27 CET
 
     - Added --help/--man to protoc plugins, in case they are called directly
