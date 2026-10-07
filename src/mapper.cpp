@@ -255,7 +255,8 @@ Mapper::DecoderHandlers *Mapper::DecoderHandlers::on_start_string(DecoderHandler
 
     cxt->mark_seen(field_index);
     cxt->string = cxt->get_target(field_index);
-    sv_grow(cxt->string, size_hint + 1);
+    char *pv = sv_grow(cxt->string, size_hint + 1);
+    pv[0] = 0; // this is for the case when on_append_string is never called
     SvPOK_on(cxt->string);
     SvCUR_set(cxt->string, 0);
 
