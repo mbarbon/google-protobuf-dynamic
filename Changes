@@ -2,6 +2,10 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.44      2026-10-07 10:07:48 CEST
+
+    - Fix decoding of empty hash keys on Perl 5.42 (patch by Philippe Bruhat)
+
 0.43      2024-06-04 11:23:51 CEST
 
     - Release 0.42_07 as stable without changes
