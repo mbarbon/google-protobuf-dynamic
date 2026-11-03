@@ -2,6 +2,10 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.44_01   2026-11-03 16:53:43 CET
+
+    - Blind fix for crash when decoding empty hash key
+
 0.44      2026-10-07 10:07:48 CEST
 
     - Fix decoding of empty hash keys on Perl 5.42 (patch by Philippe Bruhat)
