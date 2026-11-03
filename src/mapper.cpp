@@ -487,7 +487,9 @@ bool Mapper::DecoderHandlers::on_end_string_map_entry(DecoderHandlers *cxt, cons
 
         // Scanning through the string in order to set the correct flags makes
         // hv_common flaster and is an overall win, as silly as it might seem
-        int flags = is_invariant_string((const U8 *) key_buffer, key_len) ? 0 : HVhek_UTF8;
+        int flags = 0;
+        if (key_len > 0 && is_invariant_string((const U8 *) key_buffer, key_len))
+            flags = HVhek_UTF8;
         hv_common(hash, NULL,
                   key_buffer, key_len,
                   flags, HV_FETCH_ISSTORE, value, 0);
