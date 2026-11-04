@@ -2528,7 +2528,7 @@ bool Mapper::encode_from_perl_hash(EncoderState &state, const Field &fd, SV *ref
             //
             // For non-string keys do not care much about the actual encoding, as
             // they are either invariant or invalid.
-            if (!HeKUTF8(entry) && need_unicode &&
+            if (!HeKUTF8(entry) && need_unicode && keylen > 0 &&
                     !is_invariant_string((const U8 *) key, keylen)) {
                 key = (const char *) bytes_to_utf8((U8*) HeKEY(entry), &keylen);
                 SAVEFREEPV(key);
