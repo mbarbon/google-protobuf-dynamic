@@ -384,7 +384,11 @@ enum_descriptor(SV *)
 UV
 constant()
   CODE:
+#if PERL_VERSION >= 14
     RETVAL = CvXSUBANY(cv).any_uv;
+#else
+    RETVAL = (UV) CvXSUBANY(cv).any_iv;
+#endif
   OUTPUT: RETVAL
 
 const Google::ProtocolBuffers::Dynamic::ServiceDef*

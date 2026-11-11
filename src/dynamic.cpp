@@ -21,6 +21,10 @@ using namespace upb::googlepb;
     #define newXS(a, b, c) Perl_newXS(aTHX_ const_cast<char *>(a), b, const_cast<char *>(c))
 #endif
 
+#if PERL_VERSION < 14
+    #define GvCV_set(gv, cv) (GvCV(gv) = (cv))
+#endif
+
 namespace {
     SV *get_stack_trace(pTHX) {
         dSP;
@@ -264,7 +268,11 @@ namespace {
 
         CV *src = get_cv(xsubname, 0);
         CV *new_xs = newXS((perl_package + "::" + target + "*").c_str(), CvXSUB(src), __FILE__);
+#if PERL_VERSION >= 14
         CvXSUBANY(new_xs).any_uv = value;
+#else
+        CvXSUBANY(new_xs).any_iv = (IV) value;
+#endif
 
         GV *gv = gv_fetchpv((perl_package + "::" + target).c_str(),
                             GV_ADD, SVt_PVCV);

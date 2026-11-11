@@ -39,7 +39,7 @@ for my $name (sort keys %$values) {
 EOT
 
     eval $code or do {
-        my $err = $@ // "Zombie error";
+        my $err = defined $@ ? $@ : "Zombie error";
         fail 'eval failed';
         diag $err;
     };

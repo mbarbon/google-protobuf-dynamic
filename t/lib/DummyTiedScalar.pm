@@ -35,7 +35,7 @@ sub inner_fetch_count {
         };
     } elsif (ref $_[0] eq 'ARRAY') {
         return tied(@{$_[0]})->fetch_count if tied(@{$_[0]});
-        return [map inner_fetch_count($_), @{$_[0]}]
+        return [map inner_fetch_count($_[0]->[$_]), 0 .. $#{$_[0]}]
     } else {
         return -1;
     }

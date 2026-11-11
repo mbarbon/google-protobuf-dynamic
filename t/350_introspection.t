@@ -107,7 +107,7 @@ sub check_props {
         my $props = $properties->{$field_name};
 
         for my $prop (qw(is_primitive is_string is_message is_repeated is_packed)) {
-            is($field->$prop, $props->{$prop} // '', "$field_name - $prop");
+            is($field->$prop, defined $props->{$prop} ? $props->{$prop} : '', "$field_name - $prop");
         }
     }
 }
