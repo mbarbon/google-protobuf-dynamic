@@ -79,7 +79,7 @@
 
     SV *AUTOLOAD() %code%{
         if (!THIS->get_attribute(cv, &RETVAL)) {
-            croak("Unknown option '%.*s'", SvCUR(cv), SvPVX(cv));
+            croak("Unknown option '%.*s'", (int) SvCUR(cv), SvPVX(cv));
         }
     %};
 };
