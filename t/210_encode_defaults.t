@@ -1,7 +1,8 @@
 use t::lib::Test;
 use Alien::uPB::Core;
+use version;
 
-my $fixed_proto3_syntax = !Alien::uPB::Core->VERSION || Alien::uPB::Core->VERSION >= '0.14';
+my $fixed_proto3_syntax = !Alien::uPB::Core->VERSION || version->parse(Alien::uPB::Core->VERSION) >= version->parse('0.14');
 
 {
     my $d = Google::ProtocolBuffers::Dynamic->new('t/proto');
