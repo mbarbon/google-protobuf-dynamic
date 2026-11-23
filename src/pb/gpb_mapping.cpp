@@ -9,7 +9,7 @@ using namespace std;
 
 namespace {
     void populate_field(gpdp::DescriptorSet *descriptor_set, gpdp::Descriptor *gpd_descriptor, const gp::FieldDescriptor *field, const gp::DescriptorPool *descriptor_pool) {
-        bool repeated = field->label() == gp::FieldDescriptor::LABEL_REPEATED;
+        bool repeated = field->is_repeated();
 
         if (field->type() == gp::FieldDescriptor::TYPE_MESSAGE) {
             const gpdp::Descriptor *field_message = map_pb_descriptor(descriptor_set, field->message_type(), descriptor_pool);

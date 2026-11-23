@@ -49,6 +49,7 @@ class DescriptorLoader {
     public:
         virtual void AddError(const std::string &filename, int line, int column, const std::string &message);
         virtual void AddWarning(const std::string &filename, int line, int column, const std::string &message);
+        virtual void RecordError(std::string_view, int, int, std::string_view);
 
         void maybe_croak();
 

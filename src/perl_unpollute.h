@@ -3,3 +3,5 @@
 #undef do_open
 #undef do_close
 #undef seed
+#undef Poison
+#undef Copy

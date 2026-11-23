@@ -15,6 +15,7 @@ using namespace google::protobuf::compiler;
 using namespace google::protobuf;
 using namespace gpd;
 using namespace std;
+using namespace std::literals;
 
 #if __cplusplus < 201103L
 namespace {
@@ -97,9 +98,19 @@ void DescriptorLoader::CollectMultiFileErrors::AddError(const string &filename, 
         errors += "\n";
 
     errors +=
-        "Error during protobuf parsing: " +
+        "Error during protobuf parsing: "s +
         filename + ":" + to_string(line) + ":" + to_string(column) + ": " +
         message;
+}
+
+void DescriptorLoader::CollectMultiFileErrors::RecordError(const string_view filename, int line, int column, const string_view message) {
+    if (!errors.empty())
+        errors += "\n";
+
+    errors +=
+        "Error during protobuf parsing: "s +
+        std::string(filename) + ":" + to_string(line) + ":" + to_string(column) + ": " +
+        std::string(message);
 }
 
 void DescriptorLoader::CollectMultiFileErrors::AddWarning(const string &filename, int line, int column, const string &message) {

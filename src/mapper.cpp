@@ -231,7 +231,7 @@ bool Mapper::DecoderHandlers::apply_defaults_and_check() {
                 continue;
 
             mapper->apply_default(field, target);
-        } else if (!field_seen && check_required_fields && field.field_def->label() == UPB_LABEL_REQUIRED) {
+        } else if (!field_seen && check_required_fields && field.field_def->is_required()) {
             error = "Missing required field " + field.full_name();
 
             return false;
@@ -806,7 +806,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const g
 
         field.field_action = field.value_action = ACTION_INVALID;
         fields_by_field_def_index[field_def->index()] = &fields.back();
-        has_required = has_required || field_def->label() == UPB_LABEL_REQUIRED;
+        has_required = has_required || field_def->is_required();
         field.field_def = field_def;
         if (field_def->is_extension()) {
             string temp = string() + "[" + field_def->full_name() + "]";
@@ -834,13 +834,13 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const g
                 field.field_target = TARGET_MAP_VALUE;
                 map_value_index = index;
             }
-        } else if (field_def->label() == UPB_LABEL_REPEATED) {
+        } else if (field_def->is_repeated()) {
             field.field_target = TARGET_ARRAY_ITEM;
         } else {
             field.field_target = TARGET_HASH_ITEM;
         }
 
-        if (field_def->label() == UPB_LABEL_REPEATED &&
+        if (field_def->is_repeated()) &&
                 field_def->type() == UPB_TYPE_MESSAGE &&
                 field_def->message_subdef()->mapentry()) {
             field.is_map = true;
@@ -1006,12 +1006,12 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const g
         }
 
         if (has_default &&
-                field_def->label() == UPB_LABEL_OPTIONAL &&
+                field_def->is_optional() &&
                 !oneof_def) {
             field.has_default = true;
         }
 
-        if (field_def->label() == UPB_LABEL_REPEATED) {
+        if (field_def->is_repeated()) {
             GET_SELECTOR(STARTSEQ, seq_start);
             GET_SELECTOR(ENDSEQ, seq_end);
             if (field.is_map) {
@@ -1034,7 +1034,7 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const g
         field.field_action = field.value_action;
         if (field.is_map) {
             field.field_action = ACTION_PUT_MAP;
-        } else if (field.field_def->label() == UPB_LABEL_REPEATED) {
+        } else if (field.field_def->is_repeated()) {
             field.field_action = ACTION_PUT_REPEATED;
         } else if (!encode_defaults && field.has_default &&
                    !(field.is_map_key() || field.is_map_value())) {
@@ -1295,7 +1295,7 @@ void Mapper::set_decoder_options(HV *options) {
             }
 
             if (field->is_map ||
-                    field->field_def->label() == UPB_LABEL_REPEATED ||
+                    field->field_def->is_repeated() ||
                     field->field_def->type() != UPB_TYPE_MESSAGE) {
                 croak("Can't apply transformation to field %.*s", keylen, key);
             }
@@ -1349,7 +1349,7 @@ void Mapper::set_encoder_options(HV *options) {
             }
 
             if (field->is_map ||
-                    field->field_def->label() == UPB_LABEL_REPEATED ||
+                    field->field_def->is_repeated() ||
                     field->field_def->type() != UPB_TYPE_MESSAGE) {
                 croak("Can't apply transformation to field %.*s", keylen, key);
             }
@@ -1710,7 +1710,7 @@ namespace {
     }
 
     bool fail_if_required(Status *status, const Mapper::Field &fd) {
-        if (fd.field_def->label() == UPB_LABEL_REQUIRED) {
+        if (fd.field_def->is_required()) {
             status->SetFormattedErrorMessage(
                 "Missing required field '%s'",
                 fd.full_name().c_str());

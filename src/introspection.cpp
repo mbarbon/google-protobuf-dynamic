@@ -66,7 +66,7 @@ SV *gpd::intr::field_default_value(pTHX_ const FieldDescriptor *field_def) {
     case CppType::CPPTYPE_BOOL:
         return field_def->default_value_bool() ? &PL_sv_yes : &PL_sv_no;
     case CppType::CPPTYPE_STRING: {
-        const string &value = field_def->default_value_string();
+        const string_view value = field_def->default_value_string();
         SV *result = newSVpv(value.data(), value.length());
 
         if (field_def->type() == Type::TYPE_STRING)
@@ -132,7 +132,7 @@ bool gpd::intr::options_make_wrapper(const DescriptorPool *descriptor_pool, cons
     // calling options_def.GetDescriptor() will return a different descriptor
     // pointer (from the generated pool, I think) than looking the descriptor
     // up in the merged pool, and the extensions are associated with the latter
-    const string &options_name = options_def.GetDescriptor()->full_name();
+    const string_view options_name = options_def.GetDescriptor()->full_name();
     const Descriptor *options_descriptor = descriptor_pool->FindMessageTypeByName(options_name);
 
     // if no descriptor is found in the pool, google/protobuf/descrptor.proto
