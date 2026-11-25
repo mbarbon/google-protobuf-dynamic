@@ -11,7 +11,11 @@ using namespace std;
 
 namespace {
     void populate_field(gpdp::DescriptorSet *descriptor_set, gpdp::Descriptor *gpd_descriptor, const gp::FieldDescriptor *field, const gp::DescriptorPool *descriptor_pool) {
+#if GOOGLE_PROTOBUF_VERSION >= 6031000
+        bool repeated = field->is_repeated();
+#else
         bool repeated = field->label() == gp::FieldDescriptor::LABEL_REPEATED;
+#endif
 
         if (field->type() == gp::FieldDescriptor::TYPE_MESSAGE) {
             const gpdp::Descriptor *field_message = map_pb_descriptor(descriptor_set, field->message_type(), descriptor_pool);

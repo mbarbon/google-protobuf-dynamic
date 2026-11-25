@@ -126,7 +126,20 @@
 
     uint32_t number() const;
     bool is_extension() const;
+
+#if GOOGLE_PROTOBUF_VERSION >= 6031000
+    int label() %code%{
+        if (THIS->is_repeated()) {
+            RETVAL = 3;
+        } else if (THIS->is_required()) {
+            RETVAL = 2;
+        } else {
+            RETVAL = 1;
+        }
+    %};
+#else
     int label();
+#endif
 
     %name{is_packed} bool is_packed() const;
     bool is_message() const %code%{
@@ -208,10 +221,17 @@
 
     const Google::ProtocolBuffers::Dynamic::MessageDef *containing_type() const;
 
+#if GOOGLE_PROTOBUF_VERSION >= 5026000
+    bool is_synthetic() const %code{%
+        RETVAL = THIS->field_count() == 1 && THIS->field(0)->real_containing_oneof() == 0;
+    %};
+    // does not use #elif because of a XS++ bug
+#else
 #if GOOGLE_PROTOBUF_VERSION >= 3012000
     bool is_synthetic() const;
 #else
     bool is_synthetic() const %code{% PERL_UNUSED_VAR(THIS); RETVAL = false; %};
+#endif
 #endif
 
     const Google::ProtocolBuffers::Dynamic::FileDef *file() const;

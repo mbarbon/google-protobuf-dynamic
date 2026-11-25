@@ -65,9 +65,11 @@ const MessageDef* DefBuilder::GetMaybeUnfrozenMessageDef(
   ASSERT_STATUS(&status);
 
   upb_msgdef_setmapentry(md, d->options().map_entry());
+#if GOOGLE_PROTOBUF_VERSION < 5026000
   if (d->file()->syntax() == goog::FileDescriptor::SYNTAX_PROTO3) {
     upb_msgdef_setsyntax(md, UPB_SYNTAX_PROTO3);
   }
+#endif
 
   // Find all regular fields and extensions for this message.
   std::vector<const goog::FieldDescriptor*> fields;
@@ -110,7 +112,17 @@ reffed_ptr<FieldDef> DefBuilder::NewFieldDef(const goog::FieldDescriptor* f,
   reffed_ptr<FieldDef> upb_f(FieldDef::New());
   Status status;
   upb_f->set_number(f->number(), &status);
+#if GOOGLE_PROTOBUF_VERSION >= 6031000
+  if (f->is_repeated()) {
+    upb_f->set_label(UPB_LABEL_REPEATED);
+  } else if (f->is_required()) {
+    upb_f->set_label(UPB_LABEL_REQUIRED);
+  } else {
+    upb_f->set_label(UPB_LABEL_OPTIONAL);
+  }
+#else
   upb_f->set_label(FieldDef::ConvertLabel(f->label()));
+#endif
   upb_f->set_descriptor_type(FieldDef::ConvertDescriptorType(f->type()));
   upb_f->set_packed(f->is_packed());
 
