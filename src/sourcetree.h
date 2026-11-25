@@ -14,6 +14,9 @@ public:
     OverlaySourceTree(MemorySourceTree *memory, google::protobuf::compiler::SourceTree *fallback);
 
     virtual google::protobuf::io::ZeroCopyInputStream *Open(const std::string &filename);
+#if GOOGLE_PROTOBUF_VERSION >= 4022000
+    virtual google::protobuf::io::ZeroCopyInputStream *Open(absl::string_view filename);
+#endif
     virtual std::string GetLastErrorMessage();
 
 private:
@@ -25,6 +28,9 @@ class MemorySourceTree : public google::protobuf::compiler::SourceTree {
 public:
     void AddFile(const std::string &filename, const char *data, size_t len);
     virtual google::protobuf::io::ZeroCopyInputStream *Open(const std::string &filename);
+#if GOOGLE_PROTOBUF_VERSION >= 4022000
+    virtual google::protobuf::io::ZeroCopyInputStream *Open(absl::string_view filename);
+#endif
 
 private:
     UMS_NS::unordered_map<std::string, std::string> sources;

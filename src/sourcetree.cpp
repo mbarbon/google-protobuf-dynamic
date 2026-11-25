@@ -22,6 +22,18 @@ ZeroCopyInputStream *OverlaySourceTree::Open(const string &filename) {
     return fallback->Open(filename);
 }
 
+#if GOOGLE_PROTOBUF_VERSION >= 4022000
+
+ZeroCopyInputStream *OverlaySourceTree::Open(absl::string_view filename) {
+    ZeroCopyInputStream *mem = memory->Open(filename);
+    if (mem)
+        return mem;
+
+    return fallback->Open(filename);
+}
+
+#endif
+
 string OverlaySourceTree::GetLastErrorMessage() {
     return fallback->GetLastErrorMessage();
 }
@@ -37,3 +49,11 @@ ZeroCopyInputStream *MemorySourceTree::Open(const string &filename) {
 
     return new ArrayInputStream(item->second.data(), item->second.size());
 }
+
+#if GOOGLE_PROTOBUF_VERSION >= 4022000
+
+ZeroCopyInputStream *MemorySourceTree::Open(absl::string_view filename) {
+    return Open(string(filename.data(), filename.size()));
+}
+
+#endif
