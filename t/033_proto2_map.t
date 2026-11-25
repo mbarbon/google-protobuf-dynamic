@@ -1,4 +1,7 @@
 use t::lib::Test;
+use Alien::ProtoBuf;
+
+my $has_encode_defaults = !Alien::ProtoBuf->atleast_version('5.26.0');
 
 my $d1 = Google::ProtocolBuffers::Dynamic->new('t/proto');
 $d1->load_file("map_proto2.proto");
@@ -7,10 +10,12 @@ $d1->map_message("test.Item", "Item");
 $d1->resolve_references();
 
 my $d2 = Google::ProtocolBuffers::Dynamic->new('t/proto');
-$d2->load_file("map_proto2.proto");
-$d2->map_message("test.Maps", "NoMaps", { implicit_maps => 0, encode_defaults => 1 });
-$d2->map_message("test.Item", "NoItem");
-$d2->resolve_references();
+if ($has_encode_defaults) {
+    $d2->load_file("map_proto2.proto");
+    $d2->map_message("test.Maps", "NoMaps", { implicit_maps => 0, encode_defaults => 1 });
+    $d2->map_message("test.Item", "NoItem");
+    $d2->resolve_references();
+}
 
 my %values = (
     string_int32_map => [
@@ -84,12 +89,13 @@ sub to_array {
 for my $field (sort keys %values) {
     my ($values, $encoded) = @{$values{$field}};
     my $bytes = Maps->encode({ $field => $values });
-    my $bytes_nomap = NoMaps->encode({ $field => to_array($values) });
+    my $bytes_nomap = $has_encode_defaults ? NoMaps->encode({ $field => to_array($values) }) : undef;
 
     eq_or_diff($bytes, encode($values, $encoded),
                "$field - encoded value");
     eq_or_diff($bytes, $bytes_nomap,
-               "$field - encoded value (pair array)");
+               "$field - encoded value (pair array)")
+        if $has_encode_defaults;
     decode_eq_or_diff('Maps', $bytes, Maps->new({ $field => $values }),
                       "$field - round trip");
 }
@@ -104,13 +110,15 @@ utf8::upgrade($string);
 eq_or_diff(Maps->encode({ string_int32_map => { $bytes => 1 } }), $encoded,
        "bytes -> UTF-8 upgrade");
 eq_or_diff(NoMaps->encode({ string_int32_map => [{ key => $bytes, value => 1 }] }), $encoded,
-       "bytes -> UTF-8 upgrade (pair array)");
+       "bytes -> UTF-8 upgrade (pair array)")
+    if $has_encode_defaults;
 eq_or_diff(Maps->encode({ string_int32_map => { $string => 1 } }), $encoded,
        "UTF-8 string");
 eq_or_diff(NoMaps->encode({ string_int32_map => [{ key => $string, value => 1 }] }), $encoded,
-       "UTF-8 string (pair array)");
+       "UTF-8 string (pair array)")
+    if $has_encode_defaults;
 
-for my $method (decoder_functions) {
+for my $method ($has_encode_defaults ? decoder_functions : ()) {
     my $method_desc = "($method)";
 
     # warnings are tested separately

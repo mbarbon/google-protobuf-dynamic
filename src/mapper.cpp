@@ -757,11 +757,18 @@ Mapper::Mapper(pTHX_ Dynamic *_registry, const MessageDef *_message_def, const g
     decoder_handlers = Handlers::New(message_def);
     oneof_count = message_def->oneof_count();
     decode_explicit_defaults = options.explicit_defaults;
+#if GOOGLE_PROTOBUF_VERSION >= 5026000
+    encode_defaults = false;
+    if (options.encode_defaults || options.encode_defaults_proto3) {
+        croak("encode_default and encode_defaults_proto3 options are not supported with protobuf >= 26");
+    }
+#else
     encode_defaults =
         (message_def->syntax() == UPB_SYNTAX_PROTO2 &&
          options.encode_defaults) ||
         (message_def->syntax() == UPB_SYNTAX_PROTO3 &&
          options.encode_defaults_proto3);
+#endif
     check_enum_values = options.check_enum_values;
     decode_blessed = options.decode_blessed;
     boolean_style = options.boolean_style;

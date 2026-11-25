@@ -1,4 +1,6 @@
 use t::lib::Test;
+use Alien::ProtoBuf;
+use if Alien::ProtoBuf->atleast_version('5.26.0'), 'Test::More' => 'skip_all' => 'protobuf v5.26.0+ does not support encode_defaults option';
 use Alien::uPB::Core;
 use version;
 
