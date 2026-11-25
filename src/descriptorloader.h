@@ -49,6 +49,10 @@ class DescriptorLoader {
     public:
         virtual void AddError(const std::string &filename, int line, int column, const std::string &message);
         virtual void AddWarning(const std::string &filename, int line, int column, const std::string &message);
+#if GOOGLE_PROTOBUF_VERSION >= 4022000
+        virtual void RecordError(absl::string_view filename, int line, int column, absl::string_view message);
+        virtual void RecordWarning(absl::string_view filename, int line, int column, absl::string_view message);
+#endif
 
         void maybe_croak();
 

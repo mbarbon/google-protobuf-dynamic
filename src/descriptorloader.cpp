@@ -1,11 +1,17 @@
 #include "descriptorloader.h"
 #include "unordered_map.h"
+#include "string_view.h"
 
 #include <google/protobuf/descriptor.pb.h>
 #include <google/protobuf/duration.pb.h>
 #include <google/protobuf/timestamp.pb.h>
 #include <google/protobuf/wrappers.pb.h>
 #include <google/protobuf/io/zero_copy_stream.h>
+
+#if GOOGLE_PROTOBUF_VERSION >= 4022000
+#include <absl/log/initialize.h>
+#include <absl/log/log_sink_registry.h>
+#endif
 
 #include "EXTERN.h"
 #include "perl.h"
@@ -30,6 +36,51 @@ namespace {
 #endif
 
 namespace {
+#if GOOGLE_PROTOBUF_VERSION >= 4022000
+    class PerlLogSink : public absl::LogSink {
+        virtual void Send(const absl::LogEntry& entry) {
+            const char *level_str = NULL;
+
+            switch (entry.log_severity()) {
+            case absl::LogSeverity::kWarning:
+                level_str = "";
+                break;
+            case absl::LogSeverity::kError:
+                level_str = " error";
+                break;
+            case absl::LogSeverity::kFatal:
+                level_str = " fatal error";
+                break;
+            default:
+                return;
+            }
+
+            warn("protobuf%s: %s [%s:%d]", level_str, view_to_string(entry.text_message()).c_str(), view_to_string(entry.source_basename()).c_str(), entry.source_line());
+        }
+    };
+
+    class CaptureWarnings {
+    public:
+        CaptureWarnings() {
+            if (!log_initialized) {
+                log_initialized = true;
+                absl::InitializeLog();
+            }
+            
+            absl::AddLogSink(&sink);
+        }
+
+        ~CaptureWarnings() {
+            absl::RemoveLogSink(&sink);
+        }
+
+    private:
+        static bool log_initialized;
+        PerlLogSink sink;
+    };
+    
+    bool CaptureWarnings::log_initialized = false;
+#else
     void PerlLogHandler(LogLevel level, const char *filename, int line,
                         const std::string &message) {
         const char *level_str = NULL;
@@ -64,6 +115,7 @@ namespace {
     private:
         LogHandler *previous;
     };
+#endif
 }
 
 SourceTreeDescriptorDatabaseWithFallback::SourceTreeDescriptorDatabaseWithFallback(
@@ -106,6 +158,22 @@ void DescriptorLoader::CollectMultiFileErrors::AddWarning(const string &filename
     // seems to never be called, warnings go to log
     warn("Parsing protobuf file: %s:%d:%d: %s", filename.c_str(), line, column, message.c_str());
 }
+
+#if GOOGLE_PROTOBUF_VERSION >= 4022000
+
+void DescriptorLoader::CollectMultiFileErrors::RecordError(absl::string_view filename,
+                                                           int line, int column,
+                                                           absl::string_view message) {
+    AddError(view_to_string(filename), line, column, view_to_string(message));
+}
+
+void DescriptorLoader::CollectMultiFileErrors::RecordWarning(absl::string_view filename,
+                                                             int line, int column,
+                                                             absl::string_view message) {
+    AddWarning(view_to_string(filename), line, column, view_to_string(message));
+}
+
+#endif
 
 void DescriptorLoader::CollectMultiFileErrors::maybe_croak() {
     if (errors.empty())
