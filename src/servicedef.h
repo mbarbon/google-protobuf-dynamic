@@ -2,6 +2,7 @@
 #define _GPD_XS_DYNAMIC_SERVICE_DESC
 
 #include <upb/def.h>
+#include "string_view.h"
 
 #include <string>
 #include <vector>
@@ -12,8 +13,8 @@ namespace gpd {
     struct ServiceDef;
 
     struct MethodDef {
-        MethodDef(const std::string &name,
-                  const std::string &full_name,
+        MethodDef(gpd::pb_string_ref name,
+                  gpd::pb_string_ref full_name,
                   const ServiceDef *containing_service,
                   const upb::MessageDef *input_type,
                   const upb::MessageDef *output_type,
@@ -28,8 +29,8 @@ namespace gpd {
             _server_streaming(server_streaming)
         { }
 
-        const std::string &name() const { return _name; }
-        const std::string &full_name() const { return _full_name; }
+        gpd::pb_string_ref name() const { return _name; }
+        gpd::pb_string_ref full_name() const { return _full_name; }
         const ServiceDef *containing_service() const { return _containing_service; }
         const upb::MessageDef *input_type() const { return _input_type; }
         const upb::MessageDef *output_type() const { return _output_type; }
@@ -37,8 +38,8 @@ namespace gpd {
         bool server_streaming() const { return _server_streaming; }
 
     private:
-        std::string _name;
-        std::string _full_name;
+        gpd::pb_string _name;
+        gpd::pb_string _full_name;
 
         const ServiceDef *_containing_service;
         const upb::MessageDef *_input_type;
@@ -48,7 +49,7 @@ namespace gpd {
     };
 
     struct ServiceDef {
-        ServiceDef(const std::string &full_name) :
+        ServiceDef(gpd::pb_string_ref full_name) :
             _full_name(full_name)
         { }
 
@@ -56,11 +57,11 @@ namespace gpd {
             _methods.push_back(method);
         }
 
-        const std::string &full_name() const { return _full_name; }
+        gpd::pb_string_ref full_name() const { return _full_name; }
         const std::vector<MethodDef> &methods() { return _methods; }
 
     private:
-        std::string _full_name;
+        gpd::pb_string _full_name;
         std::vector<MethodDef> _methods;
     };
 }

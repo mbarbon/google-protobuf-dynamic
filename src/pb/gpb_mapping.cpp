@@ -3,6 +3,8 @@
 
 #include <google/protobuf/descriptor.h>
 
+#include "string_view.h"
+
 namespace gpdp = gpd::pb;
 namespace gp = google::protobuf;
 using namespace std;
@@ -36,7 +38,7 @@ namespace {
 }
 
 const gpdp::Descriptor *gpdp::map_pb_descriptor(gpdp::DescriptorSet *descriptor_set, const gp::Descriptor *descriptor, const gp::DescriptorPool *descriptor_pool) {
-    string message_name = descriptor->full_name();
+    string message_name = gpd::view_to_string(descriptor->full_name());
     const gpdp::Descriptor *gpd_descriptor = descriptor_set->get_descriptor(message_name);
     if (!gpd_descriptor) {
         gpdp::Descriptor *new_gpd_descriptor = new gpdp::Descriptor();

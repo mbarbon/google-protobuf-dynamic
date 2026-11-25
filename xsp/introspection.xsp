@@ -6,6 +6,8 @@
 #include <google/protobuf/descriptor.h>
 #include <google/protobuf/descriptor.pb.h>
 
+#include "string_view.h"
+
 %typemap{const Google::ProtocolBuffers::Dynamic::MessageDef *}{simple}{
     %xs_type{O_OBJECT};
 };
@@ -241,7 +243,7 @@
        const google::protobuf::EnumValueDescriptor *value_descriptor = THIS->FindValueByNumber(number);
 
        if (value_descriptor) {
-           const std::string &name = value_descriptor->name();
+           gpd::pb_string_ref name = value_descriptor->name();
 
            RETVAL = newSVpvn(name.data(), name.size());
        } else {
@@ -254,7 +256,7 @@
 
         for (int i = 0, max = THIS->value_count(); i < max; ++i) {
             const google::protobuf::EnumValueDescriptor *value_descriptor = THIS->value(i);
-            const std::string &name = value_descriptor->name();
+            gpd::pb_string_ref name = value_descriptor->name();
             SV **value = hv_fetch(values, name.data(), name.size(), 1);
 
             sv_setiv(*value, value_descriptor->number());

@@ -20,6 +20,8 @@
 #include <google/protobuf/descriptor.pb.h>
 namespace goog = ::google::protobuf;
 
+#include "string_view.h"
+
 #if GOOGLE_PROTOBUF_VERSION >= 3012000
 #define GOOGLE_PROTOBUF_HAS_PROTO3_OPTIONAL
 #endif
@@ -30,16 +32,17 @@ namespace googlepb {
 /* DefBuilder  ****************************************************************/
 
 const EnumDef* DefBuilder::GetEnumDef(const goog::EnumDescriptor* ed) {
-  const EnumDef* cached = FindInCaches<EnumDef>(ed->full_name(), ed);
+  const std::string &full_name = gpd::view_to_string(ed->full_name());
+  const EnumDef* cached = FindInCaches<EnumDef>(full_name, ed);
   if (cached) return cached;
 
-  EnumDef* e = AddToCaches(ed->full_name(), ed, EnumDef::New());
+  EnumDef* e = AddToCaches(full_name, ed, EnumDef::New());
 
   Status status;
-  e->set_full_name(ed->full_name(), &status);
+  e->set_full_name(full_name, &status);
   for (int i = 0; i < ed->value_count(); i++) {
     const goog::EnumValueDescriptor* val = ed->value(i);
-    bool success = e->AddValue(val->name(), val->number(), &status);
+    bool success = e->AddValue(gpd::view_to_string(val->name()), val->number(), &status);
     UPB_ASSERT(success);
   }
 
@@ -51,13 +54,14 @@ const EnumDef* DefBuilder::GetEnumDef(const goog::EnumDescriptor* ed) {
 
 const MessageDef* DefBuilder::GetMaybeUnfrozenMessageDef(
     const goog::Descriptor* d, const goog::Message* m) {
-  const MessageDef* cached = FindInCaches<MessageDef>(d->full_name(), d);
+  const std::string &full_name = gpd::view_to_string(d->full_name());
+  const MessageDef* cached = FindInCaches<MessageDef>(full_name, d);
   if (cached) return cached;
-  MessageDef* md = AddToCaches(d->full_name(), d, MessageDef::New());
+  MessageDef* md = AddToCaches(full_name, d, MessageDef::New());
   to_freeze_.push_back(upb::upcast(md));
 
   Status status;
-  md->set_full_name(d->full_name(), &status);
+  md->set_full_name(full_name, &status);
   ASSERT_STATUS(&status);
 
   upb_msgdef_setmapentry(md, d->options().map_entry());
@@ -111,10 +115,10 @@ reffed_ptr<FieldDef> DefBuilder::NewFieldDef(const goog::FieldDescriptor* f,
   upb_f->set_packed(f->is_packed());
 
   if (f->is_extension()) {
-    upb_f->set_name(f->full_name(), &status);
+    upb_f->set_name(gpd::view_to_string(f->full_name()), &status);
     upb_f->set_is_extension(true);
   } else {
-    upb_f->set_name(f->name(), &status);
+    upb_f->set_name(gpd::view_to_string(f->name()), &status);
   }
 
   const goog::Message* subm = NULL;
@@ -153,7 +157,7 @@ reffed_ptr<FieldDef> DefBuilder::NewFieldDef(const goog::FieldDescriptor* f,
       break;
     case UPB_TYPE_STRING:
     case UPB_TYPE_BYTES:
-      upb_f->set_default_string(f->default_value_string(), &status);
+      upb_f->set_default_string(gpd::view_to_string(f->default_value_string()), &status);
       break;
     case UPB_TYPE_MESSAGE: {
       const goog::Descriptor* subd = f->message_type();
@@ -176,7 +180,7 @@ reffed_ptr<OneofDef> DefBuilder::NewOneofDef(const goog::OneofDescriptor* o) {
   reffed_ptr<OneofDef> upb_o(OneofDef::New());
   Status status;
 
-  upb_o->set_name(o->name().c_str(), &status);
+  upb_o->set_name(gpd::view_to_string(o->name()).c_str(), &status);
 
   ASSERT_STATUS(&status);
   return upb_o;

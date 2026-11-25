@@ -6,6 +6,7 @@
 #include "pb/decoder.h"
 
 #include "descriptorloader.h"
+#include "string_view.h"
 #include "ref.h"
 
 #include "unordered_map.h"
@@ -98,7 +99,7 @@ private:
     void add_file_recursively(pTHX_ const google::protobuf::FileDescriptor *file);
     void map_package_or_prefix(pTHX_ const std::string &pb_package, bool is_prefix, const std::string &perl_package_prefix, const MappingOptions &options);
     void map_message_recursive(pTHX_ const google::protobuf::Descriptor *descriptor, const std::string &perl_package, const MappingOptions &options);
-    void map_message_prefix_recursive(pTHX_ const google::protobuf::Descriptor *descriptor, const std::string &perl_package_prefix, const MappingOptions &options, UMS_NS::unordered_set<std::string> &recursed_names);
+    void map_message_prefix_recursive(pTHX_ const google::protobuf::Descriptor *descriptor, const std::string &perl_package_prefix, const MappingOptions &options, UMS_NS::unordered_set<gpd::pb_string> &recursed_names);
     void map_message(pTHX_ const google::protobuf::Descriptor *descriptor, const std::string &perl_package, const MappingOptions &options);
     void bind_message(pTHX_ const std::string &perl_package, Mapper *mapper, const google::protobuf::Descriptor *descriptor, HV *stash, const MappingOptions &options);
     void map_enum(pTHX_ const google::protobuf::EnumDescriptor *descriptor, const std::string &perl_package, const MappingOptions &options);
@@ -109,13 +110,13 @@ private:
     void map_service_grpc_xs(pTHX_ const google::protobuf::ServiceDescriptor *descriptor, const std::string &perl_package, const MappingOptions &options, ServiceDef *service_def);
     void check_package(pTHX_ const std::string &perl_package);
     void mark_package(pTHX_ const std::string &perl_package, SV *stack_trace);
-    std::string pbname_to_package(pTHX_ const std::string &pb_name, const std::string &perl_package_prefix);
+    std::string pbname_to_package(pTHX_ gpd::pb_string_ref pb_name, const std::string &perl_package_prefix);
 
     DescriptorLoader descriptor_loader;
     upb::googlepb::DefBuilder def_builder;
-    UMS_NS::unordered_map<std::string, const Mapper *> descriptor_map;
-    UMS_NS::unordered_set<std::string> mapped_enums;
-    UMS_NS::unordered_set<std::string> mapped_services;
+    UMS_NS::unordered_map<gpd::pb_string, const Mapper *> descriptor_map;
+    UMS_NS::unordered_set<gpd::pb_string> mapped_enums;
+    UMS_NS::unordered_set<gpd::pb_string> mapped_services;
     UMS_NS::unordered_set<const google::protobuf::FileDescriptor *> files;
     std::vector<Mapper *> pending;
     std::vector<MethodMapper *> pending_methods;

@@ -58,7 +58,7 @@ namespace {
         sym_UNITCHECK = "UNITCHECK";
 
     // does the same job as S_gv_is_in_main in gv.c
-    bool is_in_main(const string &name) {
+    bool is_in_main(pb_string_ref name) {
         size_t length = name.length();
 
         switch (name[0]) {
@@ -78,7 +78,7 @@ namespace {
         }
     }
 
-    bool is_special_sub(const string &name) {
+    bool is_special_sub(pb_string_ref name) {
         switch (name[0]) {
         case 'B':
             return name == sym_BEGIN;
@@ -95,9 +95,15 @@ namespace {
         }
     }
 
+#if GOOGLE_PROTOBUF_VERSION >= 4022000
+    inline string fq_perl_name(const string &package, absl::string_view name) {
+        return absl::StrCat(package, "::", name);
+    }
+#else
     inline string fq_perl_name(const string &package, const string &name) {
         return package + "::" + name;
     }
+#endif
 }
 
 MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
@@ -196,7 +202,7 @@ Dynamic::Dynamic(const string &root_directory) :
 }
 
 Dynamic::~Dynamic() {
-    for (unordered_map<std::string, const Mapper *>::iterator it = descriptor_map.begin(), en = descriptor_map.end(); it != en; ++it)
+    for (unordered_map<pb_string, const Mapper *>::iterator it = descriptor_map.begin(), en = descriptor_map.end(); it != en; ++it)
         it->second->unref();
 }
 
@@ -267,7 +273,7 @@ namespace {
         NULL, // local
     };
 
-    void bind_special_constant(pTHX_ const string &target, const string &perl_package, UV value) {
+    void bind_special_constant(pTHX_ pb_string_ref target, const string &perl_package, UV value) {
         static const char xsubname[] = "Google::ProtocolBuffers::Dynamic::Mapper::constant";
 
         string fq_name = fq_perl_name(perl_package, target);
@@ -392,7 +398,7 @@ void Dynamic::map_package_or_prefix(pTHX_ const string &pb_package_or_prefix, bo
 
     for (unordered_set<const FileDescriptor *>::iterator it = files.begin(), en = files.end(); it != en; ++it) {
         const FileDescriptor *file = *it;
-        const string &file_package = file->package();
+        pb_string_ref file_package = file->package();
         bool is_exact = false;
 
         if (pb_package_or_prefix == file_package) {
@@ -410,7 +416,7 @@ void Dynamic::map_package_or_prefix(pTHX_ const string &pb_package_or_prefix, bo
         if (!is_exact) {
             perl_package += "::";
 
-            for (string::const_iterator it = file_package.begin() + prefix_and_dot.length(), en = file_package.end(); it != en; ++it) {
+            for (pb_string::const_iterator it = file_package.begin() + prefix_and_dot.length(), en = file_package.end(); it != en; ++it) {
                 if (*it == '.')
                     perl_package += "::";
                 else
@@ -447,7 +453,7 @@ void Dynamic::map_package_or_prefix(pTHX_ const string &pb_package_or_prefix, bo
 void Dynamic::map_message_prefix(pTHX_ const string &message, const string &perl_package_prefix, const MappingOptions &options) {
     const DescriptorPool *pool = descriptor_loader.pool();
     const Descriptor *descriptor = pool->FindMessageTypeByName(message);
-    unordered_set<std::string> recursed_names;
+    unordered_set<gpd::pb_string> recursed_names;
 
     if (descriptor == NULL) {
         croak("Unable to find a descriptor for message '%s'", message.c_str());
@@ -487,7 +493,7 @@ void Dynamic::map_message_recursive(pTHX_ const Descriptor *descriptor, const st
         if (descriptor_map.find(inner->full_name()) != descriptor_map.end())
             continue;
 
-        map_message_recursive(aTHX_ inner, fq_perl_name(perl_package, inner->name())), options);
+        map_message_recursive(aTHX_ inner, fq_perl_name(perl_package, inner->name()), options);
     }
 
     for (int i = 0, max = descriptor->enum_type_count(); i < max; ++i) {
@@ -501,7 +507,7 @@ void Dynamic::map_message_recursive(pTHX_ const Descriptor *descriptor, const st
     map_message(aTHX_ descriptor, perl_package, options);
 }
 
-std::string Dynamic::pbname_to_package(pTHX_ const std::string &pb_name, const std::string &perl_package_prefix) {
+std::string Dynamic::pbname_to_package(pTHX_ gpd::pb_string_ref pb_name, const std::string &perl_package_prefix) {
     std::ostringstream oss;
     oss << perl_package_prefix << "::";
     size_t last = 0, next = 0;
@@ -513,7 +519,7 @@ std::string Dynamic::pbname_to_package(pTHX_ const std::string &pb_name, const s
     return oss.str();
 }
 
-void Dynamic::map_message_prefix_recursive(pTHX_ const Descriptor *descriptor, const string &perl_package_prefix, const MappingOptions &options, unordered_set<std::string> &recursed_names) {
+void Dynamic::map_message_prefix_recursive(pTHX_ const Descriptor *descriptor, const string &perl_package_prefix, const MappingOptions &options, unordered_set<gpd::pb_string> &recursed_names) {
 	// avoid recursion loop
 	if (recursed_names.find(descriptor->full_name()) != recursed_names.end())
 		return;
@@ -583,7 +589,7 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
     if (define_perl_names)
         check_package(aTHX_ perl_package);
     if (descriptor_map.find(descriptor->full_name()) != descriptor_map.end())
-        croak("Message '%s' has already been mapped", descriptor->full_name().c_str());
+        croak("Message '%s' has already been mapped", view_to_string(descriptor->full_name()).c_str());
     if (options.use_bigints)
         load_module(PERL_LOADMOD_NOIMPORT, newSVpvs("Math::BigInt"), NULL);
     HV *stash = gv_stashpvn(perl_package.data(), perl_package.size(), GV_ADD);
@@ -595,7 +601,7 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
     Mapper *mapper = new Mapper(aTHX_ this, message_def, gpd_descriptor, stash, options);
 
     // the map owns the reference from Mapper constructor, and is unreffed in ~Dynamic
-    descriptor_map[message_def->full_name()] = mapper;
+    descriptor_map[descriptor->full_name()] = mapper;
     mark_package(aTHX_ perl_package, options.stack_trace);
     pending.push_back(mapper);
 
@@ -729,7 +735,7 @@ void Dynamic::map_enum(pTHX_ const EnumDescriptor *descriptor, const string &per
     if (define_perl_names)
         check_package(aTHX_ perl_package);
     if (mapped_enums.find(descriptor->full_name()) != mapped_enums.end())
-        croak("Enum '%s' has already been mapped", descriptor->full_name().c_str());
+        croak("Enum '%s' has already been mapped", view_to_string(descriptor->full_name()).c_str());
 
     mapped_enums.insert(descriptor->full_name());
     mark_package(aTHX_ perl_package, options.stack_trace);
@@ -754,7 +760,7 @@ void Dynamic::bind_enum(pTHX_ const string &perl_package, const EnumDescriptor *
         } else if (is_special_sub(value->name())) {
             bind_special_constant(aTHX_ value->name(), perl_package, value->number());
         } else {
-            newCONSTSUB(stash, value->name().c_str(),
+            newCONSTSUB(stash, view_to_string(value->name()).c_str(),
                         newSVuv(value->number()));
         }
     }
@@ -769,7 +775,7 @@ void Dynamic::map_service(pTHX_ const ServiceDescriptor *descriptor, const strin
     if (define_perl_names)
         check_package(aTHX_ perl_package);
     if (mapped_services.find(descriptor->full_name()) != mapped_services.end())
-        croak("Service '%s' has already been mapped", descriptor->full_name().c_str());
+        croak("Service '%s' has already been mapped", view_to_string(descriptor->full_name()).c_str());
 
     mapped_services.insert(descriptor->full_name());
     mark_package(aTHX_ perl_package, options.stack_trace);
@@ -817,13 +823,17 @@ void Dynamic::map_service_grpc_xs(pTHX_ const ServiceDescriptor *descriptor, con
 
     for (int i = 0, max = descriptor->method_count(); i < max; ++i) {
         const MethodDescriptor *method = descriptor->method(i);
-        string full_method = "/" + descriptor->full_name() + "/" + method->name().c_str();
+#if GOOGLE_PROTOBUF_VERSION >= 4022000
+        string full_method = absl::StrCat("/", descriptor->full_name(), "/", method->name());
+#else
+        string full_method = "/" + descriptor->full_name() + "/" + method->name();
+#endif
         const Descriptor *input = method->input_type(), *output = method->output_type();
         const MessageDef *input_def = def_builder.GetMessageDef(input);
         const MessageDef *output_def = def_builder.GetMessageDef(output);
         MethodMapper *mapper = new MethodMapper(aTHX_ this, full_method, input_def, output_def, method->client_streaming(), method->server_streaming());
 
-        copy_and_bind(aTHX_ "grpc_xs_call_service_passthrough", method->name().c_str(), perl_package, mapper);
+        copy_and_bind(aTHX_ "grpc_xs_call_service_passthrough", view_to_string(method->name()).c_str(), perl_package, mapper);
 
         pending_methods.push_back(mapper);
         push_method_def(service_def, method, input_def, output_def);
@@ -842,7 +852,7 @@ void Dynamic::resolve_references() {
 }
 
 const Mapper *Dynamic::find_mapper(const MessageDef *message_def) const {
-    unordered_map<string, const Mapper *>::const_iterator item = descriptor_map.find(message_def->full_name());
+    unordered_map<pb_string, const Mapper *>::const_iterator item = descriptor_map.find(message_def->full_name());
 
     if (item == descriptor_map.end())
         croak("Unknown type '%s'", message_def->full_name());
