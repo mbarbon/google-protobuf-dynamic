@@ -546,7 +546,7 @@ void Dynamic::map_message_prefix_recursive(pTHX_ const Descriptor *descriptor, c
 	}
 }
 
-void Dynamic::check_package(pTHX_ const string &perl_package, const string &pb_name) {
+void Dynamic::check_package(pTHX_ const string &perl_package) {
     string marker_name = perl_package + "::mapped_from";
     SV *marker_sv = get_sv(marker_name.c_str(), 0);
 
@@ -577,7 +577,7 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
     bool define_perl_names = !options.no_redefine_perl_names || gv_stashpvn(perl_package.data(), perl_package.size(), 0) == NULL;
 
     if (define_perl_names)
-        check_package(aTHX_ perl_package, descriptor->full_name());
+        check_package(aTHX_ perl_package);
     if (descriptor_map.find(descriptor->full_name()) != descriptor_map.end())
         croak("Message '%s' has already been mapped", descriptor->full_name().c_str());
     if (options.use_bigints)
@@ -723,7 +723,7 @@ void Dynamic::map_enum(pTHX_ const EnumDescriptor *descriptor, const string &per
     bool define_perl_names = !options.no_redefine_perl_names || gv_stashpvn(perl_package.data(), perl_package.size(), 0) == NULL;
 
     if (define_perl_names)
-        check_package(aTHX_ perl_package, descriptor->full_name());
+        check_package(aTHX_ perl_package);
     if (mapped_enums.find(descriptor->full_name()) != mapped_enums.end())
         croak("Enum '%s' has already been mapped", descriptor->full_name().c_str());
 
@@ -763,7 +763,7 @@ void Dynamic::map_service(pTHX_ const ServiceDescriptor *descriptor, const strin
     bool define_perl_names = !options.no_redefine_perl_names || gv_stashpvn(perl_package.data(), perl_package.size(), 0) == NULL;
 
     if (define_perl_names)
-        check_package(aTHX_ perl_package, descriptor->full_name());
+        check_package(aTHX_ perl_package);
     if (mapped_services.find(descriptor->full_name()) != mapped_services.end())
         croak("Service '%s' has already been mapped", descriptor->full_name().c_str());
 

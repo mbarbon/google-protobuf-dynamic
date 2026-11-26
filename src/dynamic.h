@@ -107,7 +107,7 @@ private:
     void bind_service(pTHX_ const std::string &perl_package, const google::protobuf::ServiceDescriptor *descriptor, const MappingOptions &options);
     void map_service_noop(pTHX_ const google::protobuf::ServiceDescriptor *descriptor, const std::string &perl_package, const MappingOptions &options, ServiceDef *service_def);
     void map_service_grpc_xs(pTHX_ const google::protobuf::ServiceDescriptor *descriptor, const std::string &perl_package, const MappingOptions &options, ServiceDef *service_def);
-    void check_package(pTHX_ const std::string &perl_package, const std::string &pb_name);
+    void check_package(pTHX_ const std::string &perl_package);
     void mark_package(pTHX_ const std::string &perl_package, SV *stack_trace);
     std::string pbname_to_package(pTHX_ const std::string &pb_name, const std::string &perl_package_prefix);
 
