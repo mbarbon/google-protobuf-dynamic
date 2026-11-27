@@ -94,6 +94,10 @@ namespace {
             return false;
         }
     }
+
+    inline string fq_perl_name(const string &package, const string &name) {
+        return package + "::" + name;
+    }
 }
 
 MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
@@ -266,16 +270,16 @@ namespace {
     void bind_special_constant(pTHX_ const string &target, const string &perl_package, UV value) {
         static const char xsubname[] = "Google::ProtocolBuffers::Dynamic::Mapper::constant";
 
+        string fq_name = fq_perl_name(perl_package, target);
         CV *src = get_cv(xsubname, 0);
-        CV *new_xs = newXS((perl_package + "::" + target + "*").c_str(), CvXSUB(src), __FILE__);
+        CV *new_xs = newXS((fq_name + "*").c_str(), CvXSUB(src), __FILE__);
 #if PERL_VERSION >= 14
         CvXSUBANY(new_xs).any_uv = value;
 #else
         CvXSUBANY(new_xs).any_iv = (IV) value;
 #endif
 
-        GV *gv = gv_fetchpv((perl_package + "::" + target).c_str(),
-                            GV_ADD, SVt_PVCV);
+        GV *gv = gv_fetchpv(fq_name.c_str(), GV_ADD, SVt_PVCV);
 
         GvCV_set(gv, new_xs);
     }
@@ -419,7 +423,7 @@ void Dynamic::map_package_or_prefix(pTHX_ const string &pb_package_or_prefix, bo
             if (descriptor_map.find(descriptor->full_name()) != descriptor_map.end())
                 continue;
 
-            map_message_recursive(aTHX_ descriptor, perl_package + "::" + descriptor->name(), options);
+            map_message_recursive(aTHX_ descriptor, fq_perl_name(perl_package, descriptor->name()), options);
         }
 
         for (int i = 0, max = file->enum_type_count(); i < max; ++i) {
@@ -427,7 +431,7 @@ void Dynamic::map_package_or_prefix(pTHX_ const string &pb_package_or_prefix, bo
             if (mapped_enums.find(descriptor->full_name()) != mapped_enums.end())
                 continue;
 
-            map_enum(aTHX_ descriptor, perl_package + "::" + descriptor->name(), options);
+            map_enum(aTHX_ descriptor, fq_perl_name(perl_package, descriptor->name()), options);
         }
 
         for (int i = 0, max = file->service_count(); i < max; ++i) {
@@ -435,7 +439,7 @@ void Dynamic::map_package_or_prefix(pTHX_ const string &pb_package_or_prefix, bo
             if (mapped_services.find(descriptor->full_name()) != mapped_services.end())
                 continue;
 
-            map_service(aTHX_ descriptor, perl_package + "::" + descriptor->name(), options);
+            map_service(aTHX_ descriptor, fq_perl_name(perl_package, descriptor->name()), options);
         }
     }
 }
@@ -483,7 +487,7 @@ void Dynamic::map_message_recursive(pTHX_ const Descriptor *descriptor, const st
         if (descriptor_map.find(inner->full_name()) != descriptor_map.end())
             continue;
 
-        map_message_recursive(aTHX_ inner, perl_package + "::" + inner->name(), options);
+        map_message_recursive(aTHX_ inner, fq_perl_name(perl_package, inner->name())), options);
     }
 
     for (int i = 0, max = descriptor->enum_type_count(); i < max; ++i) {
@@ -491,7 +495,7 @@ void Dynamic::map_message_recursive(pTHX_ const Descriptor *descriptor, const st
         if (mapped_enums.find(inner->full_name()) != mapped_enums.end())
             continue;
 
-        map_enum(aTHX_ inner, perl_package + "::" + inner->name(), options);
+        map_enum(aTHX_ inner, fq_perl_name(perl_package, inner->name()), options);
     }
 
     map_message(aTHX_ descriptor, perl_package, options);
@@ -745,7 +749,7 @@ void Dynamic::bind_enum(pTHX_ const string &perl_package, const EnumDescriptor *
         // due to an implementation quirk, some special names such as STDERR
         // are not looked up in stash, and need to be fully qualified
         if (is_in_main(value->name())) {
-            newCONSTSUB(stash, (perl_package + "::" + value->name()).c_str(),
+            newCONSTSUB(stash, fq_perl_name(perl_package, value->name()).c_str(),
                         newSVuv(value->number()));
         } else if (is_special_sub(value->name())) {
             bind_special_constant(aTHX_ value->name(), perl_package, value->number());
