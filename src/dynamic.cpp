@@ -293,7 +293,7 @@ namespace {
     void copy_and_bind(pTHX_ const char *name, const char *target, const string &perl_package, Refcounted *refcounted, void *obj) {
         static const char prefix[] = "Google::ProtocolBuffers::Dynamic::Mapper::";
         size_t length = strlen(name);
-        char buffer[sizeof(prefix) + length + 1];
+        char *buffer = static_cast<char *>(alloca(sizeof(prefix) + length + 1));
 
         memcpy(buffer, prefix, sizeof(prefix));
         strcpy(buffer + sizeof(prefix) - 1, name);
