@@ -237,11 +237,8 @@ SV *DescriptorOptionsWrapper::get_field(const FieldDescriptor *field) {
     }
     case CppType::CPPTYPE_MESSAGE:
         return &PL_sv_undef;
-    case CppType::CPPTYPE_ENUM: {
-        const EnumValueDescriptor *enumvalue_def = reflection->GetEnum(*options, field);
-
-        return enumvalue_def != NULL ? newSViv(enumvalue_def->number()) : 0;
-    }
+    case CppType::CPPTYPE_ENUM:
+        return newSViv(reflection->GetEnumValue(*options, field));
     case CppType::CPPTYPE_INT32:
         return newSViv(reflection->GetInt32(*options, field));
     case CppType::CPPTYPE_INT64:
