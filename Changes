@@ -2,6 +2,10 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.44_04   2026-11-28 09:59:04 CET
+
+    - Fixes for newer protobuf versions (tested with v36/5.36.0)
+
 0.44_03   2026-11-12 09:16:01 CET
 
     - Fixes for Perl 5.8-5.12
