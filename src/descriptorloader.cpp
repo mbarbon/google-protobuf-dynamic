@@ -196,10 +196,10 @@ DescriptorLoader::DescriptorLoader() :
 
     // make sure the descriptors are available in the generated pool (doing this for one descriptor
     // pulls in all the descriptors in the same file)
-    Duration::descriptor();
-    Timestamp::descriptor();
-    FloatValue::descriptor();
-    DescriptorProto::descriptor();
+    static_cast<void>(Duration::descriptor());
+    static_cast<void>(Timestamp::descriptor());
+    static_cast<void>(FloatValue::descriptor());
+    static_cast<void>(DescriptorProto::descriptor());
 }
 
 DescriptorLoader::~DescriptorLoader() { }
